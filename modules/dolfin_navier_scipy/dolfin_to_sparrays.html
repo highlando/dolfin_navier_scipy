@@ -1,0 +1,451 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>dolfin_navier_scipy.dolfin_to_sparrays &mdash; dolfin_navier_scipy 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="dolfin_navier_scipy 1.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">dolfin_navier_scipy 1.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for dolfin_navier_scipy.dolfin_to_sparrays</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">dolfin</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">scipy.sparse</span> <span class="kn">as</span> <span class="nn">sps</span>
+
+<span class="kn">from</span> <span class="nn">dolfin</span> <span class="kn">import</span> <span class="n">dx</span><span class="p">,</span> <span class="n">grad</span><span class="p">,</span> <span class="n">div</span><span class="p">,</span> <span class="n">inner</span>
+
+<span class="n">dolfin</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">linear_algebra_backend</span> <span class="o">=</span> <span class="s">&quot;uBLAS&quot;</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;get_stokessysmats&#39;</span><span class="p">,</span>
+           <span class="s">&#39;get_convmats&#39;</span><span class="p">,</span>
+           <span class="s">&#39;setget_rhs&#39;</span><span class="p">,</span>
+           <span class="s">&#39;get_curfv&#39;</span><span class="p">,</span>
+           <span class="s">&#39;get_convvec&#39;</span><span class="p">,</span>
+           <span class="s">&#39;condense_sysmatsbybcs&#39;</span><span class="p">,</span>
+           <span class="s">&#39;condense_velmatsbybcs&#39;</span><span class="p">,</span>
+           <span class="s">&#39;expand_vp_dolfunc&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="get_stokessysmats"><a class="viewcode-back" href="../../Code.html#dolfin_navier_scipy.dolfin_to_sparrays.get_stokessysmats">[docs]</a><span class="k">def</span> <span class="nf">get_stokessysmats</span><span class="p">(</span><span class="n">V</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">nu</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Assembles the system matrices for Stokes equation</span>
+
+<span class="sd">    in mixed FEM formulation, namely</span>
+
+<span class="sd">        [ A  J&#39; ] as [ Aa   Grada ] : W -&gt; W&#39;</span>
+<span class="sd">        [ J  0  ]    [ Diva   0   ]</span>
+
+<span class="sd">    plus the velocity and pressure mass matrices</span>
+
+<span class="sd">    for a given trial and test space W = V * Q</span>
+<span class="sd">    not considering boundary conditions.</span>
+
+<span class="sd">    :param V:</span>
+<span class="sd">        Fenics VectorFunctionSpace for the velocity</span>
+<span class="sd">    :param Q:</span>
+<span class="sd">        Fenics FunctionSpace for the pressure</span>
+<span class="sd">    :param nu:</span>
+<span class="sd">        viscosity parameter - defaults to 1</span>
+
+<span class="sd">    :return:</span>
+<span class="sd">        a dictionary with the following keys:</span>
+
+<span class="sd">        * ``M``: the mass matrix of the velocity space,</span>
+<span class="sd">        * ``A``: the stiffness matrix</span>
+<span class="sd">            :math:`\\nu (\nabla \\phi_i, \\nabla \\phi_j)`</span>
+<span class="sd">        * ``JT``: the gradient matrix,</span>
+<span class="sd">        * ``J``: the divergence matrix, and</span>
+<span class="sd">        * ``MP``: the mass matrix of the pressure space</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">u</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">TrialFunction</span><span class="p">(</span><span class="n">V</span><span class="p">)</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">TrialFunction</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
+    <span class="n">v</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">TestFunction</span><span class="p">(</span><span class="n">V</span><span class="p">)</span>
+    <span class="n">q</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">TestFunction</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
+
+    <span class="n">ma</span> <span class="o">=</span> <span class="n">inner</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="o">*</span> <span class="n">dx</span>
+    <span class="n">mp</span> <span class="o">=</span> <span class="n">inner</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span> <span class="o">*</span> <span class="n">dx</span>
+    <span class="n">aa</span> <span class="o">=</span> <span class="n">nu</span> <span class="o">*</span> <span class="n">inner</span><span class="p">(</span><span class="n">grad</span><span class="p">(</span><span class="n">u</span><span class="p">),</span> <span class="n">grad</span><span class="p">(</span><span class="n">v</span><span class="p">))</span> <span class="o">*</span> <span class="n">dx</span>
+    <span class="n">grada</span> <span class="o">=</span> <span class="n">div</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">*</span> <span class="n">p</span> <span class="o">*</span> <span class="n">dx</span>
+    <span class="n">diva</span> <span class="o">=</span> <span class="n">q</span> <span class="o">*</span> <span class="n">div</span><span class="p">(</span><span class="n">u</span><span class="p">)</span> <span class="o">*</span> <span class="n">dx</span>
+
+    <span class="c"># Assemble system</span>
+    <span class="n">M</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">assemble</span><span class="p">(</span><span class="n">ma</span><span class="p">)</span>
+    <span class="n">A</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">assemble</span><span class="p">(</span><span class="n">aa</span><span class="p">)</span>
+    <span class="n">Grad</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">assemble</span><span class="p">(</span><span class="n">grada</span><span class="p">)</span>
+    <span class="n">Div</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">assemble</span><span class="p">(</span><span class="n">diva</span><span class="p">)</span>
+    <span class="n">MP</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">assemble</span><span class="p">(</span><span class="n">mp</span><span class="p">)</span>
+
+    <span class="c"># Convert DOLFIN representation to scipy arrays</span>
+    <span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">values</span> <span class="o">=</span> <span class="n">M</span><span class="o">.</span><span class="n">data</span><span class="p">()</span>
+    <span class="n">Ma</span> <span class="o">=</span> <span class="n">sps</span><span class="o">.</span><span class="n">csr_matrix</span><span class="p">((</span><span class="n">values</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">rows</span><span class="p">))</span>
+
+    <span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">values</span> <span class="o">=</span> <span class="n">MP</span><span class="o">.</span><span class="n">data</span><span class="p">()</span>
+    <span class="n">MPa</span> <span class="o">=</span> <span class="n">sps</span><span class="o">.</span><span class="n">csr_matrix</span><span class="p">((</span><span class="n">values</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">rows</span><span class="p">))</span>
+
+    <span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">values</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">data</span><span class="p">()</span>
+    <span class="n">Aa</span> <span class="o">=</span> <span class="n">sps</span><span class="o">.</span><span class="n">csr_matrix</span><span class="p">((</span><span class="n">values</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">rows</span><span class="p">))</span>
+
+    <span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">values</span> <span class="o">=</span> <span class="n">Grad</span><span class="o">.</span><span class="n">data</span><span class="p">()</span>
+    <span class="n">JTa</span> <span class="o">=</span> <span class="n">sps</span><span class="o">.</span><span class="n">csr_matrix</span><span class="p">((</span><span class="n">values</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">rows</span><span class="p">))</span>
+
+    <span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">values</span> <span class="o">=</span> <span class="n">Div</span><span class="o">.</span><span class="n">data</span><span class="p">()</span>
+    <span class="n">Ja</span> <span class="o">=</span> <span class="n">sps</span><span class="o">.</span><span class="n">csr_matrix</span><span class="p">((</span><span class="n">values</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">rows</span><span class="p">))</span>
+
+    <span class="n">stokesmats</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;M&#39;</span><span class="p">:</span> <span class="n">Ma</span><span class="p">,</span>
+                  <span class="s">&#39;A&#39;</span><span class="p">:</span> <span class="n">Aa</span><span class="p">,</span>
+                  <span class="s">&#39;JT&#39;</span><span class="p">:</span> <span class="n">JTa</span><span class="p">,</span>
+                  <span class="s">&#39;J&#39;</span><span class="p">:</span> <span class="n">Ja</span><span class="p">,</span>
+                  <span class="s">&#39;MP&#39;</span><span class="p">:</span> <span class="n">MPa</span><span class="p">}</span>
+
+    <span class="k">return</span> <span class="n">stokesmats</span>
+
+</div>
+<div class="viewcode-block" id="get_convmats"><a class="viewcode-back" href="../../Code.html#dolfin_navier_scipy.dolfin_to_sparrays.get_convmats">[docs]</a><span class="k">def</span> <span class="nf">get_convmats</span><span class="p">(</span><span class="n">u0_dolfun</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">u0_vec</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">V</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">invinds</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">diribcs</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;returns the matrices related to the linearized convection</span>
+
+<span class="sd">    N1 ~ (u_0 \nabla u) v</span>
+<span class="sd">    N2 ~ (u \nabla u_0) v</span>
+
+<span class="sd">    where u_0 is the linearization point&quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">u0_vec</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">u0</span><span class="p">,</span> <span class="n">p</span> <span class="o">=</span> <span class="n">expand_vp_dolfunc</span><span class="p">(</span><span class="n">vc</span><span class="o">=</span><span class="n">u0_vec</span><span class="p">,</span> <span class="n">V</span><span class="o">=</span><span class="n">V</span><span class="p">,</span> <span class="n">diribcs</span><span class="o">=</span><span class="n">diribcs</span><span class="p">,</span>
+                                  <span class="n">invinds</span><span class="o">=</span><span class="n">invinds</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">u0</span> <span class="o">=</span> <span class="n">u0_dolfun</span>
+
+    <span class="n">u</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">TrialFunction</span><span class="p">(</span><span class="n">V</span><span class="p">)</span>
+    <span class="n">v</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">TestFunction</span><span class="p">(</span><span class="n">V</span><span class="p">)</span>
+
+    <span class="c"># Assemble system</span>
+    <span class="n">n1</span> <span class="o">=</span> <span class="n">inner</span><span class="p">(</span><span class="n">grad</span><span class="p">(</span><span class="n">u</span><span class="p">)</span> <span class="o">*</span> <span class="n">u0</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="o">*</span> <span class="n">dx</span>
+    <span class="n">n2</span> <span class="o">=</span> <span class="n">inner</span><span class="p">(</span><span class="n">grad</span><span class="p">(</span><span class="n">u0</span><span class="p">)</span> <span class="o">*</span> <span class="n">u</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="o">*</span> <span class="n">dx</span>
+    <span class="n">f3</span> <span class="o">=</span> <span class="n">inner</span><span class="p">(</span><span class="n">grad</span><span class="p">(</span><span class="n">u0</span><span class="p">)</span> <span class="o">*</span> <span class="n">u0</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="o">*</span> <span class="n">dx</span>
+
+    <span class="n">n1</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">assemble</span><span class="p">(</span><span class="n">n1</span><span class="p">)</span>
+    <span class="n">n2</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">assemble</span><span class="p">(</span><span class="n">n2</span><span class="p">)</span>
+    <span class="n">f3</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">assemble</span><span class="p">(</span><span class="n">f3</span><span class="p">)</span>
+
+    <span class="c"># Convert DOLFIN representation to scipy arrays</span>
+    <span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">values</span> <span class="o">=</span> <span class="n">n1</span><span class="o">.</span><span class="n">data</span><span class="p">()</span>
+    <span class="n">N1</span> <span class="o">=</span> <span class="n">sps</span><span class="o">.</span><span class="n">csr_matrix</span><span class="p">((</span><span class="n">values</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">rows</span><span class="p">))</span>
+
+    <span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">values</span> <span class="o">=</span> <span class="n">n2</span><span class="o">.</span><span class="n">data</span><span class="p">()</span>
+    <span class="n">N2</span> <span class="o">=</span> <span class="n">sps</span><span class="o">.</span><span class="n">csr_matrix</span><span class="p">((</span><span class="n">values</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">rows</span><span class="p">))</span>
+
+    <span class="n">fv</span> <span class="o">=</span> <span class="n">f3</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+    <span class="n">fv</span> <span class="o">=</span> <span class="n">fv</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">fv</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">N1</span><span class="p">,</span> <span class="n">N2</span><span class="p">,</span> <span class="n">fv</span>
+
+</div>
+<span class="k">def</span> <span class="nf">setget_rhs</span><span class="p">(</span><span class="n">V</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">fv</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+
+    <span class="k">if</span> <span class="n">t</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">fv</span><span class="o">.</span><span class="n">t</span> <span class="o">=</span> <span class="n">t</span>
+        <span class="n">fp</span><span class="o">.</span><span class="n">t</span> <span class="o">=</span> <span class="n">t</span>
+    <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">fv</span><span class="p">,</span> <span class="s">&#39;t&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="s">&#39;t&#39;</span><span class="p">):</span>
+        <span class="ne">Warning</span><span class="p">(</span><span class="s">&#39;No value for t specified&#39;</span><span class="p">)</span>
+
+    <span class="n">v</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">TestFunction</span><span class="p">(</span><span class="n">V</span><span class="p">)</span>
+    <span class="n">q</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">TestFunction</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
+
+    <span class="n">fv</span> <span class="o">=</span> <span class="n">inner</span><span class="p">(</span><span class="n">fv</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="o">*</span> <span class="n">dx</span>
+    <span class="n">fp</span> <span class="o">=</span> <span class="n">inner</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span> <span class="o">*</span> <span class="n">dx</span>
+
+    <span class="n">fv</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">assemble</span><span class="p">(</span><span class="n">fv</span><span class="p">)</span>
+    <span class="n">fp</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">assemble</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span>
+
+    <span class="n">fv</span> <span class="o">=</span> <span class="n">fv</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+    <span class="n">fv</span> <span class="o">=</span> <span class="n">fv</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">fv</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">fp</span> <span class="o">=</span> <span class="n">fp</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+    <span class="n">fp</span> <span class="o">=</span> <span class="n">fp</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">fp</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">rhsvecs</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;fv&#39;</span><span class="p">:</span> <span class="n">fv</span><span class="p">,</span>
+               <span class="s">&#39;fp&#39;</span><span class="p">:</span> <span class="n">fp</span><span class="p">}</span>
+
+    <span class="k">return</span> <span class="n">rhsvecs</span>
+
+
+<div class="viewcode-block" id="get_curfv"><a class="viewcode-back" href="../../Code.html#dolfin_navier_scipy.dolfin_to_sparrays.get_curfv">[docs]</a><span class="k">def</span> <span class="nf">get_curfv</span><span class="p">(</span><span class="n">V</span><span class="p">,</span> <span class="n">fv</span><span class="p">,</span> <span class="n">invinds</span><span class="p">,</span> <span class="n">tcur</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;get the fv at innernotes at t=tcur</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">v</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">TestFunction</span><span class="p">(</span><span class="n">V</span><span class="p">)</span>
+
+    <span class="n">fv</span><span class="o">.</span><span class="n">t</span> <span class="o">=</span> <span class="n">tcur</span>
+
+    <span class="n">fv</span> <span class="o">=</span> <span class="n">inner</span><span class="p">(</span><span class="n">fv</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="o">*</span> <span class="n">dx</span>
+
+    <span class="n">fv</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">assemble</span><span class="p">(</span><span class="n">fv</span><span class="p">)</span>
+
+    <span class="n">fv</span> <span class="o">=</span> <span class="n">fv</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+    <span class="n">fv</span> <span class="o">=</span> <span class="n">fv</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">fv</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">fv</span><span class="p">[</span><span class="n">invinds</span><span class="p">,</span> <span class="p">:]</span>
+
+</div>
+<div class="viewcode-block" id="get_convvec"><a class="viewcode-back" href="../../Code.html#dolfin_navier_scipy.dolfin_to_sparrays.get_convvec">[docs]</a><span class="k">def</span> <span class="nf">get_convvec</span><span class="p">(</span><span class="n">u0_dolfun</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">V</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">u0_vec</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">femp</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;return the convection vector e.g. for explicit schemes</span>
+
+<span class="sd">    given a dolfin function or the coefficient vector</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">u0_vec</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">u0</span><span class="p">,</span> <span class="n">p</span> <span class="o">=</span> <span class="n">expand_vp_dolfunc</span><span class="p">(</span><span class="n">vc</span><span class="o">=</span><span class="n">u0_vec</span><span class="p">,</span> <span class="n">V</span><span class="o">=</span><span class="n">V</span><span class="p">,</span> <span class="n">diribcs</span><span class="o">=</span><span class="n">femp</span><span class="p">[</span><span class="s">&#39;diribcs&#39;</span><span class="p">],</span>
+                                  <span class="n">invinds</span><span class="o">=</span><span class="n">femp</span><span class="p">[</span><span class="s">&#39;invinds&#39;</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">u0</span> <span class="o">=</span> <span class="n">u0_dolfun</span>
+
+    <span class="n">v</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">TestFunction</span><span class="p">(</span><span class="n">V</span><span class="p">)</span>
+    <span class="n">ConvForm</span> <span class="o">=</span> <span class="n">inner</span><span class="p">(</span><span class="n">grad</span><span class="p">(</span><span class="n">u0</span><span class="p">)</span> <span class="o">*</span> <span class="n">u0</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="o">*</span> <span class="n">dx</span>
+
+    <span class="n">ConvForm</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">assemble</span><span class="p">(</span><span class="n">ConvForm</span><span class="p">)</span>
+    <span class="n">ConvVec</span> <span class="o">=</span> <span class="n">ConvForm</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+    <span class="n">ConvVec</span> <span class="o">=</span> <span class="n">ConvVec</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ConvVec</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">ConvVec</span>
+
+</div>
+<div class="viewcode-block" id="condense_sysmatsbybcs"><a class="viewcode-back" href="../../Code.html#dolfin_navier_scipy.dolfin_to_sparrays.condense_sysmatsbybcs">[docs]</a><span class="k">def</span> <span class="nf">condense_sysmatsbybcs</span><span class="p">(</span><span class="n">stms</span><span class="p">,</span> <span class="n">velbcs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;resolve the Dirichlet BCs and condense the system matrices</span>
+
+<span class="sd">    to the inner nodes</span>
+
+<span class="sd">    :param stms:</span>
+<span class="sd">        dictionary of the stokes matrices with the keys</span>
+<span class="sd">        * ``M``: the mass matrix of the velocity space,</span>
+<span class="sd">        * ``A``: the stiffness matrix,</span>
+<span class="sd">        * ``JT``: the gradient matrix,</span>
+<span class="sd">        * ``J``: the divergence matrix, and</span>
+<span class="sd">        * ``MP``: the mass matrix of the pressure space</span>
+
+<span class="sd">    :param velbcs:</span>
+<span class="sd">        a list of dolfin Dirichlet boundary conditions for the velocity</span>
+
+<span class="sd">    :return stokesmatsc:</span>
+<span class="sd">        a dictionary of the condensed matrices:</span>
+<span class="sd">        * ``M``: the mass matrix of the velocity space,</span>
+<span class="sd">        * ``A``: the stiffness matrix,</span>
+<span class="sd">        * ``JT``: the gradient matrix, and</span>
+<span class="sd">        * ``J``: the divergence matrix</span>
+
+<span class="sd">    :return rhsvecsbc:</span>
+<span class="sd">        a dictionary of the contributions of the boundary data to the rhs:</span>
+<span class="sd">        * ``fv``: contribution to momentum equation,</span>
+<span class="sd">        * ``fp``: contribution to continuity equation</span>
+
+<span class="sd">    :return invinds:</span>
+<span class="sd">        vector of indices of the inner nodes</span>
+
+<span class="sd">    :return bcinds:</span>
+<span class="sd">        vector of indices of the boundary nodes</span>
+
+<span class="sd">    :return bcvals:</span>
+<span class="sd">        vector of the values of the boundary nodes</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">nv</span> <span class="o">=</span> <span class="n">stms</span><span class="p">[</span><span class="s">&#39;A&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">auxu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">nv</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="n">bcinds</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">bc</span> <span class="ow">in</span> <span class="n">velbcs</span><span class="p">:</span>
+        <span class="n">bcdict</span> <span class="o">=</span> <span class="n">bc</span><span class="o">.</span><span class="n">get_boundary_values</span><span class="p">()</span>
+        <span class="n">auxu</span><span class="p">[</span><span class="n">bcdict</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">bcdict</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+        <span class="n">bcinds</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">bcdict</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+    <span class="c"># putting the bcs into the right hand sides</span>
+    <span class="n">fvbc</span> <span class="o">=</span> <span class="o">-</span> <span class="n">stms</span><span class="p">[</span><span class="s">&#39;A&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">auxu</span>    <span class="c"># &#39;*&#39; is np.dot for csr matrices</span>
+    <span class="n">fpbc</span> <span class="o">=</span> <span class="o">-</span> <span class="n">stms</span><span class="p">[</span><span class="s">&#39;J&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">auxu</span>
+
+    <span class="c"># indices of the innernodes</span>
+    <span class="n">invinds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">setdiff1d</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">nv</span><span class="p">),</span> <span class="n">bcinds</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+
+    <span class="c"># extract the inner nodes equation coefficients</span>
+    <span class="n">Mc</span> <span class="o">=</span> <span class="n">stms</span><span class="p">[</span><span class="s">&#39;M&#39;</span><span class="p">][</span><span class="n">invinds</span><span class="p">,</span> <span class="p">:][:,</span> <span class="n">invinds</span><span class="p">]</span>
+    <span class="n">Ac</span> <span class="o">=</span> <span class="n">stms</span><span class="p">[</span><span class="s">&#39;A&#39;</span><span class="p">][</span><span class="n">invinds</span><span class="p">,</span> <span class="p">:][:,</span> <span class="n">invinds</span><span class="p">]</span>
+    <span class="n">fvbc</span> <span class="o">=</span> <span class="n">fvbc</span><span class="p">[</span><span class="n">invinds</span><span class="p">,</span> <span class="p">:]</span>
+    <span class="n">Jc</span> <span class="o">=</span> <span class="n">stms</span><span class="p">[</span><span class="s">&#39;J&#39;</span><span class="p">][:,</span> <span class="n">invinds</span><span class="p">]</span>
+    <span class="n">JTc</span> <span class="o">=</span> <span class="n">stms</span><span class="p">[</span><span class="s">&#39;JT&#39;</span><span class="p">][</span><span class="n">invinds</span><span class="p">,</span> <span class="p">:]</span>
+
+    <span class="n">bcvals</span> <span class="o">=</span> <span class="n">auxu</span><span class="p">[</span><span class="n">bcinds</span><span class="p">]</span>
+
+    <span class="n">stokesmatsc</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;M&#39;</span><span class="p">:</span> <span class="n">Mc</span><span class="p">,</span>
+                   <span class="s">&#39;A&#39;</span><span class="p">:</span> <span class="n">Ac</span><span class="p">,</span>
+                   <span class="s">&#39;JT&#39;</span><span class="p">:</span> <span class="n">JTc</span><span class="p">,</span>
+                   <span class="s">&#39;J&#39;</span><span class="p">:</span> <span class="n">Jc</span><span class="p">}</span>
+
+    <span class="n">rhsvecsbc</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;fv&#39;</span><span class="p">:</span> <span class="n">fvbc</span><span class="p">,</span>
+                 <span class="s">&#39;fp&#39;</span><span class="p">:</span> <span class="n">fpbc</span><span class="p">}</span>
+
+    <span class="k">return</span> <span class="n">stokesmatsc</span><span class="p">,</span> <span class="n">rhsvecsbc</span><span class="p">,</span> <span class="n">invinds</span><span class="p">,</span> <span class="n">bcinds</span><span class="p">,</span> <span class="n">bcvals</span>
+
+</div>
+<div class="viewcode-block" id="condense_velmatsbybcs"><a class="viewcode-back" href="../../Code.html#dolfin_navier_scipy.dolfin_to_sparrays.condense_velmatsbybcs">[docs]</a><span class="k">def</span> <span class="nf">condense_velmatsbybcs</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">velbcs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;resolve the Dirichlet BCs, condense velocity related matrices</span>
+
+<span class="sd">    to the inner nodes, and compute the rhs contribution</span>
+<span class="sd">    This is necessary when, e.g., the convection matrix changes with time</span>
+
+<span class="sd">    :param A:</span>
+<span class="sd">        coefficient matrix for the velocity</span>
+<span class="sd">    :param velbcs:</span>
+<span class="sd">        a list of dolfin Dirichlet boundary conditions for the velocity</span>
+
+<span class="sd">    :return Ac:</span>
+<span class="sd">        the condensed velocity matrix</span>
+<span class="sd">    :return fvbc:</span>
+<span class="sd">        the contribution to the rhs of the momentum equation</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">nv</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">auxu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">nv</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="n">bcinds</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">bc</span> <span class="ow">in</span> <span class="n">velbcs</span><span class="p">:</span>
+        <span class="n">bcdict</span> <span class="o">=</span> <span class="n">bc</span><span class="o">.</span><span class="n">get_boundary_values</span><span class="p">()</span>
+        <span class="n">auxu</span><span class="p">[</span><span class="n">bcdict</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">bcdict</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+        <span class="n">bcinds</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">bcdict</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+    <span class="c"># putting the bcs into the right hand sides</span>
+    <span class="n">fvbc</span> <span class="o">=</span> <span class="o">-</span> <span class="n">A</span> <span class="o">*</span> <span class="n">auxu</span>    <span class="c"># &#39;*&#39; is np.dot for csr matrices</span>
+
+    <span class="c"># indices of the innernodes</span>
+    <span class="n">invinds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">setdiff1d</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">nv</span><span class="p">),</span> <span class="n">bcinds</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+
+    <span class="c"># extract the inner nodes equation coefficients</span>
+    <span class="n">Ac</span> <span class="o">=</span> <span class="n">A</span><span class="p">[</span><span class="n">invinds</span><span class="p">,</span> <span class="p">:][:,</span> <span class="n">invinds</span><span class="p">]</span>
+    <span class="n">fvbc</span> <span class="o">=</span> <span class="n">fvbc</span><span class="p">[</span><span class="n">invinds</span><span class="p">,</span> <span class="p">:]</span>
+
+    <span class="k">return</span> <span class="n">Ac</span><span class="p">,</span> <span class="n">fvbc</span>
+
+</div>
+<div class="viewcode-block" id="expand_vp_dolfunc"><a class="viewcode-back" href="../../Code.html#dolfin_navier_scipy.dolfin_to_sparrays.expand_vp_dolfunc">[docs]</a><span class="k">def</span> <span class="nf">expand_vp_dolfunc</span><span class="p">(</span><span class="n">V</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">Q</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">invinds</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">diribcs</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">vp</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                      <span class="n">vc</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">pc</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;expand v [and p] to the dolfin function representation</span>
+
+<span class="sd">    pdof = pressure dof that was set zero</span>
+
+<span class="sd">    This function returns v as a dolfunc and - if specified - p</span>
+<span class="sd">    Error if:</span>
+<span class="sd">        - not enough input to expand v and maybe p</span>
+<span class="sd">        - only p is to be expanded</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">vp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">vc</span> <span class="o">=</span> <span class="n">vp</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">invinds</span><span class="p">),</span> <span class="p">:]</span>
+        <span class="n">pc</span> <span class="o">=</span> <span class="n">vp</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">invinds</span><span class="p">):,</span> <span class="p">:]</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">Function</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">pc</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">Function</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
+
+    <span class="n">v</span> <span class="o">=</span> <span class="n">dolfin</span><span class="o">.</span><span class="n">Function</span><span class="p">(</span><span class="n">V</span><span class="p">)</span>
+    <span class="n">ve</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">V</span><span class="o">.</span><span class="n">dim</span><span class="p">(),</span> <span class="mi">1</span><span class="p">))</span>
+
+    <span class="c"># fill in the boundary values</span>
+    <span class="k">for</span> <span class="n">bc</span> <span class="ow">in</span> <span class="n">diribcs</span><span class="p">:</span>
+        <span class="n">bcdict</span> <span class="o">=</span> <span class="n">bc</span><span class="o">.</span><span class="n">get_boundary_values</span><span class="p">()</span>
+        <span class="n">ve</span><span class="p">[</span><span class="n">bcdict</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">bcdict</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+
+    <span class="n">ve</span><span class="p">[</span><span class="n">invinds</span><span class="p">]</span> <span class="o">=</span> <span class="n">vc</span>
+
+    <span class="k">if</span> <span class="n">pc</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">pe</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">pc</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+        <span class="n">p</span><span class="o">.</span><span class="n">vector</span><span class="p">()</span><span class="o">.</span><span class="n">set_local</span><span class="p">(</span><span class="n">pe</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="n">v</span><span class="o">.</span><span class="n">vector</span><span class="p">()</span><span class="o">.</span><span class="n">set_local</span><span class="p">(</span><span class="n">ve</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">v</span><span class="p">,</span> <span class="n">p</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">dolfin_navier_scipy 1.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, highlando.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

@@ -37,6 +37,9 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
           <a href="index.html" title="Welcome to dolfin navier scipy’s documentation!"
              accesskey="P">previous</a> |</li>
         <li><a href="index.html">dolfin_navier_scipy 1.0 documentation</a> &raquo;</li> 
@@ -48,8 +51,176 @@
         <div class="bodywrapper">
           <div class="body">
             
-  <div class="section" id="code-reference">
-<h1>Code Reference<a class="headerlink" href="#code-reference" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="module-dolfin_navier_scipy.dolfin_to_sparrays">
+<span id="code-reference"></span><h1>Code Reference<a class="headerlink" href="#module-dolfin_navier_scipy.dolfin_to_sparrays" title="Permalink to this headline">¶</a></h1>
+<dl class="function">
+<dt id="dolfin_navier_scipy.dolfin_to_sparrays.get_stokessysmats">
+<tt class="descclassname">dolfin_navier_scipy.dolfin_to_sparrays.</tt><tt class="descname">get_stokessysmats</tt><big>(</big><em>V</em>, <em>Q</em>, <em>nu=1</em><big>)</big><a class="reference internal" href="modules/dolfin_navier_scipy/dolfin_to_sparrays.html#get_stokessysmats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dolfin_navier_scipy.dolfin_to_sparrays.get_stokessysmats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Assembles the system matrices for Stokes equation</p>
+<blockquote>
+<div><p>in mixed FEM formulation, namely</p>
+<blockquote>
+<div>[ A  J&#8217; ] as [ Aa   Grada ] : W -&gt; W&#8217;
+[ J  0  ]    [ Diva   0   ]</div></blockquote>
+<p>plus the velocity and pressure mass matrices</p>
+<p>for a given trial and test space W = V * Q
+not considering boundary conditions.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">param V:</th><td class="field-body"><p class="first">Fenics VectorFunctionSpace for the velocity</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">param Q:</th><td class="field-body"><p class="first">Fenics FunctionSpace for the pressure</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">param nu:</th><td class="field-body"><p class="first">viscosity parameter - defaults to 1</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">return:</th><td class="field-body"><p class="first">a dictionary with the following keys:</p>
+<ul class="last">
+<li><p class="first"><tt class="docutils literal"><span class="pre">M</span></tt>: the mass matrix of the velocity space,</p>
+</li>
+<li><dl class="first docutils">
+<dt><tt class="docutils literal"><span class="pre">A</span></tt>: the stiffness matrix</dt>
+<dd><p class="first last">:math:<a href="#id1"><span class="problematic" id="id2">`</span></a>nu (</p>
+</dd>
+</dl>
+</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<dl class="docutils">
+<dt>abla phi_i, nabla phi_j)`</dt>
+<dd><ul class="first last simple">
+<li><tt class="docutils literal"><span class="pre">JT</span></tt>: the gradient matrix,</li>
+<li><tt class="docutils literal"><span class="pre">J</span></tt>: the divergence matrix, and</li>
+<li><tt class="docutils literal"><span class="pre">MP</span></tt>: the mass matrix of the pressure space</li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="dolfin_navier_scipy.dolfin_to_sparrays.get_convmats">
+<tt class="descclassname">dolfin_navier_scipy.dolfin_to_sparrays.</tt><tt class="descname">get_convmats</tt><big>(</big><em>u0_dolfun=None</em>, <em>u0_vec=None</em>, <em>V=None</em>, <em>invinds=None</em>, <em>diribcs=None</em><big>)</big><a class="reference internal" href="modules/dolfin_navier_scipy/dolfin_to_sparrays.html#get_convmats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dolfin_navier_scipy.dolfin_to_sparrays.get_convmats" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns the matrices related to the linearized convection</p>
+<blockquote>
+<div>N1 ~ (u_0</div></blockquote>
+<dl class="docutils">
+<dt>abla u) v</dt>
+<dd>N2 ~ (u</dd>
+</dl>
+<p>abla u_0) v</p>
+<blockquote>
+<div>where u_0 is the linearization point</div></blockquote>
+</dd></dl>
+
+<dl class="function">
+<dt id="dolfin_navier_scipy.dolfin_to_sparrays.get_curfv">
+<tt class="descclassname">dolfin_navier_scipy.dolfin_to_sparrays.</tt><tt class="descname">get_curfv</tt><big>(</big><em>V</em>, <em>fv</em>, <em>invinds</em>, <em>tcur</em><big>)</big><a class="reference internal" href="modules/dolfin_navier_scipy/dolfin_to_sparrays.html#get_curfv"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dolfin_navier_scipy.dolfin_to_sparrays.get_curfv" title="Permalink to this definition">¶</a></dt>
+<dd><p>get the fv at innernotes at t=tcur</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="dolfin_navier_scipy.dolfin_to_sparrays.get_convvec">
+<tt class="descclassname">dolfin_navier_scipy.dolfin_to_sparrays.</tt><tt class="descname">get_convvec</tt><big>(</big><em>u0_dolfun=None</em>, <em>V=None</em>, <em>u0_vec=None</em>, <em>femp=None</em><big>)</big><a class="reference internal" href="modules/dolfin_navier_scipy/dolfin_to_sparrays.html#get_convvec"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dolfin_navier_scipy.dolfin_to_sparrays.get_convvec" title="Permalink to this definition">¶</a></dt>
+<dd><p>return the convection vector e.g. for explicit schemes</p>
+<p>given a dolfin function or the coefficient vector</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="dolfin_navier_scipy.dolfin_to_sparrays.condense_sysmatsbybcs">
+<tt class="descclassname">dolfin_navier_scipy.dolfin_to_sparrays.</tt><tt class="descname">condense_sysmatsbybcs</tt><big>(</big><em>stms</em>, <em>velbcs</em><big>)</big><a class="reference internal" href="modules/dolfin_navier_scipy/dolfin_to_sparrays.html#condense_sysmatsbybcs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dolfin_navier_scipy.dolfin_to_sparrays.condense_sysmatsbybcs" title="Permalink to this definition">¶</a></dt>
+<dd><p>resolve the Dirichlet BCs and condense the system matrices</p>
+<p>to the inner nodes</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>stms</strong> &#8211; dictionary of the stokes matrices with the keys
+* <tt class="docutils literal"><span class="pre">M</span></tt>: the mass matrix of the velocity space,
+* <tt class="docutils literal"><span class="pre">A</span></tt>: the stiffness matrix,
+* <tt class="docutils literal"><span class="pre">JT</span></tt>: the gradient matrix,
+* <tt class="docutils literal"><span class="pre">J</span></tt>: the divergence matrix, and
+* <tt class="docutils literal"><span class="pre">MP</span></tt>: the mass matrix of the pressure space</li>
+<li><strong>velbcs</strong> &#8211; a list of dolfin Dirichlet boundary conditions for the velocity</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name" colspan="2">Return stokesmatsc:</th></tr>
+<tr class="field-even field"><td>&nbsp;</td><td class="field-body"><p class="first">a dictionary of the condensed matrices:
+* <tt class="docutils literal"><span class="pre">M</span></tt>: the mass matrix of the velocity space,
+* <tt class="docutils literal"><span class="pre">A</span></tt>: the stiffness matrix,
+* <tt class="docutils literal"><span class="pre">JT</span></tt>: the gradient matrix, and
+* <tt class="docutils literal"><span class="pre">J</span></tt>: the divergence matrix</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name" colspan="2">Return rhsvecsbc:</th></tr>
+<tr class="field-odd field"><td>&nbsp;</td><td class="field-body"><p class="first">a dictionary of the contributions of the boundary data to the rhs:
+* <tt class="docutils literal"><span class="pre">fv</span></tt>: contribution to momentum equation,
+* <tt class="docutils literal"><span class="pre">fp</span></tt>: contribution to continuity equation</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return invinds:</th><td class="field-body"><p class="first">vector of indices of the inner nodes</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return bcinds:</th><td class="field-body"><p class="first">vector of indices of the boundary nodes</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return bcvals:</th><td class="field-body"><p class="first last">vector of the values of the boundary nodes</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="dolfin_navier_scipy.dolfin_to_sparrays.condense_velmatsbybcs">
+<tt class="descclassname">dolfin_navier_scipy.dolfin_to_sparrays.</tt><tt class="descname">condense_velmatsbybcs</tt><big>(</big><em>A</em>, <em>velbcs</em><big>)</big><a class="reference internal" href="modules/dolfin_navier_scipy/dolfin_to_sparrays.html#condense_velmatsbybcs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dolfin_navier_scipy.dolfin_to_sparrays.condense_velmatsbybcs" title="Permalink to this definition">¶</a></dt>
+<dd><p>resolve the Dirichlet BCs, condense velocity related matrices</p>
+<p>to the inner nodes, and compute the rhs contribution
+This is necessary when, e.g., the convection matrix changes with time</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>A</strong> &#8211; coefficient matrix for the velocity</li>
+<li><strong>velbcs</strong> &#8211; a list of dolfin Dirichlet boundary conditions for the velocity</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return Ac:</th><td class="field-body"><p class="first">the condensed velocity matrix</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return fvbc:</th><td class="field-body"><p class="first last">the contribution to the rhs of the momentum equation</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="dolfin_navier_scipy.dolfin_to_sparrays.expand_vp_dolfunc">
+<tt class="descclassname">dolfin_navier_scipy.dolfin_to_sparrays.</tt><tt class="descname">expand_vp_dolfunc</tt><big>(</big><em>V=None</em>, <em>Q=None</em>, <em>invinds=None</em>, <em>diribcs=None</em>, <em>vp=None</em>, <em>vc=None</em>, <em>pc=None</em><big>)</big><a class="reference internal" href="modules/dolfin_navier_scipy/dolfin_to_sparrays.html#expand_vp_dolfunc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dolfin_navier_scipy.dolfin_to_sparrays.expand_vp_dolfunc" title="Permalink to this definition">¶</a></dt>
+<dd><p>expand v [and p] to the dolfin function representation</p>
+<p>pdof = pressure dof that was set zero</p>
+<p>This function returns v as a dolfunc and - if specified - p
+Error if:</p>
+<blockquote>
+<div><ul class="simple">
+<li>not enough input to expand v and maybe p</li>
+<li>only p is to be expanded</li>
+</ul>
+</div></blockquote>
+</dd></dl>
+
 </div>
 
 
@@ -89,6 +260,9 @@
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
         <li class="right" >
           <a href="index.html" title="Welcome to dolfin navier scipy’s documentation!"
              >previous</a> |</li>
