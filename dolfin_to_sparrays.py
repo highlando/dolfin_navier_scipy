@@ -6,6 +6,15 @@ from dolfin import dx, grad, div, inner
 
 dolfin.parameters.linear_algebra_backend = "uBLAS"
 
+__all__ = ['get_stokessysmats',
+           'get_convmats',
+           'setget_rhs',
+           'get_curfv',
+           'get_convvec',
+           'condense_sysmatsbybcs',
+           'condense_velmatsbybcs',
+           'expand_vp_dolfunc']
+
 
 def get_stokessysmats(V, Q, nu=1):
     """ Assembles the system matrices for Stokes equation

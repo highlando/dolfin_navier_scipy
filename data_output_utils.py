@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.io
-from dolfin_to_nparrays import expand_vp_dolfunc
+from dolfin_to_sparrays import expand_vp_dolfunc
 
 
 def output_paraview(tip, femp, vp=None, t=None):
