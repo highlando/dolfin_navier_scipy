@@ -1,32 +1,17 @@
-<<<<<<< HEAD
-
 .. dolfin navier scipy documentation master file, created by
    sphinx-quickstart on Wed Jan  8 21:14:41 2014.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
 Welcome to dolfin navier scipy's documentation!
-=======
-.. dolfin_navier_scipy documentation master file, created by
-   sphinx-quickstart on Wed Jan  8 20:44:45 2014.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-Welcome to dolfin_navier_scipy's documentation!
->>>>>>> 662ea23b1fbe00e9dc7eba48b90f71b962c1d380
 ===============================================
 
 Contents:
 
 .. toctree::
-<<<<<<< HEAD
   :maxdepth: 2
 
   Code
-=======
-   :maxdepth: 2
-
->>>>>>> 662ea23b1fbe00e9dc7eba48b90f71b962c1d380
 
 
 Indices and tables
