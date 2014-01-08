@@ -1,0 +1,1 @@
+Search.setIndex({objects:{},terms:{index:0,search:0,scipi:0,welcom:0,modul:0,navier:0,indic:0,content:0,code:[0,1],tabl:0,document:0,page:0,dolfin:0,refer:[0,1]},objtypes:{},titles:["Welcome to dolfin navier scipy&#8217;s documentation!","Code Reference"],objnames:{},filenames:["index","Code"]})
