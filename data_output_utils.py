@@ -6,10 +6,13 @@ import dolfin
 
 def output_paraview(V=None, Q=None, fstring='nn',
                     invinds=None, diribcs=None,
-                    vp=None, t=None):
+                    vp=None, t=None, writeoutput=True):
     """write the paraview output for a solution vector vp
 
     """
+
+    if not writeoutput:
+        return
 
     v, p = expand_vp_dolfunc(V=V, Q=Q, vp=vp,
                              invinds=invinds,
