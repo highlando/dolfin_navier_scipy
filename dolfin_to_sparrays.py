@@ -21,8 +21,17 @@ def get_stokessysmats(V, Q, nu=1):
 
     in mixed FEM formulation, namely
 
-        [ A  J' ] as [ Aa   Grada ] : W -> W'
-        [ J  0  ]    [ Diva   0   ]
+    .. math::
+
+        \\begin{bmatrix} A & -J' \\\\ J & 0 \\end{bmatrix}\
+        \\colon V \\times Q \\to V' \\times Q'
+
+    as the discrete representation of
+
+    .. math::
+
+        \\begin{bmatrix} -\\Delta & \\text{grad} \\\\ \
+        \\text{div} & 0 \\end{bmatrix}
 
     plus the velocity and pressure mass matrices
 
@@ -38,13 +47,13 @@ def get_stokessysmats(V, Q, nu=1):
 
     :return:
         a dictionary with the following keys:
+            * ``M``: the mass matrix of the velocity space,
+            * ``A``: the stiffness matrix :math:` \\nu (\\nabla \\phi_i, \\nabla \\phi_j)`
+            * ``JT``: the gradient matrix,
+            * ``J``: the divergence matrix, and
+            * ``MP``: the mass matrix of the pressure space
 
-        * ``M``: the mass matrix of the velocity space,
-        * ``A``: the stiffness matrix
-            :math:`\\nu (\nabla \\phi_i, \\nabla \\phi_j)`
-        * ``JT``: the gradient matrix,
-        * ``J``: the divergence matrix, and
-        * ``MP``: the mass matrix of the pressure space
+
 
     """
 
@@ -98,7 +107,9 @@ def get_convmats(u0_dolfun=None, u0_vec=None, V=None, invinds=None,
     N1 ~ (u_0 \nabla u) v
     N2 ~ (u \nabla u_0) v
 
-    where u_0 is the linearization point"""
+    where u_0 is the linearization point
+
+    """
 
     if u0_vec is not None:
         u0, p = expand_vp_dolfunc(vc=u0_vec, V=V, diribcs=diribcs,
