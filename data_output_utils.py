@@ -1,22 +1,28 @@
 import numpy as np
 import scipy.io
 from dolfin_to_sparrays import expand_vp_dolfunc
+import dolfin
 
 
-def output_paraview(tip, femp, vp=None, t=None):
+def output_paraview(V=None, Q=None, fstring='nn',
+                    invinds=None, diribcs=None,
+                    vp=None, t=None):
     """write the paraview output for a solution vector vp
 
     """
 
-    v, p = expand_vp_dolfunc(V=femp['V'], Q=femp['Q'], vp=vp,
-                             invinds=femp['invinds'],
-                             diribcs=femp['diribcs'])
+    v, p = expand_vp_dolfunc(V=V, Q=Q, vp=vp,
+                             invinds=invinds,
+                             diribcs=diribcs)
 
     v.rename('v', 'velocity')
     p.rename('p', 'pressure')
 
-    tip['vfile'] << v, t
-    tip['pfile'] << p, t
+    pfile = dolfin.File(fstring+'_p.pvd')
+    vfile = dolfin.File(fstring+'_vel.pvd')
+
+    vfile << v, t
+    pfile << p, t
 
 
 def save_npa(v, fstring='notspecified'):
