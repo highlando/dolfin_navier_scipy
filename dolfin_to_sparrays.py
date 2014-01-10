@@ -104,7 +104,10 @@ def get_convmats(u0_dolfun=None, u0_vec=None, V=None, invinds=None,
                  diribcs=None):
     """returns the matrices related to the linearized convection
 
-    N1 ~ (u_0 \nabla u) v
+
+    :return:
+
+    `N_1`  (u_0 \nabla u) v
     N2 ~ (u \nabla u_0) v
 
     where u_0 is the linearization point
