@@ -367,3 +367,8 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None, diribcs=None, vp=None,
     v.vector().set_local(ve)
 
     return v, p
+
+
+def export_mats_to_matlab(E=None, A=None, matfname='matexport'):
+    import scipy.io
+    scipy.io.savemat(matfname, dict(E=E, A=A))
