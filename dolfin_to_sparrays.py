@@ -106,11 +106,12 @@ def get_convmats(u0_dolfun=None, u0_vec=None, V=None, invinds=None,
     where u_0 is the linearization point
 
     :return:
-    ``N1`` matrix representing :math:`(u_0 \\cdot \\nabla )u`
-    ``N2`` matrix representing :math:`(u \\cdot \\nabla )u_0`
-    ``fv`` vector representing :math:`(u_0 \\cdot \\nabla )u_0`
+        ``N1`` matrix representing :math:`(u_0 \\cdot \\nabla )u`
+        ``N2`` matrix representing :math:`(u \\cdot \\nabla )u_0`
+        ``fv`` vector representing :math:`(u_0 \\cdot \\nabla )u_0`
 
     at the inner nodes
+
     """
 
     if u0_vec is not None:
@@ -335,10 +336,6 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None, diribcs=None, vp=None,
 
     pdof = pressure dof that was set zero
 
-    This function returns v as a dolfunc and - if specified - p
-    Error if:
-        - not enough input to expand v and maybe p
-        - only p is to be expanded
     """
 
     if vp is not None:
