@@ -48,12 +48,11 @@ def get_stokessysmats(V, Q, nu=1):
     :return:
         a dictionary with the following keys:
             * ``M``: the mass matrix of the velocity space,
-            * ``A``: the stiffness matrix :math:` \\nu (\\nabla \\phi_i, \\nabla \\phi_j)`
+            * ``A``: the stiffness matrix \
+                :math:` \\nu (\\nabla \\phi_i, \\nabla \\phi_j)`
             * ``JT``: the gradient matrix,
             * ``J``: the divergence matrix, and
             * ``MP``: the mass matrix of the pressure space
-
-
 
     """
 
@@ -104,14 +103,14 @@ def get_convmats(u0_dolfun=None, u0_vec=None, V=None, invinds=None,
                  diribcs=None):
     """returns the matrices related to the linearized convection
 
-
-    :return:
-
-    `N_1`  (u_0 \nabla u) v
-    N2 ~ (u \nabla u_0) v
-
     where u_0 is the linearization point
 
+    :return:
+    ``N1`` matrix representing :math:`(u_0 \\cdot \\nabla )u`
+    ``N2`` matrix representing :math:`(u \\cdot \\nabla )u_0`
+    ``fv`` vector representing :math:`(u_0 \\cdot \\nabla )u_0`
+
+    at the inner nodes
     """
 
     if u0_vec is not None:
