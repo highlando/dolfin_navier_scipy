@@ -9,9 +9,11 @@ import sadptprj_riclyap_adi.lin_alg_utils as lau
 
 
 def get_datastr_snu(nwtn=None, time=None,
-                    meshp=None, nu=None, Nts=None, dt=None):
+                    meshp=None, nu=None, Nts=None, dt=None,
+                    data_prfx=''):
 
-    return ('Nwtnit{0}_time{1}_nu{2}_mesh{3}_Nts{4}_dt{5}').format(
+    return (data_prfx +
+            'Nwtnit{0}_time{1}_nu{2}_mesh{3}_Nts{4}_dt{5}').format(
         nwtn, time, nu, meshp, Nts, dt)
 
 
@@ -70,7 +72,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           clearprvdata=True,
                           vel_start_nwtn=None,
                           ddir=None, get_datastring=None,
-                          paraviewoutput=False, prfdir='', prfprfx='',
+                          data_prfx='',
+                          paraviewoutput=False, prfdir='',
                           **kw):
 
     """
@@ -109,10 +112,10 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         curwd = os.getcwd()
         try:
             os.chdir(prfdir)
-            for fname in glob.glob(prfprfx + '*'):
+            for fname in glob.glob(data_prfx + '*'):
                 os.remove(fname)
             os.chdir(curwd)
-            prvoutdict = dict(V=V, Q=Q, fstring=prfdir+prfprfx,
+            prvoutdict = dict(V=V, Q=Q, fstring=prfdir+data_prfx,
                               invinds=invinds, diribcs=diribcs,
                               vp=None, t=None, writeoutput=True)
         except OSError:
@@ -170,7 +173,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
         dou.save_npa(vp_stokes[:NV, ], fstring=ddir + cdatstr + '__vel')
 
-        prvoutdict.update(dict(vp=vp_stokes, fstring=prfdir+prfprfx+cdatstr))
+        prvoutdict.update(dict(vp=vp_stokes, fstring=prfdir+data_prfx+cdatstr))
         dou.output_paraview(**prvoutdict)
 
         # Stokes solution as starting value
@@ -216,7 +219,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
         dou.save_npa(vel_k, fstring=ddir + cdatstr + '__vel')
 
-        prvoutdict.update(dict(vp=vp_k, fstring=prfdir+prfprfx+cdatstr))
+        prvoutdict.update(dict(vp=vp_k, fstring=prfdir+data_prfx+cdatstr))
         dou.output_paraview(**prvoutdict)
 
         dou.save_npa(norm_nwtnupd, ddir + cdatstr + '__norm_nwtnupd')

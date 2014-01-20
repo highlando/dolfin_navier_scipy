@@ -71,7 +71,7 @@ def drivcav_fems(N, vdgree=2, pdgree=1):
     return dfems
 
 
-def cyl_fems(N, vdgree=2, pdgree=1, refinement_level=3):
+def cyl_fems(refinement_level=3, vdgree=2, pdgree=1):
     """
     dictionary for the fem items of the (unit) driven cavity
 
@@ -138,7 +138,7 @@ def cyl_fems(N, vdgree=2, pdgree=1, refinement_level=3):
         raise RuntimeError("No mesh available for refinement level {0}".
                            format(refinement_level))
 
-    mesh = dolfin.Mesh("data/cylinder_%d.xml.gz" % refinement_level)
+    mesh = dolfin.Mesh("mesh/cylinder_%d.xml.gz" % refinement_level)
     V = dolfin.VectorFunctionSpace(mesh, "CG", vdgree)
     Q = dolfin.FunctionSpace(mesh, "CG", pdgree)
 

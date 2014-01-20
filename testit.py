@@ -3,19 +3,24 @@ import os
 
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import dolfin_navier_scipy.stokes_navier_utils as snu
-from dolfin_navier_scipy.problem_setups import drivcav_fems
+import dolfin_navier_scipy.problem_setups as dnsps
 
 dolfin.parameters.linear_algebra_backend = 'uBLAS'
 
 
-def testit(N=10, Nts=10, nu=1e-2):
+def testit(problem='drivencavity', N=None, nu=1e-2):
 
-    femp = drivcav_fems(N)
+    problemdict = dict(drivencavity=dnsps.drivcav_fems,
+                       cylinderwake=dnsps.cyl_fems)
+    problemfem = problemdict[problem]
+    femp = problemfem(N)
 
     # setting some parameters
     nu = nu  # this is so to say 1/Re
     nnewtsteps = 9  # n nwtn stps for vel comp
     vel_nwtn_tol = 1e-14
+    # prefix for data files
+    data_prfx = problem
     # dir to store data
     ddir = 'data/'
     # paraview output
@@ -66,7 +71,8 @@ def testit(N=10, Nts=10, nu=1e-2):
                    nnewtsteps=nnewtsteps,
                    vel_nwtn_tol=vel_nwtn_tol,
                    ddir=ddir, get_datastring=None,
-                   paraviewoutput=ParaviewOutput, prfdir=proutdir)
+                   paraviewoutput=ParaviewOutput, prfdir=proutdir,
+                   data_prfx=data_prfx)
 
 #
 # compute the uncontrolled steady state Navier-Stokes solution
