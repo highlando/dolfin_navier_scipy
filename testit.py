@@ -2,7 +2,7 @@ import dolfin
 import os
 
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
-import dolfin_to_sparrays.stokes_navier_utils as snu
+import dolfin_navier_scipy.stokes_navier_utils as snu
 from dolfin_navier_scipy.problem_setups import drivcav_fems
 
 dolfin.parameters.linear_algebra_backend = 'uBLAS'
@@ -75,4 +75,4 @@ def testit(N=10, Nts=10, nu=1e-2):
 
 
 if __name__ == '__main__':
-    testit(N=25, nu=2e-4)
+    testit(N=25, nu=3e-4)

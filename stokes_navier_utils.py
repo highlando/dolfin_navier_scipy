@@ -224,11 +224,9 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
         print 'norm of current Newton update: {}'.format(norm_nwtnupd)
 
-    savetomatlab = True
-    if savetomatlab:
-        export_mats_to_matlab(E=None, A=None, matfname='matexport')
-
-
+    # savetomatlab = True
+    # if savetomatlab:
+    #     export_mats_to_matlab(E=None, A=None, matfname='matexport')
     return vel_k, norm_nwtnupd_list
 
 
