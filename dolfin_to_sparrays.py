@@ -369,6 +369,9 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None, diribcs=None, vp=None,
     return v, p
 
 
-def export_mats_to_matlab(E=None, A=None, matfname='matexport'):
+def export_mats_to_matlab(M=None, A=None, J=None, matfname='matexport'):
     import scipy.io
-    scipy.io.savemat(matfname, dict(E=E, A=A))
+    infostring = 'to give the (linearized) momentum eqn as' +\
+                 'M\dot v + A v - J^T p = 0 '
+    scipy.io.savemat(matfname, dict(M=M, A=A, J=J, B=B,
+                                    infostring=infostring))

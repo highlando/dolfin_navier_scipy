@@ -1,0 +1,78 @@
+import dolfin
+import os
+
+import dolfin_navier_scipy.dolfin_to_sparrays as dts
+import dolfin_to_sparrays.stokes_navier_utils as snu
+from dolfin_navier_scipy.problem_setups import drivcav_fems
+
+dolfin.parameters.linear_algebra_backend = 'uBLAS'
+
+
+def testit(N=10, Nts=10, nu=1e-2):
+
+    femp = drivcav_fems(N)
+
+    # setting some parameters
+    nu = nu  # this is so to say 1/Re
+    nnewtsteps = 9  # n nwtn stps for vel comp
+    vel_nwtn_tol = 1e-14
+    # dir to store data
+    ddir = 'data/'
+    # paraview output
+    ParaviewOutput = True
+    proutdir = 'results/'
+
+    try:
+        os.chdir(ddir)
+    except OSError:
+        raise Warning('need "' + ddir + '" subdir for storing the data')
+    os.chdir('..')
+
+    stokesmats = dts.get_stokessysmats(femp['V'], femp['Q'], nu)
+
+    rhsd_vf = dts.setget_rhs(femp['V'], femp['Q'],
+                             femp['fv'], femp['fp'], t=0)
+
+    # remove the freedom in the pressure
+    stokesmats['J'] = stokesmats['J'][:-1, :][:, :]
+    stokesmats['JT'] = stokesmats['JT'][:, :-1][:, :]
+    rhsd_vf['fp'] = rhsd_vf['fp'][:-1, :]
+
+    # reduce the matrices by resolving the BCs
+    (stokesmatsc,
+     rhsd_stbc,
+     invinds,
+     bcinds,
+     bcvals) = dts.condense_sysmatsbybcs(stokesmats,
+                                         femp['diribcs'])
+
+    # pressure freedom and dirichlet reduced rhs
+    rhsd_vfrc = dict(fpr=rhsd_vf['fp'], fvc=rhsd_vf['fv'][invinds, ])
+
+    # add the info on boundary and inner nodes
+    bcdata = {'bcinds': bcinds,
+              'bcvals': bcvals,
+              'invinds': invinds}
+    femp.update(bcdata)
+
+    # casting some parameters
+    NV, INVINDS = len(femp['invinds']), femp['invinds']
+
+    soldict = stokesmatsc  # containing A, J, JT
+    soldict.update(femp)  # adding V, Q, invinds, diribcs
+    soldict.update(rhsd_vfrc)  # adding fvc, fpr
+    soldict.update(fv_stbc=rhsd_stbc['fv'], fp_stbc=rhsd_stbc['fp'],
+                   N=N, nu=nu,
+                   nnewtsteps=nnewtsteps,
+                   vel_nwtn_tol=vel_nwtn_tol,
+                   ddir=ddir, get_datastring=None,
+                   paraviewoutput=ParaviewOutput, prfdir=proutdir)
+
+#
+# compute the uncontrolled steady state Navier-Stokes solution
+#
+    v_ss_nse, list_norm_nwtnupd = snu.solve_steadystate_nse(**soldict)
+
+
+if __name__ == '__main__':
+    testit(N=25, nu=2e-4)

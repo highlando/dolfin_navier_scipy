@@ -20,20 +20,20 @@ import dolfin
 def drivcav_fems(N, vdgree=2, pdgree=1):
     """dictionary for the fem items of the (unit) driven cavity
 
-    :param N:
-        mesh parameter for the unitsquare (N gives 2*N*N triangles)
-    :param vdgree:
-        polynomial degree of the velocity basis functions, defaults to 2
-    :param pdgree:
-        polynomial degree of the pressure basis functions, defaults to 1
+    Parameters
+    ----------
+    N : mesh parameter for the unitsquare (N gives 2*N*N triangles)
+    vdgree : polynomial degree of the velocity basis functions, defaults to 2
+    pdgree : polynomial degree of the pressure basis functions, defaults to 1
 
-    :return:
-        a dictionary with the keys:
-        * ``V``: FEM space of the velocity
-        * ``Q``: FEM space of the pressure
-        * ``diribcs``: list of the (Dirichlet) boundary conditions
-        * ``fv``: right hand side of the momentum equation
-        * ``fp``: right hand side of the continuity equation
+    Returns
+    -------
+    femp : a dictionary with the keys:
+         * ``V``: FEM space of the velocity
+         * ``Q``: FEM space of the pressure
+         * ``diribcs``: list of the (Dirichlet) boundary conditions
+         * ``fv``: right hand side of the momentum equation
+         * ``fp``: right hand side of the continuity equation
     """
 
     mesh = dolfin.UnitSquareMesh(N, N)
@@ -70,122 +70,109 @@ def drivcav_fems(N, vdgree=2, pdgree=1):
 
     return dfems
 
-__author__ = "Kristian Valen-Sendstad <kvs@simula.no>"
-__date__ = "2009-10-01"
-__copyright__ = "Copyright (C) 2009-2010 " + __author__
-__license__ = "GNU GPL version 3 or any later version"
 
-# Modified by Anders Logg, 2010.
+def cyl_fems(N, vdgree=2, pdgree=1, refinement_level=3):
+    """
+    dictionary for the fem items of the (unit) driven cavity
 
-from problembase import *
-from numpy import array
+    Parameters
+    ----------
+    N : mesh parameter for the unitsquare (N gives 2*N*N triangles)
+    vdgree : polynomial degree of the velocity basis functions,
+        defaults to 2
+    pdgree : polynomial degree of the pressure basis functions,
+        defaults to 1
 
-# Constants related to the geometry
-bmarg = 1.e-3 + DOLFIN_EPS
-xmin = 0.0
-xmax = 2.2
-ymin = 0.0
-ymax = 0.41
-xcenter = 0.2
-ycenter = 0.2
-radius = 0.05
+    Returns
+    -------
+    femp : a dictionary with the keys:
+         * ``V``: FEM space of the velocity
+         * ``Q``: FEM space of the pressure
+         * ``diribcs``: list of the (Dirichlet) boundary conditions
+         * ``dirip``: list of the (Dirichlet) boundary conditions
+            for the pressure
+         * ``fv``: right hand side of the momentum equation
+         * ``fp``: right hand side of the continuity equation
 
-# Inflow boundary
-class InflowBoundary(SubDomain):
-    def inside(self, x, on_boundary):
-        return on_boundary and x[0] < xmin + bmarg
+    parts of the code were taken from the NSbench collection
+    https://launchpad.net/nsbench
 
-# No-slip boundary
-class NoslipBoundary(SubDomain):
-    def inside(self, x, on_boundary):
-        dx = x[0] - xcenter
-        dy = x[1] - ycenter
-        r = sqrt(dx*dx + dy*dy)
-        return on_boundary and \
-               (x[1] < ymin + bmarg or x[1] > ymax - bmarg or \
-                r < radius + bmarg)
+    __author__ = "Kristian Valen-Sendstad <kvs@simula.no>"
+    __date__ = "2009-10-01"
+    __copyright__ = "Copyright (C) 2009-2010 " + __author__
+    __license__ = "GNU GPL version 3 or any later version"
+    """
 
-# Outflow boundary
-class OutflowBoundary(SubDomain):
-    def inside(self, x, on_boundary):
-        return on_boundary and x[0] > xmax - bmarg
+    # Constants related to the geometry
+    bmarg = 1.e-3 + dolfin.DOLFIN_EPS
+    xmin = 0.0
+    xmax = 2.2
+    ymin = 0.0
+    ymax = 0.41
+    xcenter = 0.2
+    ycenter = 0.2
+    radius = 0.05
 
-# Problem definition
-class Problem(ProblemBase):
+    # Inflow boundary
+    class InflowBoundary(dolfin.SubDomain):
+        def inside(self, x, on_boundary):
+            return on_boundary and x[0] < xmin + bmarg
 
-    def __init__(self, options):
-        ProblemBase.__init__(self, options)
+    # No-slip boundary
+    class NoslipBoundary(dolfin.SubDomain):
+        def inside(self, x, on_boundary):
+            dx = x[0] - xcenter
+            dy = x[1] - ycenter
+            r = dolfin.sqrt(dx*dx + dy*dy)
+            return on_boundary and \
+                (x[1] < ymin + bmarg or x[1] > ymax - bmarg or
+                    r < radius + bmarg)
 
-        # Load mesh
-        refinement_level = options["refinement_level"]
-        if refinement_level > 5:
-            raise RuntimeError, "No mesh available for refinement level %d" % refinement_level
+    # Outflow boundary
+    class OutflowBoundary(dolfin.SubDomain):
+        def inside(self, x, on_boundary):
+            return on_boundary and x[0] > xmax - bmarg
 
-        self.mesh = Mesh("data/cylinder_%d.xml.gz" % refinement_level)
+    # Load mesh
+    if refinement_level > 5:
+        raise RuntimeError("No mesh available for refinement level {0}".
+                           format(refinement_level))
 
+    mesh = dolfin.Mesh("data/cylinder_%d.xml.gz" % refinement_level)
+    V = dolfin.VectorFunctionSpace(mesh, "CG", vdgree)
+    Q = dolfin.FunctionSpace(mesh, "CG", pdgree)
 
-        # Create right-hand side function
-        self.f =  Constant((0, 0))
-
-        # Set viscosity (Re = 1000)
-        self.nu = 1.0 / 1000.0
-
-        # Characteristic velocity in the domain (used to determinde timestep)
-        self.U = 3.5
-
-        # Set end time
-        self.T  = 8.0
+    # Create right-hand side function
+    fv = dolfin.Constant((0, 0))
+    fp = dolfin.Constant(0)
 
     def initial_conditions(self, V, Q):
-
-        u0 = Constant((0, 0))
-        p0 = Constant(0)
-
+        u0 = dolfin.Constant((0, 0))
+        p0 = dolfin.Constant(0)
         return u0, p0
 
-    def boundary_conditions(self, V, Q, t):
+    # Create inflow boundary condition
+    g0 = dolfin.Expression(('4*(x[1]*(ymax-x[1]))/(ymax*ymax)', '0.0'),
+                           ymax=ymax)
+    bc0 = dolfin.DirichletBC(V, g0, InflowBoundary())
 
-        # Create inflow boundary condition
-        self.g0 = Expression(('4*Um*(x[1]*(ymax-x[1]))*sin(pi*t/8.0)/(ymax*ymax)', '0.0'),
-                             Um=1.5, ymax=ymax, t=t)
-        self.b0 = InflowBoundary()
-        bc0 = DirichletBC(V, self.g0, self.b0)
+    # Create no-slip boundary condition
+    g1 = dolfin.Constant((0, 0))
+    bc1 = dolfin.DirichletBC(V, g1, NoslipBoundary())
 
-        # Create no-slip boundary condition
-        self.b1 = NoslipBoundary()
-        self.g1 = Constant((0, 0))
-        bc1     = DirichletBC(V, self.g1, self.b1)
+    # Create outflow boundary condition for pressure
+    g2 = dolfin.Constant(0)
+    bc2 = dolfin.DirichletBC(Q, g2, OutflowBoundary())
 
-        # Create outflow boundary condition for pressure
-        self.b2 = OutflowBoundary()
-        self.g2 = Constant(0)
-        bc2     = DirichletBC(Q, self.g2, self.b2)
+    # Collect boundary conditions
+    bcu = [bc0, bc1]
+    bcp = [bc2]
 
-        # Collect boundary conditions
-        bcu = [bc0, bc1]
-        bcp = [bc2]
+    cylfems = dict(V=V,
+                   Q=Q,
+                   diribcs=bcu,
+                   dirip=bcp,
+                   fv=fv,
+                   fp=fp)
 
-        return bcu, bcp
-
-    def update(self, t, u, p):
-        self.g0.t = t
-
-    def functional(self, t, u, p):
-
-        if t < self.T:
-            return 0.0
-
-        x1 = array((xcenter - radius - DOLFIN_EPS, ycenter))
-        x2 = array((xcenter + radius + DOLFIN_EPS, ycenter))
-
-        return p(x1) - p(x2)
-
-    def reference(self, t):
-        
-        if t < self.T:
-            return 0.0
-        
-        return -0.111444953719
-
-    def __str__(self):
-        return "Cylinder"
+    return cylfems
