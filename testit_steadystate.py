@@ -26,7 +26,6 @@ def testit(problem='drivencavity', N=None, nu=1e-2):
     # paraview output
     ParaviewOutput = True
     proutdir = 'results/'
-    tips = dict(t0=0.0, tE=0.1, Nts=10)
 
     try:
         os.chdir(ddir)
@@ -67,7 +66,6 @@ def testit(problem='drivencavity', N=None, nu=1e-2):
     soldict = stokesmatsc  # containing A, J, JT
     soldict.update(femp)  # adding V, Q, invinds, diribcs
     soldict.update(rhsd_vfrc)  # adding fvc, fpr
-    soldict.update(tips)  # adding time integration params
     soldict.update(fv_stbc=rhsd_stbc['fv'], fp_stbc=rhsd_stbc['fp'],
                    N=N, nu=nu,
                    nnewtsteps=nnewtsteps,
@@ -79,10 +77,9 @@ def testit(problem='drivencavity', N=None, nu=1e-2):
 #
 # compute the uncontrolled steady state Navier-Stokes solution
 #
-    # v_ss_nse, list_norm_nwtnupd = snu.solve_steadystate_nse(**soldict)
-    snu.solve_nse(**soldict)
+    v_ss_nse, list_norm_nwtnupd = snu.solve_steadystate_nse(**soldict)
 
 
 if __name__ == '__main__':
-    testit(N=25, nu=3e-4)
-    # testit(problem='cylinderwake', N=3, nu=2e-3)
+    # testit(N=25, nu=3e-4)
+    testit(problem='cylinderwake', N=3, nu=2e-3)

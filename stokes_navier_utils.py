@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import glob
+import copy
 
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import dolfin_navier_scipy.data_output_utils as dou
@@ -135,8 +136,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
     newtk, norm_nwtnupd = 0, 1
     # a dict to be passed to the get_datastring function
-    datastrdict = dict(nwtn=newtk, time=None,
-                       meshp=N, nu=nu, Nts=None, dt=None)
+    datastrdict = dict(nwtn=newtk, time=None, meshp=N, nu=nu,
+                       Nts=None, dt=None, data_prfx=data_prfx)
 
     if clearprvdata:
         datastrdict['nwtn'] = '*'
@@ -233,7 +234,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
     return vel_k, norm_nwtnupd_list
 
 
-def solve_nse(A=None, J=None, JT=None,
+def solve_nse(A=None, M=None, J=None, JT=None,
               fvc=None, fpr=None,
               fv_stbc=None, fp_stbc=None,
               iniv=None, lin_vel_point=None,
@@ -279,7 +280,6 @@ def solve_nse(A=None, J=None, JT=None,
     if trange is None:
         trange = np.linspace(t0, tE, Nts+1)
 
-
     NV = A.shape[0]
 
     if iniv is None:
@@ -289,20 +289,23 @@ def solve_nse(A=None, J=None, JT=None,
                                          rhsp=fp_stbc + fpr)
         iniv = vp_stokes[:NV]
 
-    if lin_vel_point is None:
-        # linearize about Stokes solution
-        lin_vel_point = vp_stokes[:NV]
-
-    newtk, norm_nwtnupd, norm_nwtnupd_list = 0, 1, []
-
-    datastrdict = dict(nwtn=newtk, time=None, meshp=N, nu=nu,
-                       Nts=None, dt=None, data_prfx=data_prfx)
+    datastrdict = dict(nwtn=None, time=None, meshp=N, nu=nu,
+                       Nts=trange.size, dt=None, data_prfx=data_prfx)
 
     if clearprvdata:
         datastrdict['nwtn'], datastrdict['time'] = '*', '*'
         cdatstr = get_datastr_snu(**datastrdict)
         for fname in glob.glob(ddir + cdatstr + '*'):
             os.remove(fname)
+
+    if lin_vel_point is None:
+        # linearize about Stokes solution
+        datastrdict['nwtn'], datastrdict['time'] = 0, None
+        cdatstr = get_datastr_snu(**datastrdict)
+        lin_vel_point = vp_stokes[:NV]
+        dou.save_npa(vp_stokes[:NV, ], fstring=ddir + cdatstr + '__vel')
+
+    newtk, norm_nwtnupd, norm_nwtnupd_list = 0, 1, []
 
     while newtk < nnewtsteps:
         newtk += 1
@@ -312,7 +315,7 @@ def solve_nse(A=None, J=None, JT=None,
             cdatstr = get_datastr_snu(**datastrdict)
 
             norm_nwtnupd = dou.load_npa(ddir + cdatstr + '__norm_nwtnupd')
-            vel_k = dou.load_npa(ddir + cdatstr + '__vel')
+            v_old = dou.load_npa(ddir + cdatstr + '__vel')
 
             norm_nwtnupd_list.append(norm_nwtnupd)
             print 'found vel files of Newton iteration {0}'.format(newtk)
@@ -333,49 +336,46 @@ def solve_nse(A=None, J=None, JT=None,
         print 'Computing Newton Iteration {0} -- steady state'.\
             format(newtk)
 
-        for t in trange:
-            cdatstr = get_datastr(nwtn=newtk, time=t,
-                                  meshp=N, timps=tip)
+        for tk, t in enumerate(trange[1:]):
+            cts = t - trange[tk]
+            datastrdict.update(dict(nwtn=newtk, time=t, dt=cts))
+            cdatstr = get_datastr_snu(**datastrdict)
 
+            prv_datastrdict = copy.deepcopy(datastrdict)
             # t for implicit scheme
-            pdatstr = get_datastr(nwtn=newtk-1, time=t,
-                                  meshp=N, timps=tip)
+            prv_datastrdict['nwtn'], prv_datastrdict['time'] = newtk-1, t
+            pdatstr = get_datastr_snu(**prv_datastrdict)
 
             # try - except for linearizations about stationary sols
             # for which t=None
             try:
                 prev_v = dou.load_npa(ddir + pdatstr + '__vel')
             except IOError:
-                pdatstr = get_datastr(nwtn=newtk - 1, time=None,
-                                      meshp=N, timps=tip)
+                prv_datastrdict['time'], prv_datastrdict['dt'] = None, None
+                pdatstr = get_datastr_snu(**prv_datastrdict)
                 prev_v = dou.load_npa(ddir + pdatstr + '__vel')
 
-            convc_mat, rhs_con, rhsv_conbc = get_v_conv_conts(prev_v,
-                                                              femp, tip)
+            convc_mat, rhs_con, rhsv_conbc = \
+                get_v_conv_conts(prev_v=prev_v, invinds=invinds,
+                                 V=V, diribcs=diribcs)
 
-            rhsd_cur = dict(fv=stokesmatsc['M'] * v_old +
-                            DT * (rhs_con[INVINDS, :] +
-                                  rhsv_conbc + rhsd_vfstbc['fv']),
-                            fp=rhsd_vfstbc['fp'])
+            vp_new = lau.solve_sadpnt_smw(amat=M + cts*(A + convc_mat),
+                                          jmat=J, jmatT=JT,
+                                          rhsv=M*v_old + cts *
+                                          (fv_stbc + fvc +
+                                           rhsv_conbc + rhs_con),
+                                          rhsp=fp_stbc + fpr)
 
-            matd_cur = dict(A=stokesmatsc['M'] +
-                            DT * (stokesmatsc['A'] + convc_mat),
-                            JT=stokesmatsc['JT'],
-                            J=stokesmatsc['J'])
-
-            vp = lau.stokes_steadystate(matdict=matd_cur,
-                                        rhsdict=rhsd_cur)
-
-            v_old = vp[:NV, ]
+            v_old = vp_new[:NV, ]
 
             dou.save_npa(v_old, fstring=ddir + cdatstr + '__vel')
 
-            dou.output_paraview(tip, femp, vp=vp, t=t),
+            prvoutdict.update(dict(vp=vp_new,
+                                   fstring=prfdir+data_prfx+cdatstr))
+            dou.output_paraview(**prvoutdict)
 
             # integrate the Newton error
-            norm_nwtnupd += DT * np.dot((v_old - prev_v).T,
-                                        stokesmatsc['M'] *
-                                        (v_old - prev_v))
+            norm_nwtnupd += cts * m_innerproduct(M, v_old - prev_v)
 
         dou.save_npa(norm_nwtnupd, ddir + cdatstr + '__norm_nwtnupd')
         norm_nwtnupd_list.append(norm_nwtnupd[0])

@@ -21,13 +21,12 @@ def output_paraview(V=None, Q=None, fstring='nn',
                              diribcs=diribcs)
 
     v.rename('v', 'velocity')
-    p.rename('p', 'pressure')
-
-    pfile = dolfin.File(fstring+'_p.pvd')
     vfile = dolfin.File(fstring+'_vel.pvd')
-
     vfile << v, t
-    pfile << p, t
+    if p is not None:
+        p.rename('p', 'pressure')
+        pfile = dolfin.File(fstring+'_p.pvd')
+        pfile << p, t
 
 
 def save_npa(v, fstring='notspecified'):
