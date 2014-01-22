@@ -116,7 +116,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
             for fname in glob.glob(data_prfx + '*'):
                 os.remove(fname)
             os.chdir(curwd)
-            prvoutdict = dict(V=V, Q=Q, fstring=prfdir+data_prfx,
+            prvoutdict = dict(V=V, Q=Q, fstring=prfdir,
                               invinds=invinds, diribcs=diribcs,
                               vp=None, t=None, writeoutput=True)
         except OSError:
@@ -174,7 +174,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
         dou.save_npa(vp_stokes[:NV, ], fstring=ddir + cdatstr + '__vel')
 
-        prvoutdict.update(dict(vp=vp_stokes, fstring=prfdir+data_prfx+cdatstr))
+        prvoutdict.update(dict(vp=vp_stokes, fstring=prfdir+cdatstr))
         dou.output_paraview(**prvoutdict)
 
         # Stokes solution as starting value
@@ -220,7 +220,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
         dou.save_npa(vel_k, fstring=ddir + cdatstr + '__vel')
 
-        prvoutdict.update(dict(vp=vp_k, fstring=prfdir+data_prfx+cdatstr))
+        prvoutdict.update(dict(vp=vp_k, fstring=prfdir+cdatstr))
         dou.output_paraview(**prvoutdict)
 
         dou.save_npa(norm_nwtnupd, ddir + cdatstr + '__norm_nwtnupd')
@@ -328,13 +328,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     while (newtk < nnewtsteps and norm_nwtnupd > vel_nwtn_tol):
         newtk += 1
         prvoutdict.update(dict(vp=None, vc=iniv, t=trange[0],
-                               fstring=prfdir+data_prfx+cdatstr))
+                               fstring=prfdir+cdatstr))
         dou.output_paraview(**prvoutdict)
 
         norm_nwtnupd = 0
         v_old = iniv  # start vector for time integration in every Newtonit
-        print 'Computing Newton Iteration {0} -- steady state'.\
-            format(newtk)
+        print 'Computing Newton Iteration {0}'.format(newtk)
 
         for tk, t in enumerate(trange[1:]):
             cts = t - trange[tk]
@@ -370,8 +369,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
             dou.save_npa(v_old, fstring=ddir + cdatstr + '__vel')
 
-            prvoutdict.update(dict(vp=vp_new,
-                                   fstring=prfdir+data_prfx+cdatstr))
+            prvoutdict.update(dict(vp=vp_new, t=t))
+                                   # fstring=prfdir+data_prfx+cdatstr))
             dou.output_paraview(**prvoutdict)
 
             # integrate the Newton error
