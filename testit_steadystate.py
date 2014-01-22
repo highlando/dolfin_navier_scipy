@@ -33,6 +33,18 @@ def testit(problem='drivencavity', N=None, nu=1e-2):
         raise Warning('need "' + ddir + '" subdir for storing the data')
     os.chdir('..')
 
+    if ParaviewOutput:
+        curwd = os.getcwd()
+        try:
+            os.chdir(proutdir)
+            # for fname in glob.glob(data_prfx + '*'):
+            #     os.remove(fname)
+            os.chdir(curwd)
+        except OSError:
+            raise Warning('the ' + proutdir + ' subdir for storing the' +
+                          ' output does not exist. Make it yourself' +
+                          ' or set paraviewoutput=False')
+
     stokesmats = dts.get_stokessysmats(femp['V'], femp['Q'], nu)
 
     rhsd_vf = dts.setget_rhs(femp['V'], femp['Q'],
@@ -71,8 +83,10 @@ def testit(problem='drivencavity', N=None, nu=1e-2):
                    nnewtsteps=nnewtsteps,
                    vel_nwtn_tol=vel_nwtn_tol,
                    ddir=ddir, get_datastring=None,
-                   paraviewoutput=ParaviewOutput, prfdir=proutdir,
-                   data_prfx=data_prfx)
+                   data_prfx=data_prfx,
+                   paraviewoutput=ParaviewOutput,
+                   vfileprfx=proutdir+'vel_',
+                   pfileprfx=proutdir+'p_')
 
 #
 # compute the uncontrolled steady state Navier-Stokes solution

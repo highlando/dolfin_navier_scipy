@@ -7,7 +7,8 @@ import dolfin
 def output_paraview(V=None, Q=None, fstring='nn',
                     invinds=None, diribcs=None,
                     vp=None, vc=None, pc=None,
-                    t=None, writeoutput=True):
+                    t=None, writeoutput=True,
+                    vfile=None, pfile=None):
     """write the paraview output for a solution vector vp
 
     """
@@ -21,11 +22,13 @@ def output_paraview(V=None, Q=None, fstring='nn',
                              diribcs=diribcs)
 
     v.rename('v', 'velocity')
-    vfile = dolfin.File(fstring+'_vel.pvd')
+    if vfile is None:
+        vfile = dolfin.File(fstring+'_vel.pvd')
     vfile << v, t
     if p is not None:
         p.rename('p', 'pressure')
-        pfile = dolfin.File(fstring+'_p.pvd')
+        if pfile is None:
+            pfile = dolfin.File(fstring+'_p.pvd')
         pfile << p, t
 
 

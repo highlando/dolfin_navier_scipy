@@ -2,6 +2,7 @@ import numpy as np
 import os
 import glob
 import copy
+import dolfin
 
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import dolfin_navier_scipy.data_output_utils as dou
@@ -74,7 +75,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           vel_start_nwtn=None,
                           ddir=None, get_datastring=None,
                           data_prfx='',
-                          paraviewoutput=False, prfdir='',
+                          paraviewoutput=False,
+                          vfileprfx='', pfileprfx='',
                           **kw):
 
     """
@@ -102,33 +104,12 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         boolean control whether paraview output is produced
     :param prfdir:
         path to directory where the paraview output is stored
-    :param prfprfx:
+    :param pfileprfx, vfileprfx:
         prefix for the output files
     """
 
     if get_datastring is None:
         get_datastring = get_datastr_snu
-
-    if paraviewoutput:
-        curwd = os.getcwd()
-        try:
-            os.chdir(prfdir)
-            for fname in glob.glob(data_prfx + '*'):
-                os.remove(fname)
-            os.chdir(curwd)
-            prvoutdict = dict(V=V, Q=Q, fstring=prfdir+data_prfx,
-                              invinds=invinds, diribcs=diribcs,
-                              vp=None, t=None, writeoutput=True)
-        except OSError:
-            raise Warning('the ' + prfdir + 'subdir for storing the' +
-                          ' output does not exist. Make it yourself' +
-                          'or set paraviewoutput=False')
-    else:
-        prvoutdict = dict(writeoutput=False)  # save 'if statements' here
-
-    norm_nwtnupd_list = []
-
-    NV = A.shape[0]
 
 #
 # Compute or load the uncontrolled steady state Navier-Stokes solution
@@ -144,6 +125,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         cdatstr = get_datastr_snu(**datastrdict)
         for fname in glob.glob(ddir + cdatstr + '*'):
             os.remove(fname)
+
+    norm_nwtnupd_list = []
 
     while newtk < nnewtsteps:
         newtk += 1
@@ -163,6 +146,16 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
             newtk -= 1
             break
 
+    if paraviewoutput:
+        vfile = dolfin.File(vfileprfx+cdatstr+'__steadystates.pvd')
+        pfile = dolfin.File(pfileprfx+cdatstr+'__steadystates.pvd')
+        prvoutdict = dict(V=V, Q=Q, vfile=vfile, pfile=pfile,
+                          invinds=invinds, diribcs=diribcs,
+                          vp=None, t=None, writeoutput=True)
+    else:
+        prvoutdict = dict(writeoutput=False)  # save 'if statements' here
+
+    NV = A.shape[0]
     if newtk == 0 and vel_start_nwtn is None:
         vp_stokes = lau.solve_sadpnt_smw(amat=A, jmat=J, jmatT=JT,
                                          rhsv=fv_stbc + fvc,
@@ -174,7 +167,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
         dou.save_npa(vp_stokes[:NV, ], fstring=ddir + cdatstr + '__vel')
 
-        prvoutdict.update(dict(vp=vp_stokes, fstring=prfdir+data_prfx+cdatstr))
+        prvoutdict.update(dict(vp=vp_stokes))
         dou.output_paraview(**prvoutdict)
 
         # Stokes solution as starting value
@@ -220,7 +213,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
         dou.save_npa(vel_k, fstring=ddir + cdatstr + '__vel')
 
-        prvoutdict.update(dict(vp=vp_k, fstring=prfdir+data_prfx+cdatstr))
+        prvoutdict.update(dict(vp=vp_k))
         dou.output_paraview(**prvoutdict)
 
         dou.save_npa(norm_nwtnupd, ddir + cdatstr + '__norm_nwtnupd')
@@ -249,6 +242,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               ddir=None, get_datastring=None,
               data_prfx='',
               paraviewoutput=False, prfdir='',
+              vfileprfx='', pfileprfx='',
               **kw):
     """
     solution of the time-dependent nonlinear Navier-Stokes equation
@@ -261,19 +255,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         get_datastring = get_datastr_snu
 
     if paraviewoutput:
-        curwd = os.getcwd()
-        try:
-            os.chdir(prfdir)
-            for fname in glob.glob(data_prfx + '*'):
-                os.remove(fname)
-            os.chdir(curwd)
-            prvoutdict = dict(V=V, Q=Q, fstring=prfdir+data_prfx,
-                              invinds=invinds, diribcs=diribcs,
-                              vp=None, t=None, writeoutput=True)
-        except OSError:
-            raise Warning('the ' + prfdir + 'subdir for storing the' +
-                          ' output does not exist. Make it yourself' +
-                          ' or set paraviewoutput=False')
+        prvoutdict = dict(V=V, Q=Q, invinds=invinds, diribcs=diribcs,
+                          vp=None, t=None, writeoutput=True)
     else:
         prvoutdict = dict(writeoutput=False)  # save 'if statements' here
 
@@ -327,8 +310,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     while (newtk < nnewtsteps and norm_nwtnupd > vel_nwtn_tol):
         newtk += 1
+        vfile = dolfin.File(vfileprfx+cdatstr+'__timestep.pvd')
+        pfile = dolfin.File(pfileprfx+cdatstr+'__timestep.pvd')
         prvoutdict.update(dict(vp=None, vc=iniv, t=trange[0],
-                               fstring=prfdir+data_prfx+cdatstr))
+                               pfile=pfile, vfile=vfile))
         dou.output_paraview(**prvoutdict)
 
         norm_nwtnupd = 0
