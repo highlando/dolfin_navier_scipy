@@ -12,6 +12,7 @@ def output_paraview(V=None, Q=None, fstring='nn',
     """write the paraview output for a solution vector vp
 
     """
+    print t
 
     if not writeoutput:
         return

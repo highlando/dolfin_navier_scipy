@@ -318,8 +318,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
         norm_nwtnupd = 0
         v_old = iniv  # start vector for time integration in every Newtonit
-        print 'Computing Newton Iteration {0} -- steady state'.\
-            format(newtk)
+        print 'Computing Newton Iteration {0}'.format(newtk)
 
         for tk, t in enumerate(trange[1:]):
             cts = t - trange[tk]
@@ -355,8 +354,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
             dou.save_npa(v_old, fstring=ddir + cdatstr + '__vel')
 
-            prvoutdict.update(dict(vp=vp_new,
-                                   fstring=prfdir+data_prfx+cdatstr))
+            prvoutdict.update(dict(vp=vp_new, t=t))
+                                   # fstring=prfdir+data_prfx+cdatstr))
             dou.output_paraview(**prvoutdict)
 
             # integrate the Newton error
