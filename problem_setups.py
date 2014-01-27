@@ -68,6 +68,18 @@ def drivcav_fems(N, vdgree=2, pdgree=1):
                  fv=fv,
                  fp=fp)
 
+    # domains of observation and control
+    odcoo = dict(xmin=0.45,
+                 xmax=0.55,
+                 ymin=0.5,
+                 ymax=0.7)
+    cdcoo = dict(xmin=0.4,
+                 xmax=0.6,
+                 ymin=0.2,
+                 ymax=0.3)
+
+    dfems.update(dict(cdcoo=cdcoo, odcoo=odcoo))
+
     return dfems
 
 
