@@ -15,6 +15,8 @@ def testit(problem='drivencavity', N=None, nu=1e-2):
     problemfem = problemdict[problem]
     femp = problemfem(N)
 
+    dolfin.plot(femp['V'].mesh())
+
     # setting some parameters
     nu = nu  # this is so to say 1/Re
     nnewtsteps = 9  # n nwtn stps for vel comp
