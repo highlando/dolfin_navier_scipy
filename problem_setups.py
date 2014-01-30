@@ -83,7 +83,7 @@ def drivcav_fems(N, vdgree=2, pdgree=1):
     return dfems
 
 
-def cyl_fems(refinement_level=3, vdgree=2, pdgree=1):
+def cyl_fems(refinement_level=2, vdgree=2, pdgree=1):
     """
     dictionary for the fem items of the (unit) driven cavity
 
@@ -186,5 +186,17 @@ def cyl_fems(refinement_level=3, vdgree=2, pdgree=1):
                    dirip=bcp,
                    fv=fv,
                    fp=fp)
+
+    # domains of observation and control
+    odcoo = dict(xmin=0.6,
+                 xmax=0.7,
+                 ymin=0.15,
+                 ymax=0.25)
+    cdcoo = dict(xmin=0.27,
+                 xmax=0.32,
+                 ymin=0.15,
+                 ymax=0.25)
+
+    cylfems.update(dict(cdcoo=cdcoo, odcoo=odcoo))
 
     return cylfems

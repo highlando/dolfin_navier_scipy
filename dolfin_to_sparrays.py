@@ -366,9 +366,38 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None, diribcs=None, vp=None,
     return v, p
 
 
-def export_mats_to_matlab(M=None, A=None, J=None, matfname='matexport'):
-    import scipy.io
-    infostring = 'to give the (linearized) momentum eqn as' +\
-                 'M\dot v + A v - J^T p = 0 '
-    scipy.io.savemat(matfname, dict(M=M, A=A, J=J, B=B,
-                                    infostring=infostring))
+def get_dof_coors(V, invinds=None):
+
+    doflist = []
+    coorlist = []
+    for (i, cell) in enumerate(dolfin.cells(V.mesh())):
+        # print "Global dofs associated with cell %d: " % i,
+        # print V.dofmap().cell_dofs(i)
+        # print "The Dof coordinates:",
+        # print V.dofmap().tabulate_coordinates(cell)
+        dofs = V.dofmap().cell_dofs(i)
+        coors = V.dofmap().tabulate_coordinates(cell)
+        # Cdofs = V.dofmap().cell_dofs(i)
+        coorlist.append(coors)
+        doflist.append(dofs)
+
+    dofar = np.hstack(doflist)
+    coorar = np.vstack(coorlist)
+
+    unidofs, uniinds = np.unique(dofar, return_index=True)
+
+    checkf = dolfin.Expression(('1', '0'))
+    checkv = dolfin.interpolate(checkf, V)
+
+    xinds = np.where(checkv.vector().array() > 0)[0]
+    yinds = np.setdiff1d(unidofs, xinds)
+
+    if invinds is not None:
+        # check which innerinds are xinds
+        chix = np.in1d(invinds, xinds)
+        # x inner inds in a inner vector
+        xinds = np.arange(len(chix), dtype=np.int32)[chix]
+        yinds = np.arange(len(chix), dtype=np.int32)[~chix]
+        uniinds = np.intersect1d(invinds, uniinds)
+
+    return coorar[uniinds, :], xinds, yinds
