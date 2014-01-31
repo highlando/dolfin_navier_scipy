@@ -274,7 +274,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         iniv = vp_stokes[:NV]
 
     datastrdict = dict(nwtn=None, time=None, meshp=N, nu=nu,
-                       Nts=trange.size, dt=None, data_prfx=data_prfx)
+                       Nts=trange.size-1, dt=None, data_prfx=data_prfx)
 
     if clearprvdata:
         datastrdict['nwtn'], datastrdict['time'] = '*', '*'
@@ -295,7 +295,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         newtk += 1
         # check for previously computed velocities
         try:
-            datastrdict['nwtn'], datastrdict['time'] = newtk, trange[-1]
+            datastrdict.update(dict(nwtn=newtk, time=trange[-1],
+                                    dt=trange[-1]-trange[-2]))
             cdatstr = get_datastr_snu(**datastrdict)
 
             norm_nwtnupd = dou.load_npa(ddir + cdatstr + '__norm_nwtnupd')
