@@ -243,6 +243,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               data_prfx='',
               paraviewoutput=False, prfdir='',
               vfileprfx='', pfileprfx='',
+              return_nwtn_step=False,
               **kw):
     """
     solution of the time-dependent nonlinear Navier-Stokes equation
@@ -282,11 +283,11 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             os.remove(fname)
 
     if lin_vel_point is None:
-        # linearize about Stokes solution
+        # linearize about the initial value
         datastrdict['nwtn'], datastrdict['time'] = 0, None
         cdatstr = get_datastr_snu(**datastrdict)
-        lin_vel_point = vp_stokes[:NV]
-        dou.save_npa(vp_stokes[:NV, ], fstring=ddir + cdatstr + '__vel')
+        lin_vel_point = iniv
+        dou.save_npa(iniv, fstring=ddir + cdatstr + '__vel')
 
     newtk, norm_nwtnupd, norm_nwtnupd_list = 0, 1, []
 
@@ -365,3 +366,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         norm_nwtnupd_list.append(norm_nwtnupd[0])
 
         print 'norm of current Newton update: {}'.format(norm_nwtnupd)
+
+        if return_nwtn_step:
+            return newtk

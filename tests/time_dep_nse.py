@@ -88,7 +88,7 @@ def testit(problem='drivencavity', N=None, nu=1e-2):
                    vel_nwtn_tol=vel_nwtn_tol,
                    ddir=ddir, get_datastring=None,
                    data_prfx=data_prfx,
-                   paraviewoutput=ParaviewOutput, prfdir=proutdir,
+                   paraviewoutput=ParaviewOutput,
                    vfileprfx=proutdir+'vel_',
                    pfileprfx=proutdir+'p_')
 
