@@ -69,7 +69,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           fv_stbc=None, fp_stbc=None,
                           V=None, Q=None, invinds=None, diribcs=None,
                           N=None, nu=None,
-                          picardsteps=4,
+                          npicardsteps=0,
                           nnewtsteps=None, vel_nwtn_tol=None,
                           clearprvdata=False,
                           vel_start_nwtn=None,
@@ -92,7 +92,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         contributions to the right hand side by the Dirichlet boundary
         conditions in the stokes equations. TODO: time dependent conditions
         are not handled by now
-    :param picardsteps:
+    :param npicardsteps:
         Number of Picard iterations when computing a starting value for the
         Newton scheme, cf. Elman, Silvester, Wathen: *FEM and fast iterative
         solvers*, 2005
@@ -174,7 +174,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         vel_k = vp_stokes[:NV, ]
 
         # picard iterations for a better newton starting value
-        for k in range(picardsteps):
+        for k in range(npicardsteps):
             (convc_mat,
              rhs_con, rhsv_conbc) = get_v_conv_conts(vel_k, invinds=invinds,
                                                      V=V, diribcs=diribcs,
@@ -368,5 +368,5 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
         print 'norm of current Newton update: {}'.format(norm_nwtnupd)
 
-        if return_nwtn_step:
-            return newtk
+    if return_nwtn_step:
+        return newtk
