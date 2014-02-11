@@ -123,7 +123,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
     if clearprvdata:
         datastrdict['nwtn'] = '*'
         cdatstr = get_datastr_snu(**datastrdict)
-        for fname in glob.glob(ddir + cdatstr + '*'):
+        for fname in glob.glob(ddir + cdatstr + '*__vel*'):
             os.remove(fname)
 
     norm_nwtnupd_list = []
@@ -147,6 +147,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
             break
 
     if paraviewoutput:
+        cdatstr = get_datastr_snu(**datastrdict)
         vfile = dolfin.File(vfileprfx+cdatstr+'__steadystates.pvd')
         pfile = dolfin.File(pfileprfx+cdatstr+'__steadystates.pvd')
         prvoutdict = dict(V=V, Q=Q, vfile=vfile, pfile=pfile,
