@@ -232,7 +232,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               N=None, nu=None,
               z_ssfeedb=None,
               tb_mat=None, c_mat=None,
-              nnewtsteps=None, vel_nwtn_tol=None,
+              vel_nwtn_stps=None, vel_nwtn_tol=None,
               clearprvdata=False,
               ddir=None, get_datastring=None,
               data_prfx='',
@@ -268,44 +268,42 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                          rhsp=fp_stbc + fpr)
         iniv = vp_stokes[:NV]
 
-    datastrdict = dict(nwtn=None, time=None, meshp=N, nu=nu,
+    datastrdict = dict(time=None, meshp=N, nu=nu,
                        Nts=trange.size-1, dt=None, data_prfx=data_prfx)
 
     if clearprvdata:
-        datastrdict['nwtn'], datastrdict['time'] = '*', '*'
+        datastrdict['time'] = '*'
         cdatstr = get_datastr_snu(**datastrdict)
-        for fname in glob.glob(ddir + cdatstr + '*'):
+        for fname in glob.glob(ddir + cdatstr + '__vel*'):
             os.remove(fname)
 
     if lin_vel_point is None:
         # linearize about the initial value
-        datastrdict['nwtn'], datastrdict['time'] = 0, None
+        datastrdict['time'] = None
         cdatstr = get_datastr_snu(**datastrdict)
         lin_vel_point = iniv
         dou.save_npa(iniv, fstring=ddir + cdatstr + '__vel')
 
     newtk, norm_nwtnupd, norm_nwtnupd_list = 0, 1, []
 
-    while newtk < nnewtsteps:
-        newtk += 1
-        # check for previously computed velocities
-        try:
-            datastrdict.update(dict(nwtn=newtk, time=trange[-1],
-                                    dt=trange[-1]-trange[-2]))
-            cdatstr = get_datastr_snu(**datastrdict)
+    # check for previously computed velocities
+    try:
+        datastrdict.update(dict(time=trange[-1], dt=trange[-1]-trange[-2]))
+        cdatstr = get_datastr_snu(**datastrdict)
 
-            norm_nwtnupd = dou.load_npa(ddir + cdatstr + '__norm_nwtnupd')
-            v_old = dou.load_npa(ddir + cdatstr + '__vel')
+        norm_nwtnupd = dou.load_npa(ddir + cdatstr + '__norm_nwtnupd')
+        v_old = dou.load_npa(ddir + cdatstr + '__vel')
 
-            norm_nwtnupd_list.append(norm_nwtnupd)
-            print 'found vel files of Newton iteration {0}'.format(newtk)
-            print 'norm of current Nwtn update: {0}'.format(norm_nwtnupd[0])
+        norm_nwtnupd_list.append(norm_nwtnupd)
+        print 'found vel files'
+        print 'norm of last Nwtn update: {0}'.format(norm_nwtnupd[0])
+        if norm_nwtnupd < vel_nwtn_tol:
+            return
 
-        except IOError:
-            newtk -= 1
-            break
+    except IOError:
+        print 'no old velocity data found'
 
-    while (newtk < nnewtsteps and norm_nwtnupd > vel_nwtn_tol):
+    while (newtk < vel_nwtn_stps and norm_nwtnupd > vel_nwtn_tol):
         newtk += 1
         vfile = dolfin.File(vfileprfx+cdatstr+'__timestep.pvd')
         pfile = dolfin.File(pfileprfx+cdatstr+'__timestep.pvd')
@@ -319,18 +317,18 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
         for tk, t in enumerate(trange[1:]):
             cts = t - trange[tk]
-            datastrdict.update(dict(nwtn=newtk, time=t, dt=cts))
+            datastrdict.update(dict(time=t, dt=cts))
             cdatstr = get_datastr_snu(**datastrdict)
 
             prv_datastrdict = copy.deepcopy(datastrdict)
             # t for implicit scheme
-            prv_datastrdict['nwtn'], prv_datastrdict['time'] = newtk-1, t
-            pdatstr = get_datastr_snu(**prv_datastrdict)
+            # prv_datastrdict['nwtn'], prv_datastrdict['time'] = newtk-1, t
+            # pdatstr = get_datastr_snu(**prv_datastrdict)
 
             # try - except for linearizations about stationary sols
             # for which t=None
             try:
-                prev_v = dou.load_npa(ddir + pdatstr + '__vel')
+                prev_v = dou.load_npa(ddir + cdatstr + '__vel')
             except IOError:
                 prv_datastrdict['time'], prv_datastrdict['dt'] = None, None
                 pdatstr = get_datastr_snu(**prv_datastrdict)
@@ -362,6 +360,3 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         norm_nwtnupd_list.append(norm_nwtnupd[0])
 
         print 'norm of current Newton update: {}'.format(norm_nwtnupd)
-
-    if return_nwtn_step:
-        return newtk
