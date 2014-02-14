@@ -10,13 +10,12 @@ import dolfin_navier_scipy.data_output_utils as dou
 import sadptprj_riclyap_adi.lin_alg_utils as lau
 
 
-def get_datastr_snu(nwtn=None, time=None,
-                    meshp=None, nu=None, Nts=None, dt=None,
+def get_datastr_snu(time=None, meshp=None, nu=None, Nts=None, dt=None,
                     data_prfx=''):
 
     return (data_prfx +
-            'Nwtnit{0}_time{1}_nu{2}_mesh{3}_Nts{4}_dt{5}').format(
-        nwtn, time, nu, meshp, Nts, dt)
+            'time{0}_nu{1}_mesh{2}_Nts{3}_dt{4}').format(
+        time, nu, meshp, Nts, dt)
 
 
 def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
@@ -69,13 +68,14 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           fv_stbc=None, fp_stbc=None,
                           V=None, Q=None, invinds=None, diribcs=None,
                           N=None, nu=None,
-                          npicardsteps=0,
-                          nnewtsteps=None, vel_nwtn_tol=None,
+                          vel_pcrd_stps=10, vel_pcrd_tol=1e-3,
+                          vel_nwtn_stps=10, vel_nwtn_tol=1e-15,
                           clearprvdata=False,
                           vel_start_nwtn=None,
                           ddir=None, get_datastring=None,
                           data_prfx='',
                           paraviewoutput=False,
+                          save_intermediate_steps=False,
                           vfileprfx='', pfileprfx='',
                           **kw):
 
@@ -115,36 +115,31 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 # Compute or load the uncontrolled steady state Navier-Stokes solution
 #
 
-    newtk, norm_nwtnupd = 0, 1
+    norm_nwtnupd_list = []
+    vel_newtk, norm_nwtnupd = 0, 1
     # a dict to be passed to the get_datastring function
-    datastrdict = dict(nwtn=newtk, time=None, meshp=N, nu=nu,
+    datastrdict = dict(time=None, meshp=N, nu=nu,
                        Nts=None, dt=None, data_prfx=data_prfx)
 
     if clearprvdata:
-        datastrdict['nwtn'] = '*'
         cdatstr = get_datastr_snu(**datastrdict)
         for fname in glob.glob(ddir + cdatstr + '*__vel*'):
             os.remove(fname)
 
-    norm_nwtnupd_list = []
+    try:
+        cdatstr = get_datastr_snu(**datastrdict)
 
-    while newtk < nnewtsteps:
-        newtk += 1
-        datastrdict.update(dict(nwtn=newtk))
-        # check for previously computed velocities
-        try:
-            cdatstr = get_datastr_snu(**datastrdict)
+        norm_nwtnupd = dou.load_npa(ddir + cdatstr + '__norm_nwtnupd')
+        vel_k = dou.load_npa(ddir + cdatstr + '__vel')
 
-            norm_nwtnupd = dou.load_npa(ddir + cdatstr + '__norm_nwtnupd')
-            vel_k = dou.load_npa(ddir + cdatstr + '__vel')
+        norm_nwtnupd_list.append(norm_nwtnupd)
+        print 'found vel files'
+        print 'norm of last Nwtn update: {0}'.format(norm_nwtnupd[0])
+        if norm_nwtnupd < vel_nwtn_tol:
+            return vel_k, norm_nwtnupd_list
 
-            norm_nwtnupd_list.append(norm_nwtnupd)
-            print 'loaded vel files of Newton iteration {0}'.format(newtk)
-            print 'norm of current Nwtn update: {0}'.format(norm_nwtnupd[0])
-
-        except IOError:
-            newtk -= 1
-            break
+    except IOError:
+        print 'no old velocity data found'
 
     if paraviewoutput:
         cdatstr = get_datastr_snu(**datastrdict)
@@ -157,7 +152,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         prvoutdict = dict(writeoutput=False)  # save 'if statements' here
 
     NV = A.shape[0]
-    if newtk == 0 and vel_start_nwtn is None:
+    if vel_start_nwtn is None:
         vp_stokes = lau.solve_sadpnt_smw(amat=A, jmat=J, jmatT=JT,
                                          rhsv=fv_stbc + fvc,
                                          rhsp=fp_stbc + fpr
@@ -174,32 +169,34 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         # Stokes solution as starting value
         vel_k = vp_stokes[:NV, ]
 
-        # picard iterations for a better newton starting value
-        for k in range(npicardsteps):
-            (convc_mat,
-             rhs_con, rhsv_conbc) = get_v_conv_conts(vel_k, invinds=invinds,
-                                                     V=V, diribcs=diribcs,
-                                                     Picard=True)
-
-            vp_k = lau.solve_sadpnt_smw(amat=A+convc_mat, jmat=J, jmatT=JT,
-                                        rhsv=fv_stbc+fvc+rhs_con+rhsv_conbc,
-                                        rhsp=fp_stbc + fpr)
-
-            print 'Picard iteration: {0} -- norm of update: {1}'\
-                .format(k+1, np.sqrt(m_innerproduct(M, vel_k-vp_k[:NV, :]))[0])
-            vel_k = vp_k[:NV, ]
-
-    elif newtk == 0:
+    else:
         vel_k = vel_start_nwtn
 
-    while (newtk < nnewtsteps and norm_nwtnupd > vel_nwtn_tol):
-        newtk += 1
+    # Picard iterations for a good starting value for Newton
+    for k in range(vel_pcrd_stps):
+        (convc_mat,
+         rhs_con, rhsv_conbc) = get_v_conv_conts(vel_k, invinds=invinds,
+                                                 V=V, diribcs=diribcs,
+                                                 Picard=True)
 
-        datastrdict.update(dict(nwtn=newtk))
+        vp_k = lau.solve_sadpnt_smw(amat=A+convc_mat, jmat=J, jmatT=JT,
+                                    rhsv=fv_stbc+fvc+rhs_con+rhsv_conbc,
+                                    rhsp=fp_stbc + fpr)
+        normpicupd = np.sqrt(m_innerproduct(M, vel_k-vp_k[:NV, :]))[0]
+
+        print 'Picard iteration: {0} -- norm of update: {1}'\
+            .format(k+1, normpicupd)
+
+        vel_k = vp_k[:NV, ]
+
+        if normpicupd < vel_pcrd_tol:
+            break
+
+    # Newton iteration
+    while (vel_newtk < vel_nwtn_stps and norm_nwtnupd > vel_nwtn_tol):
+        vel_newtk += 1
+
         cdatstr = get_datastr_snu(**datastrdict)
-
-        print 'Computing Newton Iteration {0} -- steady state'.\
-            format(newtk)
 
         (convc_mat,
          rhs_con, rhsv_conbc) = get_v_conv_conts(vel_k, invinds=invinds,
@@ -211,16 +208,13 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
         norm_nwtnupd = np.sqrt(m_innerproduct(M, vel_k - vp_k[:NV, :]))[0]
         vel_k = vp_k[:NV, ]
+        print 'Newton iteration: {0} -- norm of update: {1}'\
+            .format(vel_newtk, norm_nwtnupd)
 
         dou.save_npa(vel_k, fstring=ddir + cdatstr + '__vel')
 
         prvoutdict.update(dict(vp=vp_k))
         dou.output_paraview(**prvoutdict)
-
-        dou.save_npa(norm_nwtnupd, ddir + cdatstr + '__norm_nwtnupd')
-        norm_nwtnupd_list.append(norm_nwtnupd[0])
-
-        print 'norm of current Newton update: {}'.format(norm_nwtnupd)
 
     # savetomatlab = True
     # if savetomatlab:

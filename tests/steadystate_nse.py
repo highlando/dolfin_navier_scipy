@@ -80,9 +80,10 @@ def testit(problem='drivencavity', N=None, nu=1e-2):
     soldict.update(rhsd_vfrc)  # adding fvc, fpr
     soldict.update(fv_stbc=rhsd_stbc['fv'], fp_stbc=rhsd_stbc['fp'],
                    N=N, nu=nu,
-                   nnewtsteps=nnewtsteps,
+                   vel_nwtn_stps=nnewtsteps,
                    vel_nwtn_tol=vel_nwtn_tol,
                    ddir=ddir, get_datastring=None,
+                   clearprvdata=True,
                    data_prfx=data_prfx,
                    paraviewoutput=ParaviewOutput,
                    vfileprfx=proutdir+'vel_',
