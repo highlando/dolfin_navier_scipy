@@ -147,7 +147,7 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1):
 
     ## meshes are available from https://launchpad.net/nsbench
     # Load mesh
-    if refinement_level > 5:
+    if refinement_level > 9:
         raise RuntimeError("No mesh available for refinement level {0}".
                            format(refinement_level))
     mesh = dolfin.Mesh("mesh/cylinder_%d.xml" % refinement_level)
