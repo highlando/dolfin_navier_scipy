@@ -385,19 +385,26 @@ def get_dof_coors(V, invinds=None):
     coorar = np.vstack(coorlist)
 
     unidofs, uniinds = np.unique(dofar, return_index=True)
+    print dofar.shape, coorar.shape
+    print unidofs.shape, uniinds.shape
 
-    checkf = dolfin.Expression(('1', '0'))
-    checkv = dolfin.interpolate(checkf, V)
+    coorfun = dolfin.Expression(('x[0]', 'x[1]'))
+    coorfun = dolfin.interpolate(coorfun, V)
 
-    xinds = np.where(checkv.vector().array() > 0)[0]
-    yinds = np.setdiff1d(unidofs, xinds)
+    xinds = V.sub(0).dofmap().dofs()
+    yinds = V.sub(1).dofmap().dofs()
+
+    print xinds.shape, yinds.shape
 
     if invinds is not None:
         # check which innerinds are xinds
         chix = np.in1d(invinds, xinds)
+        print chix.shape
         # x inner inds in a inner vector
         xinds = np.arange(len(chix), dtype=np.int32)[chix]
         yinds = np.arange(len(chix), dtype=np.int32)[~chix]
-        uniinds = np.intersect1d(invinds, uniinds)
 
-    return coorar[uniinds, :], xinds, yinds
+    xcoors = coorfun.vector().array()[xinds]
+    ycoors = coorfun.vector().array()[yinds]
+
+    return xcoors, xinds, yinds
