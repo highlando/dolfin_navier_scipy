@@ -368,25 +368,23 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None, diribcs=None, vp=None,
 
 def get_dof_coors(V, invinds=None):
 
-    doflist = []
-    coorlist = []
-    for (i, cell) in enumerate(dolfin.cells(V.mesh())):
-        # print "Global dofs associated with cell %d: " % i,
-        # print V.dofmap().cell_dofs(i)
-        # print "The Dof coordinates:",
-        # print V.dofmap().tabulate_coordinates(cell)
-        dofs = V.dofmap().cell_dofs(i)
-        coors = V.dofmap().tabulate_coordinates(cell)
-        # Cdofs = V.dofmap().cell_dofs(i)
-        coorlist.append(coors)
-        doflist.append(dofs)
+    # doflist = []
+    # coorlist = []
+    # for (i, cell) in enumerate(dolfin.cells(V.mesh())):
+    #     # print "Global dofs associated with cell %d: " % i,
+    #     # print V.dofmap().cell_dofs(i)
+    #     # print "The Dof coordinates:",
+    #     # print V.dofmap().tabulate_coordinates(cell)
+    #     dofs = V.dofmap().cell_dofs(i)
+    #     coors = V.dofmap().tabulate_coordinates(cell)
+    #     # Cdofs = V.dofmap().cell_dofs(i)
+    #     coorlist.append(coors)
+    #     doflist.append(dofs)
 
-    dofar = np.hstack(doflist)
-    coorar = np.vstack(coorlist)
+    # dofar = np.hstack(doflist)
+    # coorar = np.vstack(coorlist)
 
-    unidofs, uniinds = np.unique(dofar, return_index=True)
-    print dofar.shape, coorar.shape
-    print unidofs.shape, uniinds.shape
+    # unidofs, uniinds = np.unique(dofar, return_index=True)
 
     coorfun = dolfin.Expression(('x[0]', 'x[1]'))
     coorfun = dolfin.interpolate(coorfun, V)
@@ -394,17 +392,20 @@ def get_dof_coors(V, invinds=None):
     xinds = V.sub(0).dofmap().dofs()
     yinds = V.sub(1).dofmap().dofs()
 
-    print xinds.shape, yinds.shape
-
-    if invinds is not None:
-        # check which innerinds are xinds
-        chix = np.in1d(invinds, xinds)
-        print chix.shape
-        # x inner inds in a inner vector
-        xinds = np.arange(len(chix), dtype=np.int32)[chix]
-        yinds = np.arange(len(chix), dtype=np.int32)[~chix]
-
     xcoors = coorfun.vector().array()[xinds]
     ycoors = coorfun.vector().array()[yinds]
 
-    return xcoors, xinds, yinds
+    if invinds is not None:
+        # check which innerinds are xinds
+        chix = np.intersect1d(invinds, xinds)
+        chiy = np.intersect1d(invinds, yinds)
+        chixx = np.in1d(invinds, xinds)
+        # x inner inds in a inner vector
+        xinds = np.arange(len(chixx), dtype=np.int32)[chixx]
+        yinds = np.arange(len(chixx), dtype=np.int32)[~chixx]
+        xcoors = coorfun.vector().array()[chix]
+        ycoors = coorfun.vector().array()[chiy]
+
+    coors = np.vstack([xcoors, ycoors]).T
+
+    return coors, xinds, yinds
