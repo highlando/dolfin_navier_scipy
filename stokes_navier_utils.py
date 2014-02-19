@@ -230,9 +230,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               t0=None, tE=None, Nts=None,
               V=None, Q=None, invinds=None, diribcs=None,
               N=None, nu=None,
-              z_ssfeedb=None,
+              closed_loop=False, static_feedback=False,
+              feedbackthroughdict=None,
               tb_mat=None, c_mat=None,
-              vel_nwtn_stps=None, vel_nwtn_tol=None,
+              vel_nwtn_stps=20, vel_nwtn_tol=1e-15,
               clearprvdata=False,
               ddir=None, get_datastring=None,
               data_prfx='',
@@ -244,6 +245,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     solution of the time-dependent nonlinear Navier-Stokes equation
 
     using a Newton scheme in function space
+
+
 
     """
 
@@ -338,12 +341,29 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 get_v_conv_conts(prev_v=prev_v, invinds=invinds,
                                  V=V, diribcs=diribcs)
 
+            fvn = fv_stbc + fvc + rhsv_conbc + rhs_con
+
+            if closed_loop:
+                if static_feedback:
+                    mtxtb = dou.load_npa(feedbackthroughdict[None]['mtxtb'])
+                    next_w = dou.load_npa(feedbackthroughdict[None]['w'])
+                else:
+                    mtxtb = dou.load_npa(feedbackthroughdict[t]['mtxtb'])
+                    next_w = dou.load_npa(feedbackthroughdict[t]['w'])
+
+                fvn = fvn + tb_mat * (tb_mat.T * next_w)
+                vmat = mtxtb
+                umat = -cts*tb_mat
+
+            else:
+                vmat = None
+                umat = None
+
             vp_new = lau.solve_sadpnt_smw(amat=M + cts*(A + convc_mat),
                                           jmat=J, jmatT=JT,
-                                          rhsv=M*v_old + cts *
-                                          (fv_stbc + fvc +
-                                           rhsv_conbc + rhs_con),
-                                          rhsp=fp_stbc + fpr)
+                                          rhsv=M*v_old + cts * fvn,
+                                          rhsp=fp_stbc + fpr,
+                                          umat=umat, vmat=vmat)
 
             v_old = vp_new[:NV, ]
 

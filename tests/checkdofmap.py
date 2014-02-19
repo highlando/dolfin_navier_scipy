@@ -5,6 +5,7 @@ import dolfin_navier_scipy.problem_setups as dnsps
 
 N = 3
 femp = dnsps.drivcav_fems(N)
+mesh = dolfin.UnitSquareMesh(N, N)
 
 stokesmats = dts.get_stokessysmats(femp['V'], femp['Q'])
 
@@ -35,3 +36,5 @@ v.vector()[invinds] += invals
 print v.vector().array()[xinds]
 print v.vector().array()[yinds]
 dolfin.plot(v)
+dolfin.plot(mesh)
+dolfin.interactive()
