@@ -122,12 +122,12 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                        Nts=None, dt=None, data_prfx=data_prfx)
 
     if clearprvdata:
-        cdatstr = get_datastr_snu(**datastrdict)
+        cdatstr = get_datastring(**datastrdict)
         for fname in glob.glob(ddir + cdatstr + '*__vel*'):
             os.remove(fname)
 
     try:
-        cdatstr = get_datastr_snu(**datastrdict)
+        cdatstr = get_datastring(**datastrdict)
 
         norm_nwtnupd = dou.load_npa(ddir + cdatstr + '__norm_nwtnupd')
         vel_k = dou.load_npa(ddir + cdatstr + '__vel')
@@ -142,7 +142,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         print 'no old velocity data found'
 
     if paraviewoutput:
-        cdatstr = get_datastr_snu(**datastrdict)
+        cdatstr = get_datastring(**datastrdict)
         vfile = dolfin.File(vfileprfx+cdatstr+'__steadystates.pvd')
         pfile = dolfin.File(pfileprfx+cdatstr+'__steadystates.pvd')
         prvoutdict = dict(V=V, Q=Q, vfile=vfile, pfile=pfile,
@@ -159,7 +159,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                                          )
 
         # save the data
-        cdatstr = get_datastr_snu(**datastrdict)
+        cdatstr = get_datastring(**datastrdict)
 
         dou.save_npa(vp_stokes[:NV, ], fstring=ddir + cdatstr + '__vel')
 
@@ -196,7 +196,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
     while (vel_newtk < vel_nwtn_stps and norm_nwtnupd > vel_nwtn_tol):
         vel_newtk += 1
 
-        cdatstr = get_datastr_snu(**datastrdict)
+        cdatstr = get_datastring(**datastrdict)
 
         (convc_mat,
          rhs_con, rhsv_conbc) = get_v_conv_conts(vel_k, invinds=invinds,
@@ -276,14 +276,14 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     if clearprvdata:
         datastrdict['time'] = '*'
-        cdatstr = get_datastr_snu(**datastrdict)
+        cdatstr = get_datastring(**datastrdict)
         for fname in glob.glob(ddir + cdatstr + '__vel*'):
             os.remove(fname)
 
     if lin_vel_point is None:
         # linearize about the initial value
         datastrdict['time'] = None
-        cdatstr = get_datastr_snu(**datastrdict)
+        cdatstr = get_datastring(**datastrdict)
         lin_vel_point = iniv
         dou.save_npa(iniv, fstring=ddir + cdatstr + '__vel')
 
@@ -292,7 +292,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     # check for previously computed velocities
     try:
         datastrdict.update(dict(time=trange[-1], dt=trange[-1]-trange[-2]))
-        cdatstr = get_datastr_snu(**datastrdict)
+        cdatstr = get_datastring(**datastrdict)
 
         norm_nwtnupd = dou.load_npa(ddir + cdatstr + '__norm_nwtnupd')
         v_old = dou.load_npa(ddir + cdatstr + '__vel')
@@ -306,6 +306,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     except IOError:
         print 'no old velocity data found'
 
+    v_old = iniv  # start vector for time integration in every Newtonit
+
+    datastrdict['time'] = trange[0]
+    cdatstr = get_datastring(**datastrdict)
+    dou.save_npa(v_old, fstring=ddir + cdatstr + '__vel')
+
     while (newtk < vel_nwtn_stps and norm_nwtnupd > vel_nwtn_tol):
         newtk += 1
         vfile = dolfin.File(vfileprfx+cdatstr+'__timestep.pvd')
@@ -315,18 +321,17 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         dou.output_paraview(**prvoutdict)
 
         norm_nwtnupd = 0
-        v_old = iniv  # start vector for time integration in every Newtonit
         print 'Computing Newton Iteration {0}'.format(newtk)
 
         for tk, t in enumerate(trange[1:]):
             cts = t - trange[tk]
             datastrdict.update(dict(time=t, dt=cts))
-            cdatstr = get_datastr_snu(**datastrdict)
+            cdatstr = get_datastring(**datastrdict)
 
             prv_datastrdict = copy.deepcopy(datastrdict)
             # t for implicit scheme
             # prv_datastrdict['nwtn'], prv_datastrdict['time'] = newtk-1, t
-            # pdatstr = get_datastr_snu(**prv_datastrdict)
+            # pdatstr = get_datastring(**prv_datastrdict)
 
             # try - except for linearizations about stationary sols
             # for which t=None
@@ -334,7 +339,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 prev_v = dou.load_npa(ddir + cdatstr + '__vel')
             except IOError:
                 prv_datastrdict['time'], prv_datastrdict['dt'] = None, None
-                pdatstr = get_datastr_snu(**prv_datastrdict)
+                pdatstr = get_datastring(**prv_datastrdict)
                 prev_v = dou.load_npa(ddir + pdatstr + '__vel')
 
             convc_mat, rhs_con, rhsv_conbc = \
@@ -352,8 +357,11 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     next_w = dou.load_npa(feedbackthroughdict[t]['w'])
 
                 fvn = fvn + tb_mat * (tb_mat.T * next_w)
-                vmat = mtxtb
-                umat = -cts*tb_mat
+                vmat = mtxtb.T
+                try:
+                    umat = -cts*np.array(tb_mat.todense())
+                except AttributeError:
+                    umat = -cts*tb_mat
 
             else:
                 vmat = None

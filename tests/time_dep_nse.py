@@ -28,7 +28,7 @@ def testit(problem='drivencavity', N=None, nu=1e-2):
     # paraview output
     ParaviewOutput = True
     proutdir = 'results/'
-    tips = dict(t0=0.0, tE=1.0, Nts=100)
+    tips = dict(t0=0.0, tE=1.0, Nts=10)
 
     try:
         os.chdir(ddir)
@@ -100,5 +100,5 @@ def testit(problem='drivencavity', N=None, nu=1e-2):
 
 
 if __name__ == '__main__':
-    testit(N=25, nu=3e-4)
+    testit(N=11, nu=1e-2)
     # testit(problem='cylinderwake', N=3, nu=3e-3)
