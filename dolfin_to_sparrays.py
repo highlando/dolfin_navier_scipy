@@ -394,6 +394,7 @@ def get_dof_coors(V, invinds=None):
 
     xcoors = coorfun.vector().array()[xinds]
     ycoors = coorfun.vector().array()[yinds]
+    coorfunvec = coorfun.vector().array()
 
     if invinds is not None:
         # check which innerinds are xinds
@@ -403,9 +404,10 @@ def get_dof_coors(V, invinds=None):
         # x inner inds in a inner vector
         xinds = np.arange(len(chixx), dtype=np.int32)[chixx]
         yinds = np.arange(len(chixx), dtype=np.int32)[~chixx]
-        xcoors = coorfun.vector().array()[chix]
-        ycoors = coorfun.vector().array()[chiy]
+        xcoors = coorfunvec[chix]
+        ycoors = coorfunvec[chiy]
+        coorfunvec = coorfunvec[invinds]
 
     coors = np.vstack([xcoors, ycoors]).T
 
-    return coors, xinds, yinds
+    return coors, xinds, yinds, coorfunvec

@@ -3,7 +3,7 @@ import dolfin
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import dolfin_navier_scipy.problem_setups as dnsps
 
-N = 4
+N = 2
 femp = dnsps.drivcav_fems(N)
 mesh = dolfin.UnitSquareMesh(N, N)
 
@@ -22,8 +22,9 @@ v = dolfin.interpolate(fv, femp['V'])
 
 invals = np.zeros(invinds.size)
 
-coorar, xinds, yinds = dts.get_dof_coors(femp['V'])
-icoorar, ixinds, iyinds = dts.get_dof_coors(femp['V'], invinds=invinds)
+coorar, xinds, yinds, corvec = dts.get_dof_coors(femp['V'])
+icoorar, ixinds, iyinds, icorvec = dts.get_dof_coors(femp['V'],
+                                                     invinds=invinds)
 
 invals[ixinds] = icoorar[:, 0]
 
@@ -38,6 +39,7 @@ v.vector()[invinds] += invals
 # print v.vector().array()[yinds]
 print v.vector().array()[invinds]
 print icoorar[:, 1], iyinds
+print icorvec
 dolfin.plot(v)
 dolfin.plot(mesh)
 dolfin.interactive()
