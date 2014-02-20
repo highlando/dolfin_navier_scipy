@@ -307,13 +307,13 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         print 'no old velocity data found'
 
     v_old = iniv  # start vector for time integration in every Newtonit
-
     datastrdict['time'] = trange[0]
     cdatstr = get_datastring(**datastrdict)
     dou.save_npa(v_old, fstring=ddir + cdatstr + '__vel')
 
     while (newtk < vel_nwtn_stps and norm_nwtnupd > vel_nwtn_tol):
         newtk += 1
+        v_old = iniv  # start vector for time integration in every Newtonit
         vfile = dolfin.File(vfileprfx+cdatstr+'__timestep.pvd')
         pfile = dolfin.File(pfileprfx+cdatstr+'__timestep.pvd')
         prvoutdict.update(dict(vp=None, vc=iniv, t=trange[0],
@@ -327,6 +327,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             cts = t - trange[tk]
             datastrdict.update(dict(time=t, dt=cts))
             cdatstr = get_datastring(**datastrdict)
+            print cdatstr
 
             prv_datastrdict = copy.deepcopy(datastrdict)
             # t for implicit scheme
@@ -348,7 +349,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
             fvn = fv_stbc + fvc + rhsv_conbc + rhs_con
 
-            if closed_loop:
+            if closed_loop and 1 == 2:
                 if static_feedback:
                     mtxtb = dou.load_npa(feedbackthroughdict[None]['mtxtb'])
                     next_w = dou.load_npa(feedbackthroughdict[None]['w'])
