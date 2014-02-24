@@ -216,6 +216,10 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         prvoutdict.update(dict(vp=vp_k))
         dou.output_paraview(**prvoutdict)
 
+    dou.save_npa(norm_nwtnupd, ddir + cdatstr + '__norm_nwtnupd')
+
+    dou.output_paraview(**prvoutdict)
+
     # savetomatlab = True
     # if savetomatlab:
     #     export_mats_to_matlab(E=None, A=None, matfname='matexport')
@@ -225,6 +229,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 def solve_nse(A=None, M=None, J=None, JT=None,
               fvc=None, fpr=None,
               fv_stbc=None, fp_stbc=None,
+              fv_tmdp=None, fv_tmdp_params={},
               iniv=None, lin_vel_point=None,
               trange=None,
               t0=None, tE=None, Nts=None,
@@ -239,14 +244,25 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               data_prfx='',
               paraviewoutput=False, prfdir='',
               vfileprfx='', pfileprfx='',
-              return_nwtn_step=False,
+              return_dictofvelstrs=False,
               **kw):
     """
     solution of the time-dependent nonlinear Navier-Stokes equation
 
     using a Newton scheme in function space
 
+    Parameters
+    ----------
+    fv_tmdp : callable f(t), optional
+        time-dependent part of the right-hand side, set to zero if None
+    fv_tmdp_params : dictionary, optional
+        dictionary of parameters to be passed to `fv_tmdp`, defaults to `{}`
 
+
+    Returns
+    -------
+    dictofvelstrs : dictionary, on demand
+        dictionary with time `t` as keys and path to velocity files as values
 
     """
 
@@ -264,10 +280,15 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     NV = A.shape[0]
 
+    if fv_tmdp is None:
+        def fv_tmdp(t, **kw):
+            return np.zeros(NV, 1)
+
     if iniv is None:
         # Stokes solution as starting value
         vp_stokes = lau.solve_sadpnt_smw(amat=A, jmat=J, jmatT=JT,
-                                         rhsv=fv_stbc + fvc,
+                                         rhsv=fv_stbc + fvc
+                                         + fv_tmdp(0, **fv_tmdp_params),
                                          rhsp=fp_stbc + fpr)
         iniv = vp_stokes[:NV]
 
@@ -282,10 +303,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     if lin_vel_point is None:
         # linearize about the initial value
-        datastrdict['time'] = None
-        cdatstr = get_datastring(**datastrdict)
         lin_vel_point = iniv
-        dou.save_npa(iniv, fstring=ddir + cdatstr + '__vel')
+
+    # steady-state linearization point
+    datastrdict['time'] = None
+    cdatstr = get_datastring(**datastrdict)
+    dou.save_npa(lin_vel_point, fstring=ddir + cdatstr + '__vel')
 
     newtk, norm_nwtnupd, norm_nwtnupd_list = 0, 1, []
 
@@ -304,12 +327,15 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             return
 
     except IOError:
+        norm_nwtnupd = 2
         print 'no old velocity data found'
 
     v_old = iniv  # start vector for time integration in every Newtonit
     datastrdict['time'] = trange[0]
     cdatstr = get_datastring(**datastrdict)
     dou.save_npa(v_old, fstring=ddir + cdatstr + '__vel')
+    if return_dictofvelstrs:
+        dictofvelstrs = {trange[0]: ddir + cdatstr + '__vel'}
 
     while (newtk < vel_nwtn_stps and norm_nwtnupd > vel_nwtn_tol):
         newtk += 1
@@ -327,7 +353,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             cts = t - trange[tk]
             datastrdict.update(dict(time=t, dt=cts))
             cdatstr = get_datastring(**datastrdict)
-            print cdatstr
 
             prv_datastrdict = copy.deepcopy(datastrdict)
             # t for implicit scheme
@@ -347,9 +372,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 get_v_conv_conts(prev_v=prev_v, invinds=invinds,
                                  V=V, diribcs=diribcs)
 
-            fvn = fv_stbc + fvc + rhsv_conbc + rhs_con
+            fvn = fv_stbc + fvc + rhsv_conbc + rhs_con +\
+                fv_tmdp(0, **fv_tmdp_params)
 
-            if closed_loop and 1 == 2:
+            if closed_loop:
                 if static_feedback:
                     mtxtb = dou.load_npa(feedbackthroughdict[None]['mtxtb'])
                     next_w = dou.load_npa(feedbackthroughdict[None]['w'])
@@ -377,6 +403,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             v_old = vp_new[:NV, ]
 
             dou.save_npa(v_old, fstring=ddir + cdatstr + '__vel')
+            if return_dictofvelstrs:
+                dictofvelstrs.update({t: ddir + cdatstr + '__vel'})
 
             prvoutdict.update(dict(vp=vp_new, t=t))
                                    # fstring=prfdir+data_prfx+cdatstr))
@@ -389,3 +417,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         norm_nwtnupd_list.append(norm_nwtnupd[0])
 
         print 'norm of current Newton update: {}'.format(norm_nwtnupd)
+
+    if return_dictofvelstrs:
+        return dictofvelstrs
+    else:
+        return
