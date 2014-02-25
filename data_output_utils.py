@@ -1,7 +1,6 @@
 import numpy as np
 import scipy.io
 from dolfin_to_sparrays import expand_vp_dolfunc
-import dolfin_navier_scipy.data_output_utils as dou
 import dolfin
 
 
@@ -52,11 +51,11 @@ def load_spa(fstring):
 
 def extract_output(dictofpaths=None, tmesh=None, c_mat=None, ystarvec=None):
 
-    cur_v = dou.load_npa(dictofpaths[tmesh[0]])
+    cur_v = load_npa(dictofpaths[tmesh[0]])
     yn = c_mat*cur_v
     yscomplist = [yn.flatten().tolist()]
     for t in tmesh[1:]:
-        cur_v = dou.load_npa(dictofpaths[tmesh[t]])
+        cur_v = load_npa(dictofpaths[tmesh[t]])
         yn = c_mat*cur_v
         yscomplist.append(yn.flatten().tolist())
     if ystarvec is not None:

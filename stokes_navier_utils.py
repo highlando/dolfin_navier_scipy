@@ -10,12 +10,10 @@ import dolfin_navier_scipy.data_output_utils as dou
 import sadptprj_riclyap_adi.lin_alg_utils as lau
 
 
-def get_datastr_snu(time=None, meshp=None, nu=None, Nts=None, dt=None,
-                    data_prfx=''):
+def get_datastr_snu(time=None, meshp=None, nu=None, Nts=None, data_prfx=''):
 
     return (data_prfx +
-            'time{0}_nu{1}_mesh{2}_Nts{3}_dt{4}').format(
-        time, nu, meshp, Nts, dt)
+            'time{0}_nu{1}_mesh{2}_Nts{3}').format(time, nu, meshp, Nts)
 
 
 def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
@@ -69,7 +67,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           V=None, Q=None, invinds=None, diribcs=None,
                           N=None, nu=None,
                           vel_pcrd_stps=100, vel_pcrd_tol=1e-4,
-                          vel_nwtn_stps=20, vel_nwtn_tol=1e-15,
+                          vel_nwtn_stps=20, vel_nwtn_tol=5e-15,
                           clearprvdata=False,
                           vel_start_nwtn=None,
                           ddir=None, get_datastring=None,
@@ -119,7 +117,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
     vel_newtk, norm_nwtnupd = 0, 1
     # a dict to be passed to the get_datastring function
     datastrdict = dict(time=None, meshp=N, nu=nu,
-                       Nts=None, dt=None, data_prfx=data_prfx)
+                       Nts=None, data_prfx=data_prfx)
 
     if clearprvdata:
         cdatstr = get_datastring(**datastrdict)
@@ -238,7 +236,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               closed_loop=False, static_feedback=False,
               feedbackthroughdict=None,
               tb_mat=None, c_mat=None,
-              vel_nwtn_stps=20, vel_nwtn_tol=1e-15,
+              vel_nwtn_stps=20, vel_nwtn_tol=5e-15,
               clearprvdata=False,
               ddir=None, get_datastring=None,
               data_prfx='',
@@ -282,7 +280,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     if fv_tmdp is None:
         def fv_tmdp(t, **kw):
-            return np.zeros(NV, 1)
+            return np.zeros((NV, 1))
 
     if iniv is None:
         # Stokes solution as starting value
@@ -293,7 +291,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         iniv = vp_stokes[:NV]
 
     datastrdict = dict(time=None, meshp=N, nu=nu,
-                       Nts=trange.size-1, dt=None, data_prfx=data_prfx)
+                       Nts=trange.size-1, data_prfx=data_prfx)
 
     if clearprvdata:
         datastrdict['time'] = '*'
@@ -314,7 +312,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     # check for previously computed velocities
     try:
-        datastrdict.update(dict(time=trange[-1], dt=trange[-1]-trange[-2]))
+        datastrdict.update(dict(time=trange[-1]))
         cdatstr = get_datastring(**datastrdict)
 
         norm_nwtnupd = dou.load_npa(ddir + cdatstr + '__norm_nwtnupd')
@@ -351,7 +349,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
         for tk, t in enumerate(trange[1:]):
             cts = t - trange[tk]
-            datastrdict.update(dict(time=t, dt=cts))
+            datastrdict.update(dict(time=t))
             cdatstr = get_datastring(**datastrdict)
 
             prv_datastrdict = copy.deepcopy(datastrdict)
@@ -364,7 +362,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             try:
                 prev_v = dou.load_npa(ddir + cdatstr + '__vel')
             except IOError:
-                prv_datastrdict['time'], prv_datastrdict['dt'] = None, None
+                prv_datastrdict['time'] = None
                 pdatstr = get_datastring(**prv_datastrdict)
                 prev_v = dou.load_npa(ddir + pdatstr + '__vel')
 
