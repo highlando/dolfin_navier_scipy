@@ -328,6 +328,27 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         norm_nwtnupd = 2
         print 'no old velocity data found'
 
+    def _get_mats_rhs_ts(mmat=None, dt=None, var_c=None,
+                         coeffmat_c=None,
+                         coeffmat_n=None,
+                         fv_c=None, fv_n=None,
+                         umat_c=None, vmat_c=None,
+                         umat_n=None, vmat_n=None):
+        """ to be tweaked for different int schemes
+
+        """
+        solvmat = M + 0.5*dt*coeffmat_n
+        rhs = M*var_c + 0.5*dt*(fv_n + fv_c - coeffmat_c*var_c)
+        if umat_n is not None:
+            matvec = lau.matvec_densesparse
+            umat = 0.5*dt*umat_n
+            vmat = vmat_n
+            rhs = rhs - 0.5*dt*matvec(umat_c, matvec(vmat_c, var_c))
+        else:
+            umat, vmat = umat_n, vmat_n
+
+        return solvmat, rhs, umat, vmat
+
     v_old = iniv  # start vector for time integration in every Newtonit
     datastrdict['time'] = trange[0]
     cdatstr = get_datastring(**datastrdict)
@@ -345,6 +366,33 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         dou.output_paraview(**prvoutdict)
 
         norm_nwtnupd = 0
+
+        ### current values_c for application of trap rule
+        convc_mat_c, rhs_con_c, rhsv_conbc_c = \
+            get_v_conv_conts(prev_v=v_old, invinds=invinds,
+                             V=V, diribcs=diribcs)
+        fvn_c = fv_stbc + fvc + rhsv_conbc_c + rhs_con_c +\
+            fv_tmdp(0, **fv_tmdp_params)
+
+        if closed_loop:
+            if static_feedback:
+                mtxtb_c = dou.load_npa(feedbackthroughdict[None]['mtxtb'])
+                next_w = dou.load_npa(feedbackthroughdict[None]['w'])
+            else:
+                mtxtb_c = dou.load_npa(feedbackthroughdict[0]['mtxtb'])
+                next_w = dou.load_npa(feedbackthroughdict[0]['w'])
+
+            fvn_c = fvn_c + tb_mat * (tb_mat.T * next_w)
+            vmat_n = mtxtb_c.T
+            try:
+                umat_c = -np.array(tb_mat.todense())
+            except AttributeError:
+                umat_c = -tb_mat
+
+        else:
+            vmat_c = None
+            umat_c = None
+
         print 'Computing Newton Iteration {0}'.format(newtk)
 
         for tk, t in enumerate(trange[1:]):
@@ -361,39 +409,50 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 pdatstr = get_datastring(**prv_datastrdict)
                 prev_v = dou.load_npa(ddir + pdatstr + '__vel')
 
-            convc_mat, rhs_con, rhsv_conbc = \
+            # coeffs and rhs at next time instance
+            convc_mat_n, rhs_con_n, rhsv_conbc_n = \
                 get_v_conv_conts(prev_v=prev_v, invinds=invinds,
                                  V=V, diribcs=diribcs)
 
-            fvn = fv_stbc + fvc + rhsv_conbc + rhs_con +\
-                fv_tmdp(0, **fv_tmdp_params)
+            fvn_n = fv_stbc + fvc + rhsv_conbc_n + rhs_con_n +\
+                fv_tmdp(t, **fv_tmdp_params)
 
             if closed_loop:
                 if static_feedback:
-                    mtxtb = dou.load_npa(feedbackthroughdict[None]['mtxtb'])
+                    mtxtb_n = dou.load_npa(feedbackthroughdict[None]['mtxtb'])
                     next_w = dou.load_npa(feedbackthroughdict[None]['w'])
                 else:
-                    mtxtb = dou.load_npa(feedbackthroughdict[t]['mtxtb'])
+                    mtxtb_n = dou.load_npa(feedbackthroughdict[t]['mtxtb'])
                     next_w = dou.load_npa(feedbackthroughdict[t]['w'])
 
-                fvn = fvn + tb_mat * (tb_mat.T * next_w)
-                vmat = mtxtb.T
+                fvn_n = fvn_n + tb_mat * (tb_mat.T * next_w)
+                vmat_n = mtxtb_n.T
                 try:
-                    umat = -cts*np.array(tb_mat.todense())
+                    umat_n = -np.array(tb_mat.todense())
                 except AttributeError:
-                    umat = -cts*tb_mat
+                    umat_n = -tb_mat
 
             else:
-                vmat = None
-                umat = None
+                vmat_n = None
+                umat_n = None
 
-            vp_new = lau.solve_sadpnt_smw(amat=M + cts*(A + convc_mat),
+            (solvmat, rhsv, umat,
+             vmat) = _get_mats_rhs_ts(mmat=M, dt=cts, var_c=v_old,
+                                      coeffmat_c=A + convc_mat_c,
+                                      coeffmat_n=A + convc_mat_n,
+                                      fv_c=fvn_c, fv_n=fvn_n,
+                                      umat_c=umat_c, vmat_c=vmat_c,
+                                      umat_n=umat_n, vmat_n=vmat_n)
+
+            vp_new = lau.solve_sadpnt_smw(amat=solvmat,
                                           jmat=J, jmatT=JT,
-                                          rhsv=M*v_old + cts * fvn,
+                                          rhsv=rhsv,
                                           rhsp=fp_stbc + fpr,
                                           umat=umat, vmat=vmat)
 
             v_old = vp_new[:NV, ]
+            (umat_c, vmat_c, fvn_c,
+                convc_mat_c) = umat_n, vmat_n, fvn_n, convc_mat_n
 
             dou.save_npa(v_old, fstring=ddir + cdatstr + '__vel')
             if return_dictofvelstrs:
