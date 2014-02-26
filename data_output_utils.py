@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.io
+import json
 from dolfin_to_sparrays import expand_vp_dolfunc
 import dolfin
 
@@ -47,6 +48,29 @@ def save_spa(sparray, fstring='notspecified'):
 
 def load_spa(fstring):
     return scipy.io.mmread(fstring).tocsc()
+
+
+def load_json_dicts(StrToJs):
+    fjs = open(StrToJs)
+    JsDict = json.load(fjs)
+    return JsDict
+
+
+def save_output_json(datadict=None,
+                     fstring='unspecified_outputfile',
+                     importcall='from module import plotroutine',
+                     plotroutine='plotroutine'):
+    """save output to json for postprocessing
+
+    """
+
+    jsfile = open(fstring, mode='w')
+    jsfile.write(json.dumps(datadict))
+
+    print 'output saved to ' + fstring
+    print '\n to plot run the commands \n'
+    print importcall
+    print plotroutine + '("' + fstring + '")'
 
 
 def extract_output(dictofpaths=None, tmesh=None, c_mat=None, ystarvec=None):

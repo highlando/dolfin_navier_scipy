@@ -353,12 +353,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             cdatstr = get_datastring(**datastrdict)
 
             prv_datastrdict = copy.deepcopy(datastrdict)
-            # t for implicit scheme
-            # prv_datastrdict['nwtn'], prv_datastrdict['time'] = newtk-1, t
-            # pdatstr = get_datastring(**prv_datastrdict)
 
-            # try - except for linearizations about stationary sols
-            # for which t=None
             try:
                 prev_v = dou.load_npa(ddir + cdatstr + '__vel')
             except IOError:
