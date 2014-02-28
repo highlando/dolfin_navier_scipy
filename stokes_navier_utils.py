@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import glob
+import sys
 import copy
 import dolfin
 
@@ -83,6 +84,33 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
     using Newton's scheme. If no starting value is provide, the iteration
     is started with the steady state Stokes solution.
 
+                          fvc=None, fpr=None,
+                          fv_stbc=None, fp_stbc=None,
+                          V=None, Q=None, invinds=None, diribcs=None,
+                          N=None, nu=None,
+                          vel_pcrd_stps=100, vel_pcrd_tol=1e-4,
+                          vel_nwtn_stps=20, vel_nwtn_tol=5e-15,
+                          clearprvdata=False,
+                          vel_start_nwtn=None,
+                          ddir=None, get_datastring=None,
+                          data_prfx='',
+                          paraviewoutput=False,
+                          save_intermediate_steps=False,
+                          vfileprfx='', pfileprfx='',
+                          **kw):
+
+
+    Parameters
+    ----------
+    A : (N,N) sparse matrix
+        stiffness matrix aka discrete Laplacian, note the sign!
+    M : (N,N) sparse matrix
+        mass matrix
+    J : (M,N) sparse matrix
+        discrete divergence operator
+    JT : (N,M) sparse matrix, optional
+        discrete gradient operator, set to J.T if not provided
+
     :param fvc, fpr:
         right hand sides restricted via removing the boundary nodes in the
         momentum and the pressure freedom in the continuity equation
@@ -108,6 +136,9 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
     if get_datastring is None:
         get_datastring = get_datastr_snu
+
+    if JT is None:
+        JT = J.T
 
 #
 # Compute or load the uncontrolled steady state Navier-Stokes solution
@@ -138,6 +169,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
     except IOError:
         print 'no old velocity data found'
+        norm_nwtnupd = 2
 
     if paraviewoutput:
         cdatstr = get_datastring(**datastrdict)
@@ -247,7 +279,20 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     """
     solution of the time-dependent nonlinear Navier-Stokes equation
 
-    using a Newton scheme in function space
+    .. math::
+        M\\dot v + Av + N(v)v + J^Tp = f \n
+        Jv =g
+
+    using a Newton scheme in function space, i.e. given :math:`v_k`,
+    we solve for the update like
+
+    .. math::
+        M\\dot v + Av + N(v_k)v + N(v)v_k + J^Tp = N(v_k)v_k + f,
+
+    and trapezoidal rule in time. To solve an *Oseen* system (linearization
+    about a steady state) or a *Stokes* system, set the number of Newton
+    steps to one and provide a linearization point and an initial value.
+
 
     Parameters
     ----------
@@ -333,7 +378,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                          coeffmat_n=None,
                          fv_c=None, fv_n=None,
                          umat_c=None, vmat_c=None,
-                         umat_n=None, vmat_n=None):
+                         umat_n=None, vmat_n=None,
+                         impeul=False):
         """ to be tweaked for different int schemes
 
         """
@@ -358,6 +404,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     while (newtk < vel_nwtn_stps and norm_nwtnupd > vel_nwtn_tol):
         newtk += 1
+        print 'Computing Newton Iteration {0}'.format(newtk)
         v_old = iniv  # start vector for time integration in every Newtonit
         vfile = dolfin.File(vfileprfx+cdatstr+'__timestep.pvd')
         pfile = dolfin.File(pfileprfx+cdatstr+'__timestep.pvd')
@@ -368,9 +415,15 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         norm_nwtnupd = 0
 
         ### current values_c for application of trap rule
+        pcrd_anyone = newtk < 3 and vel_nwtn_stps > 1
+        # use picard linearization in the first steps
+        # unless solving stokes or oseen equations
         convc_mat_c, rhs_con_c, rhsv_conbc_c = \
-            get_v_conv_conts(prev_v=v_old, invinds=invinds,
-                             V=V, diribcs=diribcs)
+            get_v_conv_conts(prev_v=iniv, invinds=invinds,
+                             V=V, diribcs=diribcs, Picard=pcrd_anyone)
+        if pcrd_anyone:
+            print 'PICARD !!!'
+
         fvn_c = fv_stbc + fvc + rhsv_conbc_c + rhs_con_c +\
             fv_tmdp(0, **fv_tmdp_params)
 
@@ -393,13 +446,13 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             vmat_c = None
             umat_c = None
 
-        print 'Computing Newton Iteration {0}'.format(newtk)
-
+        print 'time to go',
         for tk, t in enumerate(trange[1:]):
             cts = t - trange[tk]
             datastrdict.update(dict(time=t))
             cdatstr = get_datastring(**datastrdict)
-
+            sys.stdout.write("\rEnd: {1} -- now: {0:f}".format(t, trange[-1]))
+            sys.stdout.flush()
             prv_datastrdict = copy.deepcopy(datastrdict)
 
             try:
@@ -410,10 +463,14 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 prev_v = dou.load_npa(ddir + pdatstr + '__vel')
 
             # coeffs and rhs at next time instance
+            if pcrd_anyone:
+            # we rather use an explicit scheme
+            # than an unstable implicit --> to get a good start value
+                prev_v = v_old
+
             convc_mat_n, rhs_con_n, rhsv_conbc_n = \
                 get_v_conv_conts(prev_v=prev_v, invinds=invinds,
-                                 V=V, diribcs=diribcs)
-
+                                 V=V, diribcs=diribcs, Picard=pcrd_anyone)
             fvn_n = fv_stbc + fvc + rhsv_conbc_n + rhs_con_n +\
                 fv_tmdp(t, **fv_tmdp_params)
 
@@ -468,7 +525,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         dou.save_npa(norm_nwtnupd, ddir + cdatstr + '__norm_nwtnupd')
         norm_nwtnupd_list.append(norm_nwtnupd[0])
 
-        print 'norm of current Newton update: {}'.format(norm_nwtnupd)
+        print '\nnorm of current Newton update: {}'.format(norm_nwtnupd)
 
     if return_dictofvelstrs:
         return dictofvelstrs

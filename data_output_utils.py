@@ -58,7 +58,7 @@ def load_json_dicts(StrToJs):
 
 def save_output_json(datadict=None,
                      fstring='unspecified_outputfile',
-                     importcall='from module import plotroutine',
+                     module='module',
                      plotroutine='plotroutine'):
     """save output to json for postprocessing
 
@@ -69,7 +69,7 @@ def save_output_json(datadict=None,
 
     print 'output saved to ' + fstring
     print '\n to plot run the commands \n'
-    print importcall
+    print 'from ' + module + ' import ' + plotroutine
     print plotroutine + '("' + fstring + '")'
 
 
