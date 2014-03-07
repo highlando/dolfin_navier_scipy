@@ -71,7 +71,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           vel_nwtn_stps=20, vel_nwtn_tol=5e-15,
                           clearprvdata=False,
                           vel_start_nwtn=None,
-                          ddir=None, get_datastring=None,
+                          get_datastring=None,
                           data_prfx='',
                           paraviewoutput=False,
                           save_intermediate_steps=False,
@@ -83,22 +83,6 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
     using Newton's scheme. If no starting value is provide, the iteration
     is started with the steady state Stokes solution.
-
-                          fvc=None, fpr=None,
-                          fv_stbc=None, fp_stbc=None,
-                          V=None, Q=None, invinds=None, diribcs=None,
-                          N=None, nu=None,
-                          vel_pcrd_stps=100, vel_pcrd_tol=1e-4,
-                          vel_nwtn_stps=20, vel_nwtn_tol=5e-15,
-                          clearprvdata=False,
-                          vel_start_nwtn=None,
-                          ddir=None, get_datastring=None,
-                          data_prfx='',
-                          paraviewoutput=False,
-                          save_intermediate_steps=False,
-                          vfileprfx='', pfileprfx='',
-                          **kw):
-
 
     Parameters
     ----------
@@ -152,14 +136,14 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
     if clearprvdata:
         cdatstr = get_datastring(**datastrdict)
-        for fname in glob.glob(ddir + cdatstr + '*__vel*'):
+        for fname in glob.glob(cdatstr + '*__vel*'):
             os.remove(fname)
 
     try:
         cdatstr = get_datastring(**datastrdict)
 
-        norm_nwtnupd = dou.load_npa(ddir + cdatstr + '__norm_nwtnupd')
-        vel_k = dou.load_npa(ddir + cdatstr + '__vel')
+        norm_nwtnupd = dou.load_npa(cdatstr + '__norm_nwtnupd')
+        vel_k = dou.load_npa(cdatstr + '__vel')
 
         norm_nwtnupd_list.append(norm_nwtnupd)
         print 'found vel files'
@@ -191,7 +175,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         # save the data
         cdatstr = get_datastring(**datastrdict)
 
-        dou.save_npa(vp_stokes[:NV, ], fstring=ddir + cdatstr + '__vel')
+        dou.save_npa(vp_stokes[:NV, ], fstring=cdatstr + '__vel')
 
         prvoutdict.update(dict(vp=vp_stokes))
         dou.output_paraview(**prvoutdict)
@@ -241,12 +225,12 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         print 'Newton iteration: {0} -- norm of update: {1}'\
             .format(vel_newtk, norm_nwtnupd)
 
-        dou.save_npa(vel_k, fstring=ddir + cdatstr + '__vel')
+        dou.save_npa(vel_k, fstring=cdatstr + '__vel')
 
         prvoutdict.update(dict(vp=vp_k))
         dou.output_paraview(**prvoutdict)
 
-    dou.save_npa(norm_nwtnupd, ddir + cdatstr + '__norm_nwtnupd')
+    dou.save_npa(norm_nwtnupd, cdatstr + '__norm_nwtnupd')
 
     dou.output_paraview(**prvoutdict)
 
@@ -271,7 +255,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               tb_mat=None, c_mat=None,
               vel_nwtn_stps=20, vel_nwtn_tol=5e-15,
               clearprvdata=False,
-              ddir=None, get_datastring=None,
+              get_datastring=None,
               data_prfx='',
               paraviewoutput=False, prfdir='',
               vfileprfx='', pfileprfx='',
@@ -348,7 +332,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if clearprvdata:
         datastrdict['time'] = '*'
         cdatstr = get_datastring(**datastrdict)
-        for fname in glob.glob(ddir + cdatstr + '__vel*'):
+        for fname in glob.glob(cdatstr + '__vel*'):
             os.remove(fname)
 
     if lin_vel_point is None:
@@ -358,7 +342,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     # steady-state linearization point
     datastrdict['time'] = None
     cdatstr = get_datastring(**datastrdict)
-    dou.save_npa(lin_vel_point, fstring=ddir + cdatstr + '__vel')
+    dou.save_npa(lin_vel_point, fstring=cdatstr + '__vel')
 
     newtk, norm_nwtnupd, norm_nwtnupd_list = 0, 1, []
 
@@ -367,8 +351,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         datastrdict.update(dict(time=trange[-1]))
         cdatstr = get_datastring(**datastrdict)
 
-        norm_nwtnupd = dou.load_npa(ddir + cdatstr + '__norm_nwtnupd')
-        v_old = dou.load_npa(ddir + cdatstr + '__vel')
+        norm_nwtnupd = dou.load_npa(cdatstr + '__norm_nwtnupd')
+        v_old = dou.load_npa(cdatstr + '__vel')
 
         norm_nwtnupd_list.append(norm_nwtnupd)
         print 'found vel files'
@@ -405,9 +389,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     v_old = iniv  # start vector for time integration in every Newtonit
     datastrdict['time'] = trange[0]
     cdatstr = get_datastring(**datastrdict)
-    dou.save_npa(v_old, fstring=ddir + cdatstr + '__vel')
+    dou.save_npa(v_old, fstring=cdatstr + '__vel')
     if return_dictofvelstrs:
-        dictofvelstrs = {trange[0]: ddir + cdatstr + '__vel'}
+        dictofvelstrs = {trange[0]: cdatstr + '__vel'}
 
     if comp_nonl_semexp:
         print 'Explicit treatment of the nonlinearity !!!'
@@ -471,11 +455,11 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             prv_datastrdict = copy.deepcopy(datastrdict)
 
             try:
-                prev_v = dou.load_npa(ddir + cdatstr + '__vel')
+                prev_v = dou.load_npa(cdatstr + '__vel')
             except IOError:
                 prv_datastrdict['time'] = None
                 pdatstr = get_datastring(**prv_datastrdict)
-                prev_v = dou.load_npa(ddir + pdatstr + '__vel')
+                prev_v = dou.load_npa(pdatstr + '__vel')
 
             # coeffs and rhs at next time instance
             if pcrd_anyone or comp_nonl_semexp:
@@ -532,9 +516,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             (umat_c, vmat_c, fvn_c,
                 convc_mat_c) = umat_n, vmat_n, fvn_n, convc_mat_n
 
-            dou.save_npa(v_old, fstring=ddir + cdatstr + '__vel')
+            dou.save_npa(v_old, fstring=cdatstr + '__vel')
             if return_dictofvelstrs:
-                dictofvelstrs.update({t: ddir + cdatstr + '__vel'})
+                dictofvelstrs.update({t: cdatstr + '__vel'})
 
             prvoutdict.update(dict(vp=vp_new, t=t))
                                    # fstring=prfdir+data_prfx+cdatstr))
@@ -543,7 +527,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             # integrate the Newton error
             norm_nwtnupd += cts * m_innerproduct(M, v_old - prev_v)
 
-        dou.save_npa(norm_nwtnupd, ddir + cdatstr + '__norm_nwtnupd')
+        dou.save_npa(norm_nwtnupd, cdatstr + '__norm_nwtnupd')
         norm_nwtnupd_list.append(norm_nwtnupd[0])
 
         print '\nnorm of current Newton update: {}'.format(norm_nwtnupd)
