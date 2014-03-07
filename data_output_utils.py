@@ -56,10 +56,33 @@ def load_json_dicts(StrToJs):
     return JsDict
 
 
+def plot_outp_sig(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
+                  outsig=None, tmesh=None, fignum=222):
+    import matplotlib.pyplot as plt
+    from matplotlib2tikz import save as tikz_save
+
+    if str_to_json is not None:
+        jsdict = load_json_dicts(str_to_json)
+        tmesh = jsdict[tmeshkey]
+        outsig = jsdict[sigkey]
+    else:
+        str_to_json = 'notspecified'
+
+    fig = plt.figure(fignum)
+    ax1 = fig.add_subplot(111)
+    ax1.plot(tmesh, outsig)
+
+    tikz_save(str_to_json + '{0}'.format(fignum) + '.tikz',
+              figureheight='\\figureheight',
+              figurewidth='\\figurewidth'
+              )
+    fig.show()
+
+
 def save_output_json(datadict=None,
                      fstring='unspecified_outputfile',
-                     module='module',
-                     plotroutine='plotroutine'):
+                     module='dolfin_navier_scipy.data_output_utils',
+                     plotroutine='plot_outp_sig'):
     """save output to json for postprocessing
 
     """

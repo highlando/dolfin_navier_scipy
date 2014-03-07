@@ -260,6 +260,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               fvc=None, fpr=None,
               fv_stbc=None, fp_stbc=None,
               fv_tmdp=None, fv_tmdp_params={},
+              fv_tmdp_memory=None,
               iniv=None, lin_vel_point=None,
               trange=None,
               t0=None, tE=None, Nts=None,
@@ -275,6 +276,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               paraviewoutput=False, prfdir='',
               vfileprfx='', pfileprfx='',
               return_dictofvelstrs=False,
+              comp_nonl_semexp=False,
               **kw):
     """
     solution of the time-dependent nonlinear Navier-Stokes equation
@@ -296,10 +298,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     Parameters
     ----------
-    fv_tmdp : callable f(t), optional
+    fv_tmdp : callable f(t, v, dict), optional
         time-dependent part of the right-hand side, set to zero if None
     fv_tmdp_params : dictionary, optional
         dictionary of parameters to be passed to `fv_tmdp`, defaults to `{}`
+    fv_tmdp_memory : dictionary, optional
+        memory of the function
 
 
     Returns
@@ -324,14 +328,17 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     NV = A.shape[0]
 
     if fv_tmdp is None:
-        def fv_tmdp(t, **kw):
-            return np.zeros((NV, 1))
+        def fv_tmdp(time=None, curvel=None, **kw):
+            return np.zeros((NV, 1)), None
 
     if iniv is None:
         # Stokes solution as starting value
+        (fv_tmdp_cont,
+         fv_tmdp_memory) = fv_tmdp(time=0, **fv_tmdp_params)
+        # TODO: make this save -- although if we do control
+        # we should provide an initial value
         vp_stokes = lau.solve_sadpnt_smw(amat=A, jmat=J, jmatT=JT,
-                                         rhsv=fv_stbc + fvc
-                                         + fv_tmdp(0, **fv_tmdp_params),
+                                         rhsv=fv_stbc + fvc + fv_tmdp_cont,
                                          rhsp=fp_stbc + fpr)
         iniv = vp_stokes[:NV]
 
@@ -402,6 +409,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if return_dictofvelstrs:
         dictofvelstrs = {trange[0]: ddir + cdatstr + '__vel'}
 
+    if comp_nonl_semexp:
+        print 'Explicit treatment of the nonlinearity !!!'
+        vel_nwtn_stps = 1
+
     while (newtk < vel_nwtn_stps and norm_nwtnupd > vel_nwtn_tol):
         newtk += 1
         print 'Computing Newton Iteration {0}'.format(newtk)
@@ -415,7 +426,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         norm_nwtnupd = 0
 
         ### current values_c for application of trap rule
-        pcrd_anyone = newtk < 3 and vel_nwtn_stps > 1
+        pcrd_anyone = newtk < 2 and vel_nwtn_stps > 1
         # use picard linearization in the first steps
         # unless solving stokes or oseen equations
         convc_mat_c, rhs_con_c, rhsv_conbc_c = \
@@ -424,8 +435,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         if pcrd_anyone:
             print 'PICARD !!!'
 
-        fvn_c = fv_stbc + fvc + rhsv_conbc_c + rhs_con_c +\
-            fv_tmdp(0, **fv_tmdp_params)
+        (fv_tmdp_cont,
+         fv_tmdp_memory) = fv_tmdp(time=0,
+                                   curvel=v_old,
+                                   memory=fv_tmdp_memory,
+                                   **fv_tmdp_params)
+        fvn_c = fv_stbc + fvc + rhsv_conbc_c + rhs_con_c + fv_tmdp_cont
 
         if closed_loop:
             if static_feedback:
@@ -463,7 +478,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 prev_v = dou.load_npa(ddir + pdatstr + '__vel')
 
             # coeffs and rhs at next time instance
-            if pcrd_anyone:
+            if pcrd_anyone or comp_nonl_semexp:
             # we rather use an explicit scheme
             # than an unstable implicit --> to get a good start value
                 prev_v = v_old
@@ -471,8 +486,14 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             convc_mat_n, rhs_con_n, rhsv_conbc_n = \
                 get_v_conv_conts(prev_v=prev_v, invinds=invinds,
                                  V=V, diribcs=diribcs, Picard=pcrd_anyone)
-            fvn_n = fv_stbc + fvc + rhsv_conbc_n + rhs_con_n +\
-                fv_tmdp(t, **fv_tmdp_params)
+            (fv_tmdp_cont,
+             fv_tmdp_memory) = fv_tmdp(time=t,
+                                       curvel=v_old,
+                                       memory=fv_tmdp_memory,
+                                       **fv_tmdp_params)
+            fvn_n = fv_stbc + fvc + rhsv_conbc_n + rhs_con_n + fv_tmdp_cont
+            # fvn_n = fv_stbc + fvc + rhsv_conbc_n + rhs_con_n +\
+            #     fv_tmdp(time=t, curvel=v_old, **fv_tmdp_params)
 
             if closed_loop:
                 if static_feedback:
