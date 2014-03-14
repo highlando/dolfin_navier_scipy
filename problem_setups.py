@@ -34,6 +34,11 @@ def drivcav_fems(N, vdgree=2, pdgree=1):
          * ``diribcs``: list of the (Dirichlet) boundary conditions
          * ``fv``: right hand side of the momentum equation
          * ``fp``: right hand side of the continuity equation
+         * ``charlen``: characteristic length of the setup
+         * ``odcoo``: dictionary with the coordinates of the domain of
+            observatio
+         * ``cdcoo``: dictionary with the coordinates of the domain of
+            control
     """
 
     mesh = dolfin.UnitSquareMesh(N, N)
@@ -66,7 +71,9 @@ def drivcav_fems(N, vdgree=2, pdgree=1):
                  Q=Q,
                  diribcs=diribcs,
                  fv=fv,
-                 fp=fp)
+                 fp=fp,
+                 uspacedep=0,
+                 charlen=1.0)
 
     # domains of observation and control
     odcoo = dict(xmin=0.45,
@@ -105,6 +112,13 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1):
             for the pressure
          * ``fv``: right hand side of the momentum equation
          * ``fp``: right hand side of the continuity equation
+         * ``charlen``: characteristic length of the setup
+         * ``odcoo``: dictionary with the coordinates of the domain of
+            observatio
+         * ``cdcoo``: dictionary with the coordinates of the domain of
+            control
+         * ``uspacedep``: int that specifies in what spatial direction
+            Bu changes. The remaining is constant
 
     parts of the code were taken from the NSbench collection
     https://launchpad.net/nsbench
@@ -185,7 +199,9 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1):
                    diribcs=bcu,
                    dirip=bcp,
                    fv=fv,
-                   fp=fp)
+                   fp=fp,
+                   uspacedep=0,
+                   charlen=0.1)
 
     # domains of observation and control
     odcoo = dict(xmin=0.6,

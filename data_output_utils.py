@@ -57,7 +57,8 @@ def load_json_dicts(StrToJs):
 
 
 def plot_outp_sig(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
-                  outsig=None, tmesh=None, fignum=222):
+                  outsig=None, tmesh=None, fignum=222, reference=None,
+                  compress=5):
     import matplotlib.pyplot as plt
     from matplotlib2tikz import save as tikz_save
 
@@ -68,15 +69,35 @@ def plot_outp_sig(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
     else:
         str_to_json = 'notspecified'
 
+    redinds = range(1, len(tmesh), compress)
+    redina = np.array(redinds)
+
+    NY = len(outsig[0])/2
+
     fig = plt.figure(fignum)
     ax1 = fig.add_subplot(111)
-    ax1.plot(tmesh, outsig)
+    ax1.plot(np.array(tmesh)[redina], np.array(outsig)[redina, :NY],
+             color='b', linewidth=2.0)
+    ax1.plot(np.array(tmesh)[redina], np.array(outsig)[redina, NY:],
+             color='r', linewidth=2.0)
 
     tikz_save(str_to_json + '{0}'.format(fignum) + '.tikz',
               figureheight='\\figureheight',
               figurewidth='\\figurewidth'
               )
+    print 'tikz saved to ' + str_to_json + '{0}'.format(fignum) + '.tikz'
     fig.show()
+
+    if reference is not None:
+        fig = plt.figure(fignum+1)
+        ax1 = fig.add_subplot(111)
+        ax1.plot(tmesh, np.array(outsig)-reference)
+
+        tikz_save(str_to_json + '{0}'.format(fignum) + '_difftoref.tikz',
+                  figureheight='\\figureheight',
+                  figurewidth='\\figurewidth'
+                  )
+        fig.show()
 
 
 def save_output_json(datadict=None,
