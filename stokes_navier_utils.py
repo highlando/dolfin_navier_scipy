@@ -30,10 +30,27 @@ def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
     .. math::
         (u \\cdot \\nabla) u \\to (u_0 \\cdot \\nabla) u
 
-    :return:
-    ``N1`` matrix representing :math:`(u_0 \\cdot \\nabla )u`
-    ``N2`` matrix representing :math:`(u \\cdot \\nabla )u_0`
-    ``fv`` vector representing :math:`(u_0 \\cdot \\nabla )u_0`
+    Parameters
+    ----------
+    prev_v : (N,1) ndarray
+        convection velocity
+    V : dolfin.VectorFunctionSpace
+        FEM space of the velocity
+    invinds : (N,) ndarray or list
+        indices of the inner nodes
+    diribcs : list of dolfin.BCs
+        list of dolfin Dirichlet boundary conditons
+    Picard : boolean
+        whether Picard linearization is applied, defaults to `False`
+
+    Returns
+    -------
+    N1 : (N,N) sparse matrix
+        representing :math:`(u_0 \\cdot \\nabla )u`
+    N2 : (N,N) sparse matrix
+        representing :math:`(u \\cdot \\nabla )u_0`
+    fv : (N,1) ndarray
+        representing :math:`(u_0 \\cdot \\nabla )u_0`
 
     """
 
@@ -53,7 +70,7 @@ def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
 
 
 def m_innerproduct(M, v1, v2=None):
-    """ inner product with a spd matrix
+    """ inner product with a spd sparse matrix
 
     """
     if v2 is None:
@@ -94,18 +111,30 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         discrete divergence operator
     JT : (N,M) sparse matrix, optional
         discrete gradient operator, set to J.T if not provided
-
-    :param fvc, fpr:
+    fvc, fpr : (N,1), (M,1) ndarrays
         right hand sides restricted via removing the boundary nodes in the
         momentum and the pressure freedom in the continuity equation
-    :param fv_stbc, fp_stbc:
+    fv_stbc, fp_stbc : (N,1), (M,1) ndarrays
         contributions to the right hand side by the Dirichlet boundary
-        conditions in the stokes equations. TODO: time dependent conditions
-        are not handled by now
-    :param npicardsteps:
+        conditions in the Stokes equations.
+    vel_pcrd_stps : int, optional
         Number of Picard iterations when computing a starting value for the
         Newton scheme, cf. Elman, Silvester, Wathen: *FEM and fast iterative
-        solvers*, 2005
+        solvers*, 2005, defaults to `100`
+    vel_pcrd_tol : real, optional
+        tolerance for the size of the Picard update, defaults to `1e-4`
+    vel_nwtn_stps : int, optional
+        Number of Newton iterations, defaults to `20`
+    vel_nwtn_tol : real, optional
+        tolerance for the size of the Newton update, defaults to `5e-15`
+                          clearprvdata=False,
+                          vel_start_nwtn=None,
+                          get_datastring=None,
+                          data_prfx='',
+                          paraviewoutput=False,
+                          save_intermediate_steps=False,
+                          vfileprfx='', pfileprfx='',
+                          **kw):
     :param ddir:
         path to directory where the data is stored
     :param get_datastring:
