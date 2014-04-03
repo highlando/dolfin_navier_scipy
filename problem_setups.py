@@ -15,6 +15,77 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 import dolfin
+import os
+
+import dolfin_navier_scipy.dolfin_to_sparrays as dts
+
+
+def get_sysmats(problem='drivencavity', N=10, nu=1e-2, ParaviewOutput=True):
+    """ retrieve the system matrices for stokes flow
+
+    """
+
+    problemdict = dict(drivencavity=drivcav_fems,
+                       cylinderwake=cyl_fems)
+    problemfem = problemdict[problem]
+    femp = problemfem(N)
+
+    # setting some parameters
+    nu = nu  # this is so to say 1/Re
+
+    # prefix for data files
+    data_prfx = problem
+    # dir to store data
+    ddir = 'data/'
+    # paraview output dir
+    proutdir = 'results/'
+
+    try:
+        os.chdir(ddir)
+    except OSError:
+        raise Warning('need "' + ddir + '" subdir for storing the data')
+    os.chdir('..')
+
+    if ParaviewOutput:
+        curwd = os.getcwd()
+        try:
+            os.chdir(proutdir)
+            # for fname in glob.glob(data_prfx + '*'):
+            #     os.remove(fname)
+            os.chdir(curwd)
+        except OSError:
+            raise Warning('the ' + proutdir + ' subdir for storing the' +
+                          ' output does not exist. Make it yourself' +
+                          ' or set paraviewoutput=False')
+
+    stokesmats = dts.get_stokessysmats(femp['V'], femp['Q'], nu)
+
+    rhsd_vf = dts.setget_rhs(femp['V'], femp['Q'],
+                             femp['fv'], femp['fp'], t=0)
+
+    # remove the freedom in the pressure
+    stokesmats['J'] = stokesmats['J'][:-1, :][:, :]
+    stokesmats['JT'] = stokesmats['JT'][:, :-1][:, :]
+    rhsd_vf['fp'] = rhsd_vf['fp'][:-1, :]
+
+    # reduce the matrices by resolving the BCs
+    (stokesmatsc,
+     rhsd_stbc,
+     invinds,
+     bcinds,
+     bcvals) = dts.condense_sysmatsbybcs(stokesmats,
+                                         femp['diribcs'])
+
+    # pressure freedom and dirichlet reduced rhs
+    rhsd_vfrc = dict(fpr=rhsd_vf['fp'], fvc=rhsd_vf['fv'][invinds, ])
+
+    # add the info on boundary and inner nodes
+    bcdata = {'bcinds': bcinds,
+              'bcvals': bcvals,
+              'invinds': invinds}
+    femp.update(bcdata)
+
+    return femp, stokesmatsc, rhsd_vfrc, rhsd_stbc, data_prfx, ddir, proutdir
 
 
 def drivcav_fems(N, vdgree=2, pdgree=1):
