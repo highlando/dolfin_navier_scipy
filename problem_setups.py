@@ -23,6 +23,48 @@ import dolfin_navier_scipy.dolfin_to_sparrays as dts
 def get_sysmats(problem='drivencavity', N=10, nu=1e-2, ParaviewOutput=True):
     """ retrieve the system matrices for stokes flow
 
+    Parameters
+    ----------
+    problem : {'drivencavity', 'cylinderwake'}
+        problem class
+    N : int
+        mesh parameter
+    nu : real
+        kinematic viscosity
+
+    Returns
+    -------
+    femp : dictionary
+        with the keys:
+         * ``V``: FEM space of the velocity
+         * ``Q``: FEM space of the pressure
+         * ``diribcs``: list of the (Dirichlet) boundary conditions
+         * `bcdata` : dictionary of boundary data
+         * ``fv``: right hand side of the momentum equation
+         * ``fp``: right hand side of the continuity equation
+         * ``charlen``: characteristic length of the setup
+         * ``odcoo``: dictionary with the coordinates of the domain of
+            observation
+         * ``cdcoo``: dictionary with the coordinates of the domain of
+            control
+    stokesmatsc : dictionary
+        a dictionary of the condensed matrices:
+         * ``M``: the mass matrix of the velocity space,
+         * ``A``: the stiffness matrix,
+         * ``JT``: the gradient matrix, and
+         * ``J``: the divergence matrix
+    rhsd_vfrc : dictionary
+        of the dirichlet and pressure fix reduced right hand sides
+    rhsd_stbc
+        a dictionary of the contributions of the boundary data to the rhs:
+         * ``fv``: contribution to momentum equation,
+         * ``fp``: contribution to continuity equation
+    data_prfx : str
+        problem name as prefix for data files
+    ddir : str
+        relative path to directory where data is stored
+    proutdir : str
+        relative path to directory of paraview output
     """
 
     problemdict = dict(drivencavity=drivcav_fems,

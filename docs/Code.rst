@@ -1,5 +1,8 @@
 Code Reference
 ==============
 
-.. automodule:: dolfin_navier_scipy.dolfin_to_sparrays 
+.. automodule:: dolfin_to_sparrays 
+  :members:
+
+.. automodule:: problem_setups 
   :members:
