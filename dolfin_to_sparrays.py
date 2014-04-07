@@ -294,14 +294,18 @@ def condense_velmatsbybcs(A, velbcs):
     to the inner nodes, and compute the rhs contribution
     This is necessary when, e.g., the convection matrix changes with time
 
-    :param A:
+    Parameters
+    ----------
+    A : (N,N) sparse matrix
         coefficient matrix for the velocity
-    :param velbcs:
-        a list of dolfin Dirichlet boundary conditions for the velocity
+    velbcs : list
+        of dolfin *dolfin* Dirichlet boundary conditions for the velocity
 
-    :return Ac:
+    Returns
+    -------
+    Ac : (K, K) sparse matrix
         the condensed velocity matrix
-    :return fvbc:
+    fvbc : (K, 1) array
         the contribution to the rhs of the momentum equation
 
     """

@@ -159,10 +159,10 @@ def drivcav_fems(N, vdgree=2, pdgree=1):
          * `fv`: right hand side of the momentum equation
          * `fp`: right hand side of the continuity equation
          * `charlen`: characteristic length of the setup
-         * `odcoo`: dictionary with the coordinates of the domain of
-            observatio
-         * `cdcoo`: dictionary with the coordinates of the domain of
-            control
+         * `odcoo`: dictionary with the coordinates of the domain of \
+                 observation
+         * `cdcoo`: dictionary with the coordinates of the domain of \
+                 control
     """
 
     mesh = dolfin.UnitSquareMesh(N, N)
