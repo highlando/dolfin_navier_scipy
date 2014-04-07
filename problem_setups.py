@@ -232,26 +232,25 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1):
          * `V`: FEM space of the velocity
          * `Q`: FEM space of the pressure
          * `diribcs`: list of the (Dirichlet) boundary conditions
-         * `dirip`: list of the (Dirichlet) boundary conditions
-            for the pressure
+         * `dirip`: list of the (Dirichlet) boundary conditions \
+                 for the pressure
          * `fv`: right hand side of the momentum equation
          * `fp`: right hand side of the continuity equation
          * `charlen`: characteristic length of the setup
-         * `odcoo`: dictionary with the coordinates of the domain of
-            observatio
-         * `cdcoo`: dictionary with the coordinates of the domain of
-            control
-         * `uspacedep`: int that specifies in what spatial direction
-            Bu changes. The remaining is constant
+         * `odcoo`: dictionary with the coordinates of the \
+                 domain of observatio
+         * `cdcoo`: dictionary with the coordinates of the domain of control
+         * `uspacedep`: int that specifies in what spatial direction Bu \
+                changes. The remaining is constant
 
     Notes
     -----
     parts of the code were taken from the NSbench collection
     https://launchpad.net/nsbench
-    __author__ = "Kristian Valen-Sendstad <kvs@simula.no>"
-    __date__ = "2009-10-01"
-    __copyright__ = "Copyright (C) 2009-2010 " + __author__
-    __license__ = "GNU GPL version 3 or any later version"
+    |  __author__ = "Kristian Valen-Sendstad <kvs@simula.no>"
+    |  __date__ = "2009-10-01"
+    |  __copyright__ = "Copyright (C) 2009-2010 " + __author__
+    |  __license__ = "GNU GPL version 3 or any later version"
     """
 
     # Constants related to the geometry
