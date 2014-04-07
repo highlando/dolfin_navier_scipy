@@ -224,11 +224,11 @@ def condense_sysmatsbybcs(stms, velbcs):
     ----------
     stms: dict
         of the stokes matrices with the keys
-        * ``M``: the mass matrix of the velocity space,
-        * ``A``: the stiffness matrix,
-        * ``JT``: the gradient matrix,
-        * ``J``: the divergence matrix, and
-        * ``MP``: the mass matrix of the pressure space
+         * ``M``: the mass matrix of the velocity space,
+         * ``A``: the stiffness matrix,
+         * ``JT``: the gradient matrix,
+         * ``J``: the divergence matrix, and
+         * ``MP``: the mass matrix of the pressure space
     velbcs : list
         of dolfin Dirichlet boundary conditions for the velocity
 
@@ -236,14 +236,14 @@ def condense_sysmatsbybcs(stms, velbcs):
     -------
     stokesmatsc : dict
         a dictionary of the condensed matrices:
-        * ``M``: the mass matrix of the velocity space,
-        * ``A``: the stiffness matrix,
-        * ``JT``: the gradient matrix, and
-        * ``J``: the divergence matrix
+         * ``M``: the mass matrix of the velocity space,
+         * ``A``: the stiffness matrix,
+         * ``JT``: the gradient matrix, and
+         * ``J``: the divergence matrix
     rhsvecsb : dict
         a dictionary of the contributions of the boundary data to the rhs:
-        * ``fv``: contribution to momentum equation,
-        * ``fp``: contribution to continuity equation
+         * ``fv``: contribution to momentum equation,
+         * ``fp``: contribution to continuity equation
     invinds : (N,) array
         vector of indices of the inner nodes
     bcinds : (K,) array

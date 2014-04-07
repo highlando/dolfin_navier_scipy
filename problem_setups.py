@@ -34,7 +34,7 @@ def get_sysmats(problem='drivencavity', N=10, nu=1e-2, ParaviewOutput=True):
 
     Returns
     -------
-    femp : dictionary
+    femp : dict
         with the keys:
          * `V`: FEM space of the velocity
          * `Q`: FEM space of the pressure
@@ -48,15 +48,15 @@ def get_sysmats(problem='drivencavity', N=10, nu=1e-2, ParaviewOutput=True):
          * `cdcoo`: dictionary with the coordinates of the domain of \
                  control
     stokesmatsc : dict
-        a dictionary of the condensed matrices: \
+        a dictionary of the condensed matrices:
          * `M`: the mass matrix of the velocity space,
          * `A`: the stiffness matrix,
          * `JT`: the gradient matrix, and
          * `J`: the divergence matrix
-    rhsd_vfrc : dictionary
+    rhsd_vfrc : dict
         of the dirichlet and pressure fix reduced right hand sides
-    rhsd_stbc
-        a dictionary of the contributions of the boundary data to the rhs:
+    rhsd_stbc : dict
+        of the contributions of the boundary data to the rhs:
          * `fv`: contribution to momentum equation,
          * `fp`: contribution to continuity equation
     data_prfx : str
