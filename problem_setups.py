@@ -247,6 +247,7 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1):
     -----
     parts of the code were taken from the NSbench collection
     https://launchpad.net/nsbench
+
     |  __author__ = "Kristian Valen-Sendstad <kvs@simula.no>"
     |  __date__ = "2009-10-01"
     |  __copyright__ = "Copyright (C) 2009-2010 " + __author__
