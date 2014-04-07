@@ -43,12 +43,12 @@ def get_sysmats(problem='drivencavity', N=10, nu=1e-2, ParaviewOutput=True):
          * `fv`: right hand side of the momentum equation
          * `fp`: right hand side of the continuity equation
          * `charlen`: characteristic length of the setup
-         * `odcoo`: dictionary with the coordinates of the domain of
-            observation
-         * `cdcoo`: dictionary with the coordinates of the domain of
-            control
-    stokesmatsc : dictionary
-        a dictionary of the condensed matrices:
+         * `odcoo`: dictionary with the coordinates of the domain of \
+                 observation
+         * `cdcoo`: dictionary with the coordinates of the domain of \
+                 control
+    stokesmatsc : dict
+        a dictionary of the condensed matrices: \
          * `M`: the mass matrix of the velocity space,
          * `A`: the stiffness matrix,
          * `JT`: the gradient matrix, and
