@@ -6,3 +6,6 @@ Code Reference
 
 .. automodule:: problem_setups 
   :members:
+
+.. automodule:: data_output_utils 
+  :members:

@@ -36,35 +36,42 @@ def get_sysmats(problem='drivencavity', N=10, nu=1e-2, ParaviewOutput=True):
     -------
     femp : dictionary
         with the keys:
-         * ``V``: FEM space of the velocity
-         * ``Q``: FEM space of the pressure
-         * ``diribcs``: list of the (Dirichlet) boundary conditions
+         * `V`: FEM space of the velocity
+         * `Q`: FEM space of the pressure
+         * `diribcs`: list of the (Dirichlet) boundary conditions
          * `bcdata` : dictionary of boundary data
-         * ``fv``: right hand side of the momentum equation
-         * ``fp``: right hand side of the continuity equation
-         * ``charlen``: characteristic length of the setup
-         * ``odcoo``: dictionary with the coordinates of the domain of
+         * `fv`: right hand side of the momentum equation
+         * `fp`: right hand side of the continuity equation
+         * `charlen`: characteristic length of the setup
+         * `odcoo`: dictionary with the coordinates of the domain of
             observation
-         * ``cdcoo``: dictionary with the coordinates of the domain of
+         * `cdcoo`: dictionary with the coordinates of the domain of
             control
     stokesmatsc : dictionary
         a dictionary of the condensed matrices:
-         * ``M``: the mass matrix of the velocity space,
-         * ``A``: the stiffness matrix,
-         * ``JT``: the gradient matrix, and
-         * ``J``: the divergence matrix
+         * `M`: the mass matrix of the velocity space,
+         * `A`: the stiffness matrix,
+         * `JT`: the gradient matrix, and
+         * `J`: the divergence matrix
     rhsd_vfrc : dictionary
         of the dirichlet and pressure fix reduced right hand sides
     rhsd_stbc
         a dictionary of the contributions of the boundary data to the rhs:
-         * ``fv``: contribution to momentum equation,
-         * ``fp``: contribution to continuity equation
+         * `fv`: contribution to momentum equation,
+         * `fp`: contribution to continuity equation
     data_prfx : str
         problem name as prefix for data files
     ddir : str
         relative path to directory where data is stored
     proutdir : str
         relative path to directory of paraview output
+
+    Examples
+    --------
+    femp, stokesmatsc, rhsd_vfrc, \
+        rhsd_stbc, data_prfx, ddir, proutdir \
+        = get_sysmats(problem='drivencavity', N=10, nu=1e-2)
+
     """
 
     problemdict = dict(drivencavity=drivcav_fems,
@@ -135,22 +142,26 @@ def drivcav_fems(N, vdgree=2, pdgree=1):
 
     Parameters
     ----------
-    N : mesh parameter for the unitsquare (N gives 2*N*N triangles)
-    vdgree : polynomial degree of the velocity basis functions, defaults to 2
-    pdgree : polynomial degree of the pressure basis functions, defaults to 1
+    N : int
+        mesh parameter for the unitsquare (N gives 2*N*N triangles)
+    vdgree : int, optional
+        polynomial degree of the velocity basis functions, defaults to 2
+    pdgree : int, optional
+        polynomial degree of the pressure basis functions, defaults to 1
 
     Returns
     -------
-    femp : a dictionary with the keys:
-         * ``V``: FEM space of the velocity
-         * ``Q``: FEM space of the pressure
-         * ``diribcs``: list of the (Dirichlet) boundary conditions
-         * ``fv``: right hand side of the momentum equation
-         * ``fp``: right hand side of the continuity equation
-         * ``charlen``: characteristic length of the setup
-         * ``odcoo``: dictionary with the coordinates of the domain of
+    femp : a dict
+        of problem FEM description with the keys:
+         * `V`: FEM space of the velocity
+         * `Q`: FEM space of the pressure
+         * `diribcs`: list of the (Dirichlet) boundary conditions
+         * `fv`: right hand side of the momentum equation
+         * `fp`: right hand side of the continuity equation
+         * `charlen`: characteristic length of the setup
+         * `odcoo`: dictionary with the coordinates of the domain of
             observatio
-         * ``cdcoo``: dictionary with the coordinates of the domain of
+         * `cdcoo`: dictionary with the coordinates of the domain of
             control
     """
 
@@ -218,24 +229,25 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1):
     Returns
     -------
     femp : a dictionary with the keys:
-         * ``V``: FEM space of the velocity
-         * ``Q``: FEM space of the pressure
-         * ``diribcs``: list of the (Dirichlet) boundary conditions
-         * ``dirip``: list of the (Dirichlet) boundary conditions
+         * `V`: FEM space of the velocity
+         * `Q`: FEM space of the pressure
+         * `diribcs`: list of the (Dirichlet) boundary conditions
+         * `dirip`: list of the (Dirichlet) boundary conditions
             for the pressure
-         * ``fv``: right hand side of the momentum equation
-         * ``fp``: right hand side of the continuity equation
-         * ``charlen``: characteristic length of the setup
-         * ``odcoo``: dictionary with the coordinates of the domain of
+         * `fv`: right hand side of the momentum equation
+         * `fp`: right hand side of the continuity equation
+         * `charlen`: characteristic length of the setup
+         * `odcoo`: dictionary with the coordinates of the domain of
             observatio
-         * ``cdcoo``: dictionary with the coordinates of the domain of
+         * `cdcoo`: dictionary with the coordinates of the domain of
             control
-         * ``uspacedep``: int that specifies in what spatial direction
+         * `uspacedep`: int that specifies in what spatial direction
             Bu changes. The remaining is constant
 
+    Notes
+    -----
     parts of the code were taken from the NSbench collection
     https://launchpad.net/nsbench
-
     __author__ = "Kristian Valen-Sendstad <kvs@simula.no>"
     __date__ = "2009-10-01"
     __copyright__ = "Copyright (C) 2009-2010 " + __author__

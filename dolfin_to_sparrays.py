@@ -220,38 +220,36 @@ def condense_sysmatsbybcs(stms, velbcs):
 
     to the inner nodes
 
-    :param stms:
-        dictionary of the stokes matrices with the keys
+    Parameters
+    ----------
+    stms: dict
+        of the stokes matrices with the keys
         * ``M``: the mass matrix of the velocity space,
         * ``A``: the stiffness matrix,
         * ``JT``: the gradient matrix,
         * ``J``: the divergence matrix, and
         * ``MP``: the mass matrix of the pressure space
+    velbcs : list
+        of dolfin Dirichlet boundary conditions for the velocity
 
-    :param velbcs:
-        a list of dolfin Dirichlet boundary conditions for the velocity
-
-    :return stokesmatsc:
+    Returns
+    -------
+    stokesmatsc : dict
         a dictionary of the condensed matrices:
         * ``M``: the mass matrix of the velocity space,
         * ``A``: the stiffness matrix,
         * ``JT``: the gradient matrix, and
         * ``J``: the divergence matrix
-
-    :return rhsvecsbc:
+    rhsvecsb : dict
         a dictionary of the contributions of the boundary data to the rhs:
         * ``fv``: contribution to momentum equation,
         * ``fp``: contribution to continuity equation
-
-    :return invinds:
+    invinds : (N,) array
         vector of indices of the inner nodes
-
-    :return bcinds:
+    bcinds : (K,) array
         vector of indices of the boundary nodes
-
-    :return bcvals:
+    bcvals : (K,) array
         vector of the values of the boundary nodes
-
     """
 
     nv = stms['A'].shape[0]
@@ -334,8 +332,29 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None, diribcs=None, vp=None,
                       vc=None, pc=None):
     """expand v [and p] to the dolfin function representation
 
-    pdof = pressure dof that was set zero
+    Parameters
+    ----------
+    V : dolfin.VectorFunctionSpace
+        FEM space of the velocity
+    Q : dolfin.FunctionSpace
+        FEM space of the pressure
+    invinds : (N,) array
+        vector of indices of the velocity nodes
+    diribcs : list
+        of the (Dirichlet) velocity boundary conditions
+    vp : (N+M,1) array, optional
+        solution vector of velocity and pressure
+    v : (N,1) array, optional
+        solution vector of velocity
+    p : (M,1) array, optional
+        solution vector of pressure
 
+    Returns
+    -------
+    v : dolfin.Function(V)
+        velocity as function
+    p : dolfin.Function(Q), optional
+        pressure as function
     """
 
     if vp is not None:
