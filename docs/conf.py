@@ -25,7 +25,8 @@ MOCK_MODULES = ['numpy',
                 'scipy', 'scipy.sparse', 'scipy.sparse.linalg', 'scipy.io',
                 'scipy.linalg',
                 'dolfin',
-                'dolfin_navier_scipy', 'dolfin_navier_scipy.dolfin_to_sparrays'
+                'dolfin_navier_scipy', 'dolfin_navier_scipy.data_output_utils',
+                'dolfin_navier_scipy.dolfin_to_sparrays'
                 ]
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()

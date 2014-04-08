@@ -20,7 +20,7 @@ import os
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 
 
-def get_sysmats(problem='drivencavity', N=10, nu=1e-2, ParaviewOutput=True):
+def get_sysmats(problem='drivencavity', N=10, nu=1e-2, ParaviewOutput=False):
     """ retrieve the system matrices for stokes flow
 
     Parameters
@@ -39,10 +39,9 @@ def get_sysmats(problem='drivencavity', N=10, nu=1e-2, ParaviewOutput=True):
          * `V`: FEM space of the velocity
          * `Q`: FEM space of the pressure
          * `diribcs`: list of the (Dirichlet) boundary conditions
-         * `bcdata`: dictionary of boundary data
-            * `bcinds`: indices of the boundary nodes
-            * `bcvals`: values of the boundary nodes
-            * `invinds`: indices of the inner nodes
+         * `bcinds`: indices of the boundary nodes
+         * `bcvals`: values of the boundary nodes
+         * `invinds`: indices of the inner nodes
          * `fv`: right hand side of the momentum equation
          * `fp`: right hand side of the continuity equation
          * `charlen`: characteristic length of the setup
@@ -92,11 +91,11 @@ def get_sysmats(problem='drivencavity', N=10, nu=1e-2, ParaviewOutput=True):
     # paraview output dir
     proutdir = 'results/'
 
-    try:
-        os.chdir(ddir)
-    except OSError:
-        raise Warning('need "' + ddir + '" subdir for storing the data')
-    os.chdir('..')
+    # try:
+    #     os.chdir(ddir)
+    # except OSError:
+    #     raise Warning('need "' + ddir + '" subdir for storing the data')
+    # os.chdir('..')
 
     if ParaviewOutput:
         curwd = os.getcwd()

@@ -6,6 +6,11 @@ dolfin_to_sparrays
 .. automodule:: dolfin_to_sparrays 
   :members:
 
+stokes_navier_utils 
+-------------------
+.. automodule:: stokes_navier_utils 
+  :members:
+
 problem_setups 
 --------------
 .. automodule:: problem_setups 

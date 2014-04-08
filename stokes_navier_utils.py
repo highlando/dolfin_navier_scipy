@@ -22,12 +22,16 @@ def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
     """ get and condense the linearized convection
 
     to be used in a Newton scheme
+
     .. math::
+
         (u \\cdot \\nabla) u \\to (u_0 \\cdot \\nabla) u + \
             (u \\cdot \\nabla) u_0 - (u_0 \\cdot \\nabla) u_0
 
     or in a Picard scheme
+
     .. math::
+
         (u \\cdot \\nabla) u \\to (u_0 \\cdot \\nabla) u
 
     Parameters
@@ -38,19 +42,19 @@ def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
         FEM space of the velocity
     invinds : (N,) ndarray or list
         indices of the inner nodes
-    diribcs : list of dolfin.BCs
-        list of dolfin Dirichlet boundary conditons
+    diribcs : list
+        of dolfin Dirichlet boundary conditons
     Picard : boolean
         whether Picard linearization is applied, defaults to `False`
 
     Returns
     -------
-    N1 : (N,N) sparse matrix
-        representing :math:`(u_0 \\cdot \\nabla )u`
-    N2 : (N,N) sparse matrix
-        representing :math:`(u \\cdot \\nabla )u_0`
-    fv : (N,1) ndarray
-        representing :math:`(u_0 \\cdot \\nabla )u_0`
+    convc_mat : (N,N) sparse matrix
+        representing the linearized convection at the inner nodes
+    rhs_con : (N,1) array
+        representing :math:`(u_0 \\cdot \\nabla )u_0` at the inner nodes
+    rhsv_conbc : (N,1) ndarray
+        representing the boundary conditions
 
     """
 
@@ -127,24 +131,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         Number of Newton iterations, defaults to `20`
     vel_nwtn_tol : real, optional
         tolerance for the size of the Newton update, defaults to `5e-15`
-                          clearprvdata=False,
-                          vel_start_nwtn=None,
-                          get_datastring=None,
-                          data_prfx='',
-                          paraviewoutput=False,
-                          save_intermediate_steps=False,
-                          vfileprfx='', pfileprfx='',
-                          **kw):
-    :param ddir:
-        path to directory where the data is stored
-    :param get_datastring:
-        routine that returns a string describing the data
-    :param paraviewoutput:
-        boolean control whether paraview output is produced
-    :param prfdir:
-        path to directory where the paraview output is stored
-    :param pfileprfx, vfileprfx:
-        prefix for the output files
+
     """
 
     if get_datastring is None:

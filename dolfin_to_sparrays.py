@@ -105,12 +105,19 @@ def get_convmats(u0_dolfun=None, u0_vec=None, V=None, invinds=None,
 
     where u_0 is the linearization point
 
-    :return:
-        ``N1`` matrix representing :math:`(u_0 \\cdot \\nabla )u`
-        ``N2`` matrix representing :math:`(u \\cdot \\nabla )u_0`
-        ``fv`` vector representing :math:`(u_0 \\cdot \\nabla )u_0`
+    Returns
+    -------
+    N1 : (N,N) sparse matrix
+        representing :math:`(u_0 \\cdot \\nabla )u`
+    N2 : (N,N) sparse matrix
+        representing :math:`(u \\cdot \\nabla )u_0`
+    fv : (N,1) array
+        representing :math:`(u_0 \\cdot \\nabla )u_0`
 
-    at the inner nodes
+    See Also
+    --------
+    stokes_navier_utils.get_v_conv_conts : the convection contributions \
+            reduced to the inner nodes
 
     """
 
