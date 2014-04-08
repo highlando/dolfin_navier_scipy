@@ -129,5 +129,64 @@ class OptConPyFunctions(unittest.TestCase):
 
         self.assertTrue(np.allclose(uvec, vvec))
 
+    def test_conv_asquad(self):
+        import dolfin_navier_scipy as dns
+        from dolfin import dx, grad, inner
+        import scipy.sparse as sps
+
+        femp, stokesmatsc, rhsd_vfrc, rhsd_stbc, \
+            data_prfx, ddir, proutdir = \
+            dns.problem_setups.get_sysmats(problem='drivencavity',
+                                           N=15, nu=1e-2)
+
+        invinds = femp['invinds']
+        V = femp['V']
+
+        hmat = dns.dolfin_to_sparrays.\
+            ass_convmat_asmatquad(W=femp['V'], invindsw=invinds)
+
+        xexp = '(1-x[0])*x[0]*(1-x[1])*x[1]*x[0]+2'
+        yexp = '(1-x[0])*x[0]*(1-x[1])*x[1]*x[1]+1'
+        # yexp = 'x[0]*x[0]*x[1]*x[1]'
+
+        f = dolfin.Expression((xexp, yexp))
+
+        u = dolfin.interpolate(f, V)
+        uvec = np.atleast_2d(u.vector().array()).T
+
+        uvec_gamma = uvec.copy()
+        uvec_gamma[invinds] = 0
+        u_gamma = dolfin.Function(V)
+        u_gamma.vector().set_local(uvec_gamma)
+
+        uvec_i = 0*uvec
+        uvec_i[invinds, :] = uvec[invinds]
+        u_i = dolfin.Function(V)
+        u_i.vector().set_local(uvec_i)
+
+        # Assemble the 'actual' form
+        w = dolfin.TrialFunction(V)
+        wt = dolfin.TestFunction(V)
+        nform = dolfin.assemble(inner(grad(w) * u, wt) * dx)
+        rows, cols, values = nform.data()
+        nmat = sps.csr_matrix((values, cols, rows))
+        # consider only the 'inner' equations
+        nmatrc = nmat[invinds, :][:, :]
+
+        # the boundary terms
+        N1, N2, fv = dns.dolfin_to_sparrays.\
+            get_convmats(u0_dolfun=u_gamma, V=V)
+
+        #print np.linalg.norm(nmatrc * uvec_i + nmatrc * uvec_gamma)
+        classicalconv = nmatrc * uvec
+        quadconv = (hmat * np.kron(uvec[invinds], uvec[invinds])
+                    + ((N1+N2)*uvec_i)[invinds, :] + fv[invinds, :])
+        self.assertTrue(np.allclose(classicalconv, quadconv))
+        # print 'consistency tests'
+        self.assertTrue((np.linalg.norm(uvec[invinds])
+                         - np.linalg.norm(uvec_i)) < 1e-14)
+        self.assertTrue(np.linalg.norm(uvec - uvec_gamma - uvec_i) < 1e-14)
+
+
 if __name__ == '__main__':
     unittest.main()

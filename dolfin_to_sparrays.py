@@ -6,7 +6,8 @@ from dolfin import dx, grad, div, inner
 
 dolfin.parameters.linear_algebra_backend = "uBLAS"
 
-__all__ = ['get_stokessysmats',
+__all__ = ['ass_convmat_asmatquad',
+           'get_stokessysmats',
            'get_convmats',
            'setget_rhs',
            'get_curfv',
@@ -14,6 +15,82 @@ __all__ = ['get_stokessysmats',
            'condense_sysmatsbybcs',
            'condense_velmatsbybcs',
            'expand_vp_dolfunc']
+
+
+def ass_convmat_asmatquad(W=None, invindsw=None):
+    """ assemble the convection matrix H, so that N(v)v = H[v.v]
+
+    for the inner nodes.
+
+    Notes
+    -----
+    Implemented only for 2D problems
+
+    """
+    mesh = W.mesh()
+    deg = W.ufl_element().degree()
+    fam = W.ufl_element().family()
+
+    V = dolfin.FunctionSpace(mesh, fam, deg)
+
+    # this is very specific for V being a 2D VectorFunctionSpace
+    invindsv = invindsw[::2]/2
+
+    v = dolfin.TrialFunction(V)
+    vt = dolfin.TestFunction(V)
+
+    def _pad_csrmats_wzerorows(smat, wheretoput='before'):
+        """add zero rows before/after each row
+
+        """
+        indpeter = smat.indptr
+        auxindp = np.c_[indpeter, indpeter].flatten()
+        if wheretoput == 'after':
+            smat.indptr = auxindp[1:]
+        else:
+            smat.indptr = auxindp[:-1]
+
+        smat._shape = (2*smat.shape[0], smat.shape[1])
+
+        return smat
+
+    def _shuff_mrg_csrmats(xm, ym):
+        """shuffle merge csr mats [xxx],[yyy] -> [xyxyxy]
+
+        """
+        xm.indices = 2*xm.indices
+        ym.indices = 2*ym.indices + 1
+        xm._shape = (xm.shape[0], 2*xm.shape[1])
+        ym._shape = (ym.shape[0], 2*ym.shape[1])
+        return xm + ym
+
+    nklist = []
+    for i in invindsv:
+    # for i in range(V.dim()):
+        # iterate for the columns
+        bi = dolfin.Function(V)
+        bvec = np.zeros((V.dim(), ))
+        bvec[i] = 1
+        bi.vector()[:] = bvec
+
+        nxi = dolfin.assemble(v * bi.dx(0) * vt * dx)
+        nyi = dolfin.assemble(v * bi.dx(1) * vt * dx)
+
+        rows, cols, values = nxi.data()
+        nxim = sps.csr_matrix((values, cols, rows))
+
+        rows, cols, values = nyi.data()
+        nyim = sps.csr_matrix((values, cols, rows))
+
+        nxyim = _shuff_mrg_csrmats(nxim, nyim)
+        nxyim = nxyim[invindsv, :][:, invindsw]
+        nyxxim = _pad_csrmats_wzerorows(nxyim.copy(), wheretoput='after')
+        nyxyim = _pad_csrmats_wzerorows(nxyim.copy(), wheretoput='before')
+
+        nklist.extend([nyxxim, nyxyim])
+
+    hmat = sps.hstack(nklist, format='csc')
+    return hmat
 
 
 def get_stokessysmats(V, Q, nu=1):
@@ -142,9 +219,11 @@ def get_convmats(u0_dolfun=None, u0_vec=None, V=None, invinds=None,
     # Convert DOLFIN representation to scipy arrays
     rows, cols, values = n1.data()
     N1 = sps.csr_matrix((values, cols, rows))
+    N1.eliminate_zeros()
 
     rows, cols, values = n2.data()
     N2 = sps.csr_matrix((values, cols, rows))
+    N2.eliminate_zeros()
 
     fv = f3.array()
     fv = fv.reshape(len(fv), 1)
