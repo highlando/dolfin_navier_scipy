@@ -1,5 +1,9 @@
 import dolfin
 import os
+import numpy as np
+import datetime
+import scipy.io
+
 
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import dolfin_navier_scipy.data_output_utils as dou
@@ -14,16 +18,20 @@ dolfin.parameters.linear_algebra_backend = 'uBLAS'
 
 
 def comp_exp_nsmats(problemname='drivencavity',
-                    N=10, Nts=10, nu=1e-2, plain_bt=True,
-                    savetomatfiles=False,
-                    mddir='pathtodatastorage'
-                    ):
+                    N=10, Re=1e2, nu=None,
+                    linear_system=False,
+                    mddir='pathtodatastorage'):
 
-    problemdict = dict(drivencavity=dnsps.drivcav_fems,
-                       cylinderwake=dnsps.cyl_fems)
+    femp, stokesmatsc, rhsd_vfrc, rhsd_stbc, \
+        data_prfx, ddir, proutdir = \
+        dnsps.get_sysmats(problem=problemname, N=N, Re=Re)
 
-    problemfem = problemdict[problemname]
-    femp = problemfem(N)
+    invinds = femp['invinds']
+    A, J, M = stokesmatsc['A'], stokesmatsc['J'], stokesmatsc['M']
+    fvc, fpc = rhsd_vfrc['fvc'], rhsd_vfrc['fpr']
+    fv_stbc, fp_stbc = rhsd_stbc['fv'], rhsd_stbc['fp']
+    invinds = femp['invinds']
+    NV, NP = invinds.shape[0], J.shape[0]
 
     data_prfx = problemname + '__'
     NU, NY = 3, 4
@@ -42,55 +50,9 @@ def comp_exp_nsmats(problemname='drivencavity',
         raise Warning('need "' + ddir + '" subdir for storing the data')
     os.chdir('..')
 
-    stokesmats = dts.get_stokessysmats(femp['V'], femp['Q'], nu)
-
-    rhsd_vf = dts.setget_rhs(femp['V'], femp['Q'],
-                             femp['fv'], femp['fp'], t=0)
-
-    # remove the freedom in the pressure
-    stokesmats['J'] = stokesmats['J'][:-1, :][:, :]
-    stokesmats['JT'] = stokesmats['JT'][:, :-1][:, :]
-    rhsd_vf['fp'] = rhsd_vf['fp'][:-1, :]
-
-    # reduce the matrices by resolving the BCs
-    (stokesmatsc,
-     rhsd_stbc,
-     invinds,
-     bcinds,
-     bcvals) = dts.condense_sysmatsbybcs(stokesmats,
-                                         femp['diribcs'])
-
-    # pressure freedom and dirichlet reduced rhs
-    rhsd_vfrc = dict(fpr=rhsd_vf['fp'], fvc=rhsd_vf['fv'][invinds, ])
-
-    # add the info on boundary and inner nodes
-    bcdata = {'bcinds': bcinds,
-              'bcvals': bcvals,
-              'invinds': invinds}
-    femp.update(bcdata)
-
-    # casting some parameters
-    NV, INVINDS = len(femp['invinds']), femp['invinds']
-
-    soldict = stokesmatsc  # containing A, J, JT
-    soldict.update(femp)  # adding V, Q, invinds, diribcs
-    soldict.update(rhsd_vfrc)  # adding fvc, fpr
-    soldict.update(fv_stbc=rhsd_stbc['fv'], fp_stbc=rhsd_stbc['fp'],
-                   N=N, nu=nu,
-                   get_datastring=None,
-                   data_prfx=ddir+data_prfx,
-                   paraviewoutput=False
-                   )
-
-#
-# compute the uncontrolled steady state Stokes solution
-#
-    v_ss_nse, list_norm_nwtnupd = snu.solve_steadystate_nse(**soldict)
-
-#
-# Prepare for control
-#
-
+    #
+    # Control mats
+    #
     contsetupstr = problemname + '__NV{0}NU{1}NY{2}'.format(NV, NU, NY)
 
     # get the control and observation operators
@@ -120,27 +82,51 @@ def comp_exp_nsmats(problemname='drivencavity',
     b_mat = b_mat[invinds, :][:, :]
 
     c_mat = lau.apply_massinv(y_masmat, mc_mat, output='sparse')
-
     # TODO: right choice of norms for y
     #       and necessity of regularization here
     #       by now, we go on number save
-#
-# setup the system for the correction
-#
-    (convc_mat, rhs_con,
-     rhsv_conbc) = snu.get_v_conv_conts(prev_v=v_ss_nse, invinds=invinds,
-                                        V=femp['V'], diribcs=femp['diribcs'])
-
-    f_mat = - stokesmatsc['A'] - convc_mat
 
     cdatstr = snu.get_datastr_snu(time=None, meshp=N, nu=nu, Nts=None)
 
-    if savetomatfiles:
-        import datetime
-        import scipy.io
+    (coors, xinds,
+     yinds, corfunvec) = dts.get_dof_coors(femp['V'], invinds=invinds)
 
-        (coors, xinds,
-         yinds, corfunvec) = dts.get_dof_coors(femp['V'], invinds=invinds)
+    ctrl_visu_str = \
+        ' the control setup is as follows \n' +\
+        ' B maps into the domain of control -' +\
+        ' the first half of the columns' +\
+        'actuate in x-direction, the second in y direction \n' +\
+        ' C measures averaged velocities in the domain of observation' +\
+        ' the first components are in x, the last in y-direction \n\n' +\
+        ' Visualization: \n\n' +\
+        ' `coors`   -- array of (x,y) coordinates in ' +\
+        ' the same order as v[xinds] or v[yinds] \n' +\
+        ' `xinds`, `yinds` -- indices of x and y components' +\
+        ' of v = [vx, vy] -- note that indexing starts with 0\n' +\
+        ' for testing use corfunvec wich is the interpolant of\n' +\
+        ' f(x,y) = [x, y] on the grid \n\n' +\
+        'Created in `get_exp_nsmats.py` ' +\
+        '(see https://github.com/highlando/dolfin_navier_scipy) at\n' +\
+        datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y")
+
+    if linear_system:
+        soldict = stokesmatsc  # containing A, J, JT
+        soldict.update(femp)  # adding V, Q, invinds, diribcs
+        soldict.update(rhsd_vfrc)  # adding fvc, fpr
+        soldict.update(fv_stbc=rhsd_stbc['fv'], fp_stbc=rhsd_stbc['fp'],
+                       N=N, nu=nu,
+                       get_datastring=None,
+                       data_prfx=ddir+data_prfx,
+                       paraviewoutput=False
+                       )
+
+        # compute the uncontrolled steady state Stokes solution
+        v_ss_nse, list_norm_nwtnupd = snu.solve_steadystate_nse(**soldict)
+
+        convc_mat, rhs_con, rhsv_conbc = \
+            snu.get_v_conv_conts(prev_v=v_ss_nse, invinds=invinds,
+                                 V=femp['V'], diribcs=femp['diribcs'])
+        f_mat = - stokesmatsc['A'] - convc_mat
 
         infostr = 'These are the coefficient matrices of the linearized ' +\
             'Navier-Stokes Equations \n for the ' +\
@@ -151,47 +137,56 @@ def comp_exp_nsmats(problemname='drivencavity',
             ' caused by the control, i.e., no boundary conditions\n' +\
             ' or inhomogeneities here. To get the actual flow, superpose \n' +\
             ' the steadystate velocity solution `v_ss_nse` \n\n' +\
-            ' the control setup is as follows \n' +\
-            ' B maps into the domain of control -' +\
-            ' the first half of the colums' +\
-            'actuate in x-direction, the second in y direction \n' +\
-            ' C measures averaged velocities in the domain of observation' +\
-            ' the first components are in x, the last in y-direction \n\n' +\
-            ' Visualization: \n\n' +\
-            ' `coors`   -- array of (x,y) coordinates in ' +\
-            ' the same order as v[xinds] or v[yinds] \n' +\
-            ' `xinds`, `yinds` -- indices of x and y components' +\
-            ' of v = [vx, vy] -- note that indexing starts with 0\n' +\
-            ' for testing use corfunvec wich is the interpolant of\n' +\
-            ' f(x,y) = [x, y] on the grid \n\n' +\
-            'Created in `exp_cylinder_mats.py` ' +\
-            '(see https://github.com/highlando/lqgbt-oseen) at\n' +\
-            datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y")
-
-        if problemname == 'cylinderwake':
-            charlen = 0.15  # diameter of the cylinder
-            Re = charlen/nu
-        elif problemname == 'drivencavity':
-            Re = nu
-        else:
-            Re = nu
+            ctrl_visu_str
 
         scipy.io.savemat(mddir + problemname +
                          '__mats_N{0}_Re{1}'.format(NV, Re),
-                         dict(A=f_mat, M=stokesmatsc['M'], nu=nu, Re=Re,
+                         dict(A=f_mat, M=stokesmatsc['M'],
+                              nu=femp['nu'], Re=femp['Re'],
                               J=stokesmatsc['J'], B=b_mat, C=c_mat,
                               v_ss_nse=v_ss_nse, info=infostr,
                               contsetupstr=contsetupstr, datastr=cdatstr,
                               coors=coors, xinds=xinds, yinds=yinds,
                               corfunvec=corfunvec))
 
-        return
-
     else:
-        return stokesmatsc
+        print 'assembling hmat ...'
+        hmat = dts.ass_convmat_asmatquad(W=femp['V'], invindsw=invinds)
+
+        zerv = np.zeros((NV, 1))
+        bc_conv, bc_rhs_conv, rhsbc_convbc = \
+            snu.get_v_conv_conts(prev_v=zerv, V=femp['V'], invinds=invinds,
+                                 diribcs=femp['diribcs'], Picard=False)
+
+        f_mat = - stokesmatsc['A'] - bc_conv
+        fv = fv_stbc + fvc + bc_rhs_conv + rhsbc_convbc
+        fp = fp_stbc + fpc
+
+        infostr = 'These are the coefficient matrices of the quadratic ' +\
+            'formulation of the Navier-Stokes Equations \n for the ' +\
+            problemname + ' to be used as \n\n' +\
+            ' $M \\dot v = Av + H*kron(v,v) + J^Tp + Bu + fv$ \n' +\
+            ' and  $Jv = fp$ \n\n' +\
+            ' the Reynoldsnumber is computed as L/nu \n' +\
+            ' note that `A` contains the diffusion and the linear term \n' +\
+            ' that comes from the dirichlet boundary values \n' +\
+            ' see https://github.com/highlando/dolfin_navier_scipy/blob/' +\
+            ' master/tests/solve_nse_quadraticterm.py for appl example\n' +\
+            ctrl_visu_str
+
+    scipy.io.savemat(mddir + problemname +
+                     'quadform__mats_N{0}_Re{1}'.format(NV, Re),
+                     dict(A=f_mat, M=stokesmatsc['M'],
+                          H=hmat, fv=fv, fp=fp,
+                          nu=femp['nu'], Re=femp['Re'],
+                          J=stokesmatsc['J'], B=b_mat, C=c_mat,
+                          v_ss_nse=v_ss_nse, info=infostr,
+                          contsetupstr=contsetupstr, datastr=cdatstr,
+                          coors=coors, xinds=xinds, yinds=yinds,
+                          corfunvec=corfunvec))
+
 
 if __name__ == '__main__':
     mddir = '/afs/mpi-magdeburg.mpg.de/data/csc/projects/qbdae-nse/data/'
-    comp_exp_nsmats(problemname='drivencavity',
-                    N=10, Nts=10, nu=1e-2, plain_bt=True,
-                    savetomatfiles=False, mddir=mddir)
+    comp_exp_nsmats(problemname='drivencavity', N=10, Re=1e-2,
+                    savetomatfiles=False, mddir=mddir, linear_system=False)
