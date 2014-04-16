@@ -20,7 +20,8 @@ import os
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 
 
-def get_sysmats(problem='drivencavity', N=10, nu=1e-2, ParaviewOutput=False):
+def get_sysmats(problem='drivencavity', N=10,
+                Re=1e2, nu=1e-2, ParaviewOutput=False):
     """ retrieve the system matrices for stokes flow
 
     Parameters
@@ -29,8 +30,10 @@ def get_sysmats(problem='drivencavity', N=10, nu=1e-2, ParaviewOutput=False):
         problem class
     N : int
         mesh parameter
-    nu : real
-        kinematic viscosity
+    nu : real, optional
+        kinematic viscosity, is set to `L/Re` if `Re` is provided
+    Re : real, optional
+        Reynoldsnumber
 
     Returns
     -------
@@ -45,6 +48,7 @@ def get_sysmats(problem='drivencavity', N=10, nu=1e-2, ParaviewOutput=False):
          * `fv`: right hand side of the momentum equation
          * `fp`: right hand side of the continuity equation
          * `charlen`: characteristic length of the setup
+         * `nu`: the kinematic viscosity
          * `odcoo`: dictionary with the coordinates of the domain of \
                  observation
          * `cdcoo`: dictionary with the coordinates of the domain of \
@@ -82,7 +86,8 @@ def get_sysmats(problem='drivencavity', N=10, nu=1e-2, ParaviewOutput=False):
     femp = problemfem(N)
 
     # setting some parameters
-    nu = nu  # this is so to say 1/Re
+    if Re is not None:
+        nu = femp['charlen']/Re
 
     # prefix for data files
     data_prfx = problem
@@ -135,6 +140,7 @@ def get_sysmats(problem='drivencavity', N=10, nu=1e-2, ParaviewOutput=False):
               'bcvals': bcvals,
               'invinds': invinds}
     femp.update(bcdata)
+    femp.update({'nu': nu})
 
     return femp, stokesmatsc, rhsd_vfrc, rhsd_stbc, data_prfx, ddir, proutdir
 
