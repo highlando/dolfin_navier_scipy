@@ -14,42 +14,64 @@ import sadptprj_riclyap_adi.lin_alg_utils as lau
 
 
 def test_qbdae_ass(problemname='cylinderwake', N=1, Re=4e2, nu=3e-2,
-                   t0=0.0, tE=1.0, Nts=100):
+                   t0=0.0, tE=1.0, Nts=100, use_saved_mats=None):
 
     trange = np.linspace(t0, tE, Nts+1)
     DT = (tE-t0)/Nts
-    print DT
     rdir = 'results/'
-
     femp, stokesmatsc, rhsd_vfrc, rhsd_stbc, \
         data_prfx, ddir, proutdir = \
         dns.problem_setups.get_sysmats(problem=problemname, N=N, Re=Re)
-
     invinds = femp['invinds']
-    A, J, M = stokesmatsc['A'], stokesmatsc['J'], stokesmatsc['M']
-    fvc, fpc = rhsd_vfrc['fvc'], rhsd_vfrc['fpr']
-    fv_stbc, fp_stbc = rhsd_stbc['fv'], rhsd_stbc['fp']
 
-    print 'assembling hmat ...'
-    hmat = dnsts.ass_convmat_asmatquad(W=femp['V'], invindsw=invinds)
-    # print 'maybe not'
+    if use_saved_mats is None:
 
-    invinds = femp['invinds']
-    NV, NP = invinds.shape[0], J.shape[0]
-    zerv = np.zeros((NV, 1))
+        A, J, M = stokesmatsc['A'], stokesmatsc['J'], stokesmatsc['M']
+        fvc, fpc = rhsd_vfrc['fvc'], rhsd_vfrc['fpr']
+        fv_stbc, fp_stbc = rhsd_stbc['fv'], rhsd_stbc['fp']
 
-    bc_conv, bc_rhs_conv, rhsbc_convbc = \
-        snu.get_v_conv_conts(prev_v=zerv, V=femp['V'], invinds=invinds,
-                             diribcs=femp['diribcs'], Picard=False)
+        hstr = ddir + problemname + '_N{0}_hmat'.format(N)
+        try:
+            hmat = dou.load_spa(hstr)
+            print 'loaded `hmat`'
+        except IOError:
+            print 'assembling hmat ...'
+            hmat = dnsts.ass_convmat_asmatquad(W=femp['V'], invindsw=invinds)
+            dou.save_spa(hmat, hstr)
 
-    # Stokes solution as initial value
-    vp_stokes = lau.solve_sadpnt_smw(amat=A, jmat=J,
-                                     rhsv=fv_stbc + fvc,
-                                     rhsp=fp_stbc + fpc)
-    old_v = vp_stokes[:NV]
+        invinds = femp['invinds']
+        NV, NP = invinds.shape[0], J.shape[0]
+        zerv = np.zeros((NV, 1))
 
-    sysmat = sps.vstack([sps.hstack([M+DT*A, J.T]),
-                         sps.hstack([J, sps.csc_matrix((NP, NP))])])
+        bc_conv, bc_rhs_conv, rhsbc_convbc = \
+            snu.get_v_conv_conts(prev_v=zerv, V=femp['V'], invinds=invinds,
+                                 diribcs=femp['diribcs'], Picard=False)
+        fp = fp_stbc + fpc
+        fv = fv_stbc + fvc - bc_rhs_conv
+
+        # Stokes solution as initial value
+        vp_stokes = lau.solve_sadpnt_smw(amat=A, jmat=J,
+                                         rhsv=fv_stbc + fvc,
+                                         rhsp=fp_stbc + fpc)
+        old_v = vp_stokes[:NV]
+
+        sysmat = sps.vstack([sps.hstack([M+DT*(A+bc_conv), J.T]),
+                             sps.hstack([J, sps.csc_matrix((NP, NP))])])
+
+    if use_saved_mats is not None:
+        # if saved as in ../get_exp_mats
+        import scipy.io
+        mats = scipy.io.loadmat(use_saved_mats)
+        A = - mats['A']
+        M = mats['M']
+        J = mats['J']
+        hmat = -mats['H']
+        fv = mats['fv']
+        fp = mats['fp']
+        NV, NP = fv.shape[0], fp.shape[0]
+        old_v = mats['ss_stokes']
+        sysmat = sps.vstack([sps.hstack([M+DT*A, J.T]),
+                             sps.hstack([J, sps.csc_matrix((NP, NP))])])
 
     print 'computing LU once...'
     sysmati = spsla.factorized(sysmat)
@@ -57,39 +79,20 @@ def test_qbdae_ass(problemname='cylinderwake', N=1, Re=4e2, nu=3e-2,
     vfile = dolfin.File(rdir + problemname + 'qdae__vel.pvd')
     pfile = dolfin.File(rdir + problemname + 'qdae__p.pvd')
 
-    # snu.solve_nse(A=A, M=M, J=J, JT=None,
-    #               fvc=fvc, fpr=fpc,
-    #               fv_stbc=fv_stbc, fp_stbc=fp_stbc,
-    #               trange=trange,
-    #               t0=None, tE=None, Nts=None,
-    #               V=femp['V'], Q=femp['Q'],
-    #               invinds=invinds, diribcs=femp['diribcs'],
-    #               N=N, nu=femp['nu'],
-    #               vel_nwtn_stps=1, vel_nwtn_tol=5e-15,
-    #               get_datastring=None,
-    #               data_prfx='',
-    #               paraviewoutput=True, prfdir='',
-    #               vfileprfx=rdir + problemname + 'qdae__vel',
-    #               pfileprfx=rdir + problemname + 'qdae__p',
-    #               return_dictofvelstrs=False,
-    #               comp_nonl_semexp=True)
-    # raise Warning('TODO: debug')
-
     prvoutdict = dict(V=femp['V'], Q=femp['Q'], vfile=vfile, pfile=pfile,
                       invinds=invinds, diribcs=femp['diribcs'],
                       vp=None, t=None, writeoutput=True)
 
     print 'doing the time loop...'
     for t in trange:
-        conv_mat, rhs_conv, rhsbc_conv = \
-            snu.get_v_conv_conts(prev_v=old_v, V=femp['V'], invinds=invinds,
-                                 diribcs=femp['diribcs'], Picard=False)
+        # conv_mat, rhs_conv, rhsbc_conv = \
+        #     snu.get_v_conv_conts(prev_v=old_v, V=femp['V'], invinds=invinds,
+        #                          diribcs=femp['diribcs'], Picard=False)
         # crhsv = M*old_v + DT*(fv_stbc + fvc + rhs_conv + rhsbc_conv
         #                       - conv_mat*old_v)
         # raise Warning('TODO: debug')
-        crhsv = M*old_v + DT*(fv_stbc + fvc + bc_rhs_conv + rhsbc_convbc
-                              - bc_conv*old_v - hmat*np.kron(old_v, old_v))
-        crhs = np.vstack([crhsv, fp_stbc + fpc])
+        crhsv = M*old_v + DT*(fv - hmat*np.kron(old_v, old_v))
+        crhs = np.vstack([crhsv, fp])
         vp_new = np.atleast_2d(sysmati(crhs.flatten())).T
         # vp_new = lau.solve_sadpnt_smw(amat=M+DT*(A+0*conv_mat), jmat=J,
         #                               rhsv=crhsv,
@@ -102,4 +105,7 @@ def test_qbdae_ass(problemname='cylinderwake', N=1, Re=4e2, nu=3e-2,
         print t, np.linalg.norm(old_v)
 
 if __name__ == '__main__':
-    test_qbdae_ass(problemname='cylinderwake', N=2, Re=1e2, tE=1.0, Nts=500)
+    # test_qbdae_ass(problemname='cylinderwake', N=1, Re=1e2, tE=2.0, Nts=800)
+    test_qbdae_ass(problemname='cylinderwake', N=1, Re=1e2, tE=2.0, Nts=800,
+                   use_saved_mats='../data/' +
+                   'cylinderwakequadform__mats_N5812_Re100.0.mat')

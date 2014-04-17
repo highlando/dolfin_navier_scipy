@@ -49,6 +49,7 @@ def get_sysmats(problem='drivencavity', N=10,
          * `fp`: right hand side of the continuity equation
          * `charlen`: characteristic length of the setup
          * `nu`: the kinematic viscosity
+         * `Re`: the Reynolds number
          * `odcoo`: dictionary with the coordinates of the domain of \
                  observation
          * `cdcoo`: dictionary with the coordinates of the domain of \
@@ -88,6 +89,8 @@ def get_sysmats(problem='drivencavity', N=10,
     # setting some parameters
     if Re is not None:
         nu = femp['charlen']/Re
+    else:
+        Re = femp['charlen']/nu
 
     # prefix for data files
     data_prfx = problem
@@ -141,6 +144,7 @@ def get_sysmats(problem='drivencavity', N=10,
               'invinds': invinds}
     femp.update(bcdata)
     femp.update({'nu': nu})
+    femp.update({'Re': Re})
 
     return femp, stokesmatsc, rhsd_vfrc, rhsd_stbc, data_prfx, ddir, proutdir
 

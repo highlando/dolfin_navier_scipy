@@ -150,8 +150,14 @@ def comp_exp_nsmats(problemname='drivencavity',
                               corfunvec=corfunvec))
 
     else:
-        print 'assembling hmat ...'
-        hmat = dts.ass_convmat_asmatquad(W=femp['V'], invindsw=invinds)
+        hstr = ddir + problemname + '_N{0}_hmat'.format(N)
+        try:
+            hmat = dou.load_spa(hstr)
+            print 'loaded `hmat`'
+        except IOError:
+            print 'assembling hmat ...'
+            hmat = dts.ass_convmat_asmatquad(W=femp['V'], invindsw=invinds)
+            dou.save_spa(hmat, hstr)
 
         zerv = np.zeros((NV, 1))
         bc_conv, bc_rhs_conv, rhsbc_convbc = \
@@ -159,8 +165,13 @@ def comp_exp_nsmats(problemname='drivencavity',
                                  diribcs=femp['diribcs'], Picard=False)
 
         f_mat = - stokesmatsc['A'] - bc_conv
-        fv = fv_stbc + fvc + bc_rhs_conv + rhsbc_convbc
+        fv = fv_stbc + fvc - bc_rhs_conv
         fp = fp_stbc + fpc
+
+        vp_stokes = lau.solve_sadpnt_smw(amat=A, jmat=J,
+                                         rhsv=fv_stbc + fvc,
+                                         rhsp=fp_stbc + fpc)
+        old_v = vp_stokes[:NV]
 
         infostr = 'These are the coefficient matrices of the quadratic ' +\
             'formulation of the Navier-Stokes Equations \n for the ' +\
@@ -170,6 +181,8 @@ def comp_exp_nsmats(problemname='drivencavity',
             ' the Reynoldsnumber is computed as L/nu \n' +\
             ' note that `A` contains the diffusion and the linear term \n' +\
             ' that comes from the dirichlet boundary values \n' +\
+            ' as initial value one can use the provided steady state \n' +\
+            ' Stokes solution \n' +\
             ' see https://github.com/highlando/dolfin_navier_scipy/blob/' +\
             ' master/tests/solve_nse_quadraticterm.py for appl example\n' +\
             ctrl_visu_str
@@ -177,16 +190,18 @@ def comp_exp_nsmats(problemname='drivencavity',
     scipy.io.savemat(mddir + problemname +
                      'quadform__mats_N{0}_Re{1}'.format(NV, Re),
                      dict(A=f_mat, M=stokesmatsc['M'],
-                          H=hmat, fv=fv, fp=fp,
+                          H=-hmat, fv=fv, fp=fp,
                           nu=femp['nu'], Re=femp['Re'],
                           J=stokesmatsc['J'], B=b_mat, C=c_mat,
-                          v_ss_nse=v_ss_nse, info=infostr,
+                          info=infostr,
+                          ss_stokes=old_v,
                           contsetupstr=contsetupstr, datastr=cdatstr,
                           coors=coors, xinds=xinds, yinds=yinds,
                           corfunvec=corfunvec))
 
 
 if __name__ == '__main__':
-    mddir = '/afs/mpi-magdeburg.mpg.de/data/csc/projects/qbdae-nse/data/'
+    mddir = 'data/'
+    # 'afs/mpi-magdeburg.mpg.de/data/csc/projects/qbdae-nse/data/'
     comp_exp_nsmats(problemname='drivencavity', N=10, Re=1e-2,
-                    savetomatfiles=False, mddir=mddir, linear_system=False)
+                    mddir=mddir, linear_system=False)

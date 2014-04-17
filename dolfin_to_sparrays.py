@@ -78,9 +78,11 @@ def ass_convmat_asmatquad(W=None, invindsw=None):
 
         rows, cols, values = nxi.data()
         nxim = sps.csr_matrix((values, cols, rows))
+        nxim.eliminate_zeros()
 
         rows, cols, values = nyi.data()
         nyim = sps.csr_matrix((values, cols, rows))
+        nyim.eliminate_zeros()
 
         nxyim = _shuff_mrg_csrmats(nxim, nyim)
         nxyim = nxyim[invindsv, :][:, invindsw]
