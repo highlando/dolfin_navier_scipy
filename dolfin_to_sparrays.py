@@ -68,11 +68,14 @@ def ass_convmat_asmatquad(W=None, invindsw=None):
     for i in invindsv:
     # for i in range(V.dim()):
         # iterate for the columns
+
+        # get the i-th basis function
         bi = dolfin.Function(V)
         bvec = np.zeros((V.dim(), ))
         bvec[i] = 1
         bi.vector()[:] = bvec
 
+        # assemble for the i-th basis function
         nxi = dolfin.assemble(v * bi.dx(0) * vt * dx)
         nyi = dolfin.assemble(v * bi.dx(1) * vt * dx)
 
@@ -84,11 +87,13 @@ def ass_convmat_asmatquad(W=None, invindsw=None):
         nyim = sps.csr_matrix((values, cols, rows))
         nyim.eliminate_zeros()
 
+        # resorting of the arrays and inserting zero columns
         nxyim = _shuff_mrg_csrmats(nxim, nyim)
         nxyim = nxyim[invindsv, :][:, invindsw]
         nyxxim = _pad_csrmats_wzerorows(nxyim.copy(), wheretoput='after')
         nyxyim = _pad_csrmats_wzerorows(nxyim.copy(), wheretoput='before')
 
+        # tile the arrays in horizontal direction
         nklist.extend([nyxxim, nyxyim])
 
     hmat = sps.hstack(nklist, format='csc')
