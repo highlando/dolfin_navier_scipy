@@ -160,10 +160,10 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
         norm_nwtnupd = dou.load_npa(cdatstr + '__norm_nwtnupd')
         vel_k = dou.load_npa(cdatstr + '__vel')
-
         norm_nwtnupd_list.append(norm_nwtnupd)
+
         print 'found vel files'
-        print 'norm of last Nwtn update: {0}'.format(norm_nwtnupd[0])
+        print 'norm of last Nwtn update: {0}'.format(norm_nwtnupd)
         if norm_nwtnupd < vel_nwtn_tol:
             return vel_k, norm_nwtnupd_list
 
@@ -372,7 +372,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
         norm_nwtnupd_list.append(norm_nwtnupd)
         print 'found vel files'
-        print 'norm of last Nwtn update: {0}'.format(norm_nwtnupd[0])
+        print 'norm of last Nwtn update: {0}'.format(norm_nwtnupd)
         if norm_nwtnupd < vel_nwtn_tol:
             return
 
@@ -425,7 +425,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
         norm_nwtnupd = 0
 
-        ### current values_c for application of trap rule
+        # ## current values_c for application of trap rule
         pcrd_anyone = newtk < 2 and vel_nwtn_stps > 1
         # use picard linearization in the first steps
         # unless solving stokes or oseen equations
@@ -451,7 +451,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 next_w = dou.load_npa(feedbackthroughdict[0]['w'])
 
             fvn_c = fvn_c + tb_mat * (tb_mat.T * next_w)
-            vmat_n = mtxtb_c.T
+            vmat_c = mtxtb_c.T
             try:
                 umat_c = -np.array(tb_mat.todense())
             except AttributeError:
@@ -479,8 +479,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
             # coeffs and rhs at next time instance
             if pcrd_anyone or comp_nonl_semexp:
-            # we rather use an explicit scheme
-            # than an unstable implicit --> to get a good start value
+                # we rather use an explicit scheme
+                # than an unstable implicit --> to get a good start value
                 prev_v = v_old
 
             convc_mat_n, rhs_con_n, rhsv_conbc_n = \
@@ -537,7 +537,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 dictofvelstrs.update({t: cdatstr + '__vel'})
 
             prvoutdict.update(dict(vp=vp_new, t=t))
-                                   # fstring=prfdir+data_prfx+cdatstr))
+            # fstring=prfdir+data_prfx+cdatstr))
             dou.output_paraview(**prvoutdict)
 
             # integrate the Newton error
