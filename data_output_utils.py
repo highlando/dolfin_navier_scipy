@@ -39,7 +39,10 @@ def save_npa(v, fstring='notspecified'):
 
 
 def load_npa(fstring):
-    return np.load(fstring+'.npy')
+    if not fstring[-4:] == '.npy':
+        return np.load(fstring+'.npy')
+    else:
+        return np.load(fstring)
 
 
 def save_spa(sparray, fstring='notspecified'):
@@ -129,9 +132,55 @@ def extract_output(dictofpaths=None, tmesh=None, c_mat=None, ystarvec=None):
     if ystarvec is not None:
         ystarlist = [ystarvec(0).flatten().tolist()]
         for t in tmesh[1:]:
-            ystarlist.append(ystarvec(0).flatten().tolist())
+            ystarlist.append(ystarvec(t).flatten().tolist())
 
         return yscomplist, ystarlist
 
     else:
         return yscomplist
+
+
+def load_or_comp(filestr=None, comprtn=None,
+                 arraytype=None,
+                 loadrtn=None, loadmsg='loaded ',
+                 savertn=None, savemsg='saved ',
+                 numthings=1):
+    """ routine for caching computation results on disc
+
+    Parameters:
+    -----------
+    arraytype: {None, 'sparse', 'dense'}
+        if not None, then it sets the default routines to save/load dense or \
+        sparse arrays
+
+    """
+    if arraytype == 'dense':
+        savertn = save_npa
+        loadrtn = load_npa
+    elif arraytype == 'dense':
+        savertn = save_spa
+        loadrtn = load_spa
+
+    if numthings == 1:
+        try:
+            thing = loadrtn(filestr)
+            print loadmsg + filestr
+        except IOError:
+            print 'could not load ' + filestr + ' -- lets compute it'
+            thing = comprtn()
+            savertn(thing, filestr)
+            print savemsg + filestr
+        return thing
+    if numthings == 2:
+        try:
+            thing1 = loadrtn(filestr[0])
+            thing2 = loadrtn(filestr[1])
+            print loadmsg + filestr[0] + '/' + filestr[1]
+        except IOError:
+            print 'could not load ' + filestr[0] + ' -- lets compute it'
+            print 'could not load ' + filestr[1] + ' -- lets compute it'
+            thing1, thing2 = comprtn()
+            savertn(thing1, filestr[0])
+            savertn(thing2, filestr[1])
+            print savemsg + filestr[0] + '/' + filestr[1]
+        return thing1, thing2
