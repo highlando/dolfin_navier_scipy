@@ -17,6 +17,11 @@ __all__ = ['ass_convmat_asmatquad',
            'expand_vp_dolfunc']
 
 
+def mat_dolfin2sparse(A):
+    rows, cols, values = A.data()
+    return sps.csr_matrix((values, cols, rows))
+
+
 def ass_convmat_asmatquad(W=None, invindsw=None):
     """ assemble the convection matrix H, so that N(v)v = H[v.v]
 
@@ -66,7 +71,7 @@ def ass_convmat_asmatquad(W=None, invindsw=None):
 
     nklist = []
     for i in invindsv:
-    # for i in range(V.dim()):
+        # for i in range(V.dim()):
         # iterate for the columns
 
         # get the i-th basis function
@@ -381,7 +386,7 @@ def condense_sysmatsbybcs(stms, velbcs):
     return stokesmatsc, rhsvecsbc, invinds, bcinds, bcvals
 
 
-def condense_velmatsbybcs(A, velbcs):
+def condense_velmatsbybcs(A, velbcs, return_bcinfo=False):
     """resolve the Dirichlet BCs, condense velocity related matrices
 
     to the inner nodes, and compute the rhs contribution
@@ -393,6 +398,9 @@ def condense_velmatsbybcs(A, velbcs):
         coefficient matrix for the velocity
     velbcs : list
         of dolfin *dolfin* Dirichlet boundary conditions for the velocity
+    return_bcinfo : boolean, optional
+        if `True` a dict with the inner and the boundary indices is returned, \
+        defaults to `False`
 
     Returns
     -------
@@ -400,6 +408,10 @@ def condense_velmatsbybcs(A, velbcs):
         the condensed velocity matrix
     fvbc : (K, 1) array
         the contribution to the rhs of the momentum equation
+    dict, on demand
+        with the keys
+         * ``ininds``: indices of the inner nodes
+         * ``bcinds``: indices of the boundary nodes
 
     """
 
@@ -416,13 +428,16 @@ def condense_velmatsbybcs(A, velbcs):
     fvbc = - A * auxu    # '*' is np.dot for csr matrices
 
     # indices of the innernodes
-    invinds = np.setdiff1d(range(nv), bcinds).astype(np.int32)
+    ininds = np.setdiff1d(range(nv), bcinds).astype(np.int32)
 
     # extract the inner nodes equation coefficients
-    Ac = A[invinds, :][:, invinds]
-    fvbc = fvbc[invinds, :]
+    Ac = A[ininds, :][:, ininds]
+    fvbc = fvbc[ininds, :]
 
-    return Ac, fvbc
+    if return_bcinfo:
+        return Ac, fvbc, dict(ininds=ininds, bcinds=bcinds)
+    else:
+        return Ac, fvbc
 
 
 def expand_vp_dolfunc(V=None, Q=None, invinds=None, diribcs=None, vp=None,
