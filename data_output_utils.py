@@ -6,8 +6,7 @@ import dolfin
 
 
 def output_paraview(V=None, Q=None, fstring='nn',
-                    invinds=None, diribcs=None,
-                    vp=None, vc=None, pc=None,
+                    invinds=None, diribcs=None, vp=None, vc=None, pc=None,
                     t=None, writeoutput=True,
                     vfile=None, pfile=None):
     """write the paraview output for a solution vector vp

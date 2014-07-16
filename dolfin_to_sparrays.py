@@ -467,6 +467,10 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None, diribcs=None, vp=None,
         velocity as function
     p : dolfin.Function(Q), optional
         pressure as function
+
+    See Also
+    --------
+    expand_vecnbc_dolfunc : for a scalar function with multiple bcs
     """
 
     if vp is not None:
@@ -495,6 +499,45 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None, diribcs=None, vp=None,
     v.vector().set_local(ve)
 
     return v, p
+
+
+def expand_vecnbc_dolfunc(V=None, vec=None,
+                          diribcs=None, bcsfaclist=None,
+                          invinds=None):
+    """expand a function vector with changing boundary conditions
+
+    the boundary conditions may not be disjoint, what is used to model
+    spatial dependencies of a control at the boundary.
+
+    Parameters
+    ----------
+    diribcs : list
+        of boundary conditions
+    bcsfaclist : list, optional
+        of factors for the boundary conditions
+
+    Returns
+    -------
+    dolfin.function
+        of the vector values and the bcs
+
+    """
+
+    v = dolfin.Function(V)
+    ve = np.zeros((V.dim(), 1))
+    if bcsfaclist is None:
+        bcsfaclist = [1]*len(diribcs)
+    elif not len(bcsfaclist) == len(diribcs):
+        raise Warning('length of lists of bcs and facs not matching')
+
+    # fill in the boundary values
+    for cfac, bc in enumerate(diribcs):
+        bcdict = bc.get_boundary_values()
+        ve[bcdict.keys(), 0] += cfac*bcdict.values()
+
+    ve[invinds] = vec
+    v.vector().set_local(ve)
+    return v
 
 
 def get_dof_coors(V, invinds=None):
