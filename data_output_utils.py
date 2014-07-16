@@ -146,8 +146,8 @@ def load_or_comp(filestr=None, comprtn=None,
                  numthings=1):
     """ routine for caching computation results on disc
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     arraytype: {None, 'sparse', 'dense'}
         if not None, then it sets the default routines to save/load dense or \
         sparse arrays
