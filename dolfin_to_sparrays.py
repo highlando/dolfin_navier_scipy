@@ -14,7 +14,8 @@ __all__ = ['ass_convmat_asmatquad',
            'get_convvec',
            'condense_sysmatsbybcs',
            'condense_velmatsbybcs',
-           'expand_vp_dolfunc']
+           'expand_vp_dolfunc',
+           'expand_vecnbc_dolfunc']
 
 
 def mat_dolfin2sparse(A):
