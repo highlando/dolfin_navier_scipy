@@ -503,6 +503,7 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None, diribcs=None, vp=None,
 
 
 def expand_vecnbc_dolfunc(V=None, vec=None,
+                          bcindsl=None, bcvalsl=None,
                           diribcs=None, bcsfaclist=None,
                           invinds=None):
     """expand a function vector with changing boundary conditions
@@ -512,6 +513,12 @@ def expand_vecnbc_dolfunc(V=None, vec=None,
 
     Parameters
     ----------
+    V : dolfin.FunctionSpace
+        FEM space of the scalar
+    invinds : (N,) array
+        vector of indices of the velocity nodes
+    vec : (N,1) array
+        solution vector
     diribcs : list
         of boundary conditions
     bcsfaclist : list, optional
@@ -527,14 +534,23 @@ def expand_vecnbc_dolfunc(V=None, vec=None,
     v = dolfin.Function(V)
     ve = np.zeros((V.dim(), 1))
     if bcsfaclist is None:
-        bcsfaclist = [1]*len(diribcs)
-    elif not len(bcsfaclist) == len(diribcs):
-        raise Warning('length of lists of bcs and facs not matching')
+        try:
+            bcsfaclist = [1]*len(diribcs)
+        except TypeError:
+            bcsfaclist = [1]*len(bcvalsl)
 
     # fill in the boundary values
-    for cfac, bc in enumerate(diribcs):
-        bcdict = bc.get_boundary_values()
-        ve[bcdict.keys(), 0] += cfac*bcdict.values()
+    if diribcs is not None:
+        if not len(bcsfaclist) == len(diribcs):
+            raise Warning('length of lists of bcs and facs not matching')
+        for k, bc in enumerate(diribcs):
+            bcdict = bc.get_boundary_values()
+            ve[bcdict.keys(), 0] += bcsfaclist[k]*np.array(bcdict.values())
+    else:
+        if not len(bcsfaclist) == len(bcvalsl):
+            raise Warning('length of lists of bcs and facs not matching')
+        for k, cfac in enumerate(bcsfaclist):
+            ve[bcindsl[k], 0] += cfac*np.array(bcvalsl[k])
 
     ve[invinds] = vec
     v.vector().set_local(ve)

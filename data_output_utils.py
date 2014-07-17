@@ -139,7 +139,7 @@ def extract_output(dictofpaths=None, tmesh=None, c_mat=None, ystarvec=None):
         return yscomplist
 
 
-def load_or_comp(filestr=None, comprtn=None,
+def load_or_comp(filestr=None, comprtn=None, comprtnargs={},
                  arraytype=None,
                  loadrtn=None, loadmsg='loaded ',
                  savertn=None, savemsg='saved ',
@@ -151,6 +151,9 @@ def load_or_comp(filestr=None, comprtn=None,
     arraytype: {None, 'sparse', 'dense'}
         if not None, then it sets the default routines to save/load dense or \
         sparse arrays
+    savertn: fun(), optional
+        routine for saving the computed results, defaults to None, i.e. \
+        no saving here
 
     """
     if arraytype == 'dense':
@@ -166,9 +169,10 @@ def load_or_comp(filestr=None, comprtn=None,
             print loadmsg + filestr
         except IOError:
             print 'could not load ' + filestr + ' -- lets compute it'
-            thing = comprtn()
-            savertn(thing, filestr)
-            print savemsg + filestr
+            thing = comprtn(**comprtnargs)
+            if savertn is not None:
+                savertn(thing, filestr)
+                print savemsg + filestr
         return thing
     if numthings == 2:
         try:
@@ -178,8 +182,9 @@ def load_or_comp(filestr=None, comprtn=None,
         except IOError:
             print 'could not load ' + filestr[0] + ' -- lets compute it'
             print 'could not load ' + filestr[1] + ' -- lets compute it'
-            thing1, thing2 = comprtn()
-            savertn(thing1, filestr[0])
-            savertn(thing2, filestr[1])
-            print savemsg + filestr[0] + '/' + filestr[1]
+            thing1, thing2 = comprtn(**comprtnargs)
+            if savertn is not None:
+                savertn(thing1, filestr[0])
+                savertn(thing2, filestr[1])
+                print savemsg + filestr[0] + '/' + filestr[1]
         return thing1, thing2
