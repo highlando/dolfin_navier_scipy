@@ -173,8 +173,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
     if paraviewoutput:
         cdatstr = get_datastring(**datastrdict)
-        vfile = dolfin.File(vfileprfx+cdatstr+'__steadystates.pvd')
-        pfile = dolfin.File(pfileprfx+cdatstr+'__steadystates.pvd')
+        vfile = dolfin.File(vfileprfx+'__steadystates.pvd')
+        pfile = dolfin.File(pfileprfx+'__steadystates.pvd')
         prvoutdict = dict(V=V, Q=Q, vfile=vfile, pfile=pfile,
                           invinds=invinds, diribcs=diribcs,
                           vp=None, t=None, writeoutput=True)
@@ -277,6 +277,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               vfileprfx='', pfileprfx='',
               return_dictofvelstrs=False,
               comp_nonl_semexp=False,
+              return_as_list=False,
               **kw):
     """
     solution of the time-dependent nonlinear Navier-Stokes equation
@@ -345,6 +346,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     datastrdict = dict(time=None, meshp=N, nu=nu,
                        Nts=trange.size-1, data_prfx=data_prfx)
 
+    if return_as_list:
+        clearprvdata = True  # we want the results at hand
     if clearprvdata:
         datastrdict['time'] = '*'
         cdatstr = get_datastring(**datastrdict)
@@ -406,19 +409,25 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     datastrdict['time'] = trange[0]
     cdatstr = get_datastring(**datastrdict)
     dou.save_npa(v_old, fstring=cdatstr + '__vel')
-    if return_dictofvelstrs:
-        dictofvelstrs = {trange[0]: cdatstr + '__vel'}
 
     if comp_nonl_semexp:
         print 'Explicit treatment of the nonlinearity !!!'
         vel_nwtn_stps = 1
 
     while (newtk < vel_nwtn_stps and norm_nwtnupd > vel_nwtn_tol):
+
+        if return_dictofvelstrs:
+            dictofvelstrs = {trange[0]: cdatstr + '__vel'}
+
+        if return_as_list:
+            vellist = []
+            vellist.append(v_old)
+
         newtk += 1
         print 'Computing Newton Iteration {0}'.format(newtk)
         v_old = iniv  # start vector for time integration in every Newtonit
-        vfile = dolfin.File(vfileprfx+cdatstr+'__timestep.pvd')
-        pfile = dolfin.File(pfileprfx+cdatstr+'__timestep.pvd')
+        vfile = dolfin.File(vfileprfx+'__timestep.pvd')
+        pfile = dolfin.File(pfileprfx+'__timestep.pvd')
         prvoutdict.update(dict(vp=None, vc=iniv, t=trange[0],
                                pfile=pfile, vfile=vfile))
         dou.output_paraview(**prvoutdict)
@@ -535,6 +544,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             dou.save_npa(v_old, fstring=cdatstr + '__vel')
             if return_dictofvelstrs:
                 dictofvelstrs.update({t: cdatstr + '__vel'})
+            if return_as_list:
+                vellist.append(v_old)
 
             prvoutdict.update(dict(vp=vp_new, t=t))
             # fstring=prfdir+data_prfx+cdatstr))
@@ -550,5 +561,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     if return_dictofvelstrs:
         return dictofvelstrs
+    if return_as_list:
+        return vellist
     else:
         return
