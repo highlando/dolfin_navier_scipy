@@ -396,7 +396,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         solvmat = M + 0.5*dt*coeffmat_n
         rhs = M*var_c + 0.5*dt*(fv_n + fv_c - coeffmat_c*var_c)
         if umat_n is not None:
-            matvec = lau.matvec_densesparse
+            matvec = lau.mm_dnssps
             umat = 0.5*dt*umat_n
             vmat = vmat_n
             rhs = rhs - 0.5*dt*matvec(umat_c, matvec(vmat_c, var_c))
@@ -439,7 +439,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         # use picard linearization in the first steps
         # unless solving stokes or oseen equations
         convc_mat_c, rhs_con_c, rhsv_conbc_c = \
-            get_v_conv_conts(prev_v=iniv, invinds=invinds,
+            get_v_conv_conts(prev_v=lin_vel_point, invinds=invinds,
                              V=V, diribcs=diribcs, Picard=pcrd_anyone)
         if pcrd_anyone:
             print 'PICARD !!!'
@@ -492,15 +492,28 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 # than an unstable implicit --> to get a good start value
                 prev_v = v_old
 
+            if lin_vel_point is None:
+                # linearize about the prev_v value
+                lin_vel_point = prev_v
+
             convc_mat_n, rhs_con_n, rhsv_conbc_n = \
-                get_v_conv_conts(prev_v=prev_v, invinds=invinds,
+                get_v_conv_conts(prev_v=lin_vel_point, invinds=invinds,
                                  V=V, diribcs=diribcs, Picard=pcrd_anyone)
+
             (fv_tmdp_cont,
              fv_tmdp_memory) = fv_tmdp(time=t,
                                        curvel=v_old,
                                        memory=fv_tmdp_memory,
                                        **fv_tmdp_params)
             fvn_n = fv_stbc + fvc + rhsv_conbc_n + rhs_con_n + fv_tmdp_cont
+
+            # print '\n ### norm of fv at time {0}: {1} ###\n'.\
+            #     format(t, np.linalg.norm(fvn_n))
+            # print 'fvstbc', np.linalg.norm(fv_stbc)
+            # print 'fvc', np.linalg.norm(fvc)
+            # print 'rhsvconbc', np.linalg.norm(rhsv_conbc_n)
+            # print 'rhscon', np.linalg.norm(rhs_con_n)
+
             # fvn_n = fv_stbc + fvc + rhsv_conbc_n + rhs_con_n +\
             #     fv_tmdp(time=t, curvel=v_old, **fv_tmdp_params)
 
@@ -530,6 +543,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                       fv_c=fvn_c, fv_n=fvn_n,
                                       umat_c=umat_c, vmat_c=vmat_c,
                                       umat_n=umat_n, vmat_n=vmat_n)
+
+            # print 'A', np.linalg.norm(A.todense())
+            # print 'cc', np.linalg.norm(convc_mat_n.todense())
+            # print 'cn', np.linalg.norm(convc_mat_c.todense())
+            # print 'solvmat', np.linalg.norm(solvmat.todense())
+            # print 'rhsv', np.linalg.norm(rhsv)
 
             vp_new = lau.solve_sadpnt_smw(amat=solvmat,
                                           jmat=J, jmatT=JT,
