@@ -7,6 +7,9 @@ import dolfin_navier_scipy.problem_setups as dnsps
 
 dolfin.parameters.linear_algebra_backend = 'uBLAS'
 
+krylovdict = dict(krylov='Gmres', krpslvprms={'tol': 1e-2})
+# krylovdict = {}
+
 
 def testit(problem='drivencavity', N=None, nu=1e-2):
 
@@ -86,11 +89,13 @@ def testit(problem='drivencavity', N=None, nu=1e-2):
                    N=N, nu=nu,
                    vel_nwtn_stps=nnewtsteps,
                    vel_nwtn_tol=vel_nwtn_tol,
-                   ddir=ddir, get_datastring=None,
-                   data_prfx=data_prfx,
+                   get_datastring=None,
+                   data_prfx=ddir+data_prfx,
                    paraviewoutput=ParaviewOutput,
                    vfileprfx=proutdir+'vel_',
                    pfileprfx=proutdir+'p_')
+
+    soldict.update(krylovdict)  # if we wanna use an iterative solver
 
 #
 # compute the uncontrolled steady state Navier-Stokes solution

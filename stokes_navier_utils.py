@@ -270,6 +270,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               feedbackthroughdict=None,
               tb_mat=None, c_mat=None,
               vel_nwtn_stps=20, vel_nwtn_tol=5e-15,
+              krylov=None, krpslvprms={}, krplsprms={},
               clearprvdata=False,
               get_datastring=None,
               data_prfx='',
@@ -305,6 +306,20 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         dictionary of parameters to be passed to `fv_tmdp`, defaults to `{}`
     fv_tmdp_memory : dictionary, optional
         memory of the function
+    krylov : {None, 'gmres'}, optional
+        whether or not to use an iterative solver, defaults to `None`
+    krpsolvprms : dictionary, optional
+        to specify parameters of the linear solver for use in Krypy, e.g.,
+
+          * initial guess
+          * tolerance
+          * number of iterations
+
+        defaults to `None`
+    krplsprms : dictionary, optional
+        parameters to define the linear system like
+
+          *preconditioner
 
 
     Returns
@@ -340,6 +355,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         # we should provide an initial value
         vp_stokes = lau.solve_sadpnt_smw(amat=A, jmat=J, jmatT=JT,
                                          rhsv=fv_stbc + fvc + fv_tmdp_cont,
+                                         krylov=krylov, krpslvprms=krpslvprms,
+                                         krplsprms=krplsprms,
                                          rhsp=fp_stbc + fpr)
         iniv = vp_stokes[:NV]
 
@@ -554,6 +571,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                           jmat=J, jmatT=JT,
                                           rhsv=rhsv,
                                           rhsp=fp_stbc + fpr,
+                                          krylov=krylov, krpslvprms=krpslvprms,
+                                          krplsprms=krplsprms,
                                           umat=umat, vmat=vmat)
 
             v_old = vp_new[:NV, ]
