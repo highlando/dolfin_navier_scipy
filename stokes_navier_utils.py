@@ -373,12 +373,14 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     if lin_vel_point is None:
         # linearize about the initial value
-        lin_vel_point = iniv
+        cur_lin_vel_point = iniv
+    else:
+        cur_lin_vel_point = lin_vel_point
 
     # steady-state linearization point
     datastrdict['time'] = None
     cdatstr = get_datastring(**datastrdict)
-    dou.save_npa(lin_vel_point, fstring=cdatstr + '__vel')
+    dou.save_npa(cur_lin_vel_point, fstring=cdatstr + '__vel')
 
     newtk, norm_nwtnupd, norm_nwtnupd_list = 0, 1, []
 
@@ -456,7 +458,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         # use picard linearization in the first steps
         # unless solving stokes or oseen equations
         convc_mat_c, rhs_con_c, rhsv_conbc_c = \
-            get_v_conv_conts(prev_v=lin_vel_point, invinds=invinds,
+            get_v_conv_conts(prev_v=cur_lin_vel_point, invinds=invinds,
                              V=V, diribcs=diribcs, Picard=pcrd_anyone)
         if pcrd_anyone:
             print 'PICARD !!!'
@@ -509,12 +511,14 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     pdatstr = get_datastring(**prv_datastrdict)
                     prev_v = dou.load_npa(pdatstr + '__vel')
 
-            if lin_vel_point is None:
+            if newtk == 1 and lin_vel_point is not None:
+                cur_lin_vel_point = lin_vel_point
+            else:
                 # linearize about the prev_v value
-                lin_vel_point = prev_v
+                cur_lin_vel_point = prev_v
 
             convc_mat_n, rhs_con_n, rhsv_conbc_n = \
-                get_v_conv_conts(prev_v=lin_vel_point, invinds=invinds,
+                get_v_conv_conts(prev_v=cur_lin_vel_point, invinds=invinds,
                                  V=V, diribcs=diribcs, Picard=pcrd_anyone)
 
             (fv_tmdp_cont,

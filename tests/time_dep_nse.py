@@ -7,8 +7,8 @@ import dolfin_navier_scipy.problem_setups as dnsps
 
 dolfin.parameters.linear_algebra_backend = 'uBLAS'
 
-krylovdict = dict(krylov='Gmres', krpslvprms={'tol': 1e-2})
-# krylovdict = {}
+# krylovdict = dict(krylov='Gmres', krpslvprms={'tol': 1e-2})
+krylovdict = {}
 
 
 def testit(problem='drivencavity', N=None, nu=1e-2):
@@ -31,7 +31,7 @@ def testit(problem='drivencavity', N=None, nu=1e-2):
     # paraview output
     ParaviewOutput = True
     proutdir = 'results/'
-    tips = dict(t0=0.0, tE=2.0, Nts=100)
+    tips = dict(t0=0.0, tE=2.0, Nts=10)
 
     try:
         os.chdir(ddir)
@@ -43,8 +43,6 @@ def testit(problem='drivencavity', N=None, nu=1e-2):
         curwd = os.getcwd()
         try:
             os.chdir(proutdir)
-            # for fname in glob.glob(data_prfx + '*'):
-            #     os.remove(fname)
             os.chdir(curwd)
         except OSError:
             raise Warning('the ' + proutdir + ' subdir for storing the' +
@@ -78,9 +76,6 @@ def testit(problem='drivencavity', N=None, nu=1e-2):
               'invinds': invinds}
     femp.update(bcdata)
 
-    # casting some parameters
-    NV, INVINDS = len(femp['invinds']), femp['invinds']
-
     soldict = stokesmatsc  # containing A, J, JT
     soldict.update(femp)  # adding V, Q, invinds, diribcs
     soldict.update(rhsd_vfrc)  # adding fvc, fpr
@@ -106,4 +101,4 @@ def testit(problem='drivencavity', N=None, nu=1e-2):
 
 if __name__ == '__main__':
     testit(N=15, nu=1e-3)
-    # testit(problem='cylinderwake', N=3, nu=3e-3)
+    # testit(problem='cylinderwake', N=1, nu=3e-3)
