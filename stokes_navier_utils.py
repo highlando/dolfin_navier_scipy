@@ -308,7 +308,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         memory of the function
     krylov : {None, 'gmres'}, optional
         whether or not to use an iterative solver, defaults to `None`
-    krpsolvprms : dictionary, optional
+    krpslvprms : dictionary, optional
         to specify parameters of the linear solver for use in Krypy, e.g.,
 
           * initial guess
@@ -496,18 +496,18 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             sys.stdout.flush()
             prv_datastrdict = copy.deepcopy(datastrdict)
 
-            try:
-                prev_v = dou.load_npa(cdatstr + '__vel')
-            except IOError:
-                prv_datastrdict['time'] = None
-                pdatstr = get_datastring(**prv_datastrdict)
-                prev_v = dou.load_npa(pdatstr + '__vel')
-
             # coeffs and rhs at next time instance
             if pcrd_anyone or comp_nonl_semexp:
                 # we rather use an explicit scheme
                 # than an unstable implicit --> to get a good start value
                 prev_v = v_old
+            else:
+                try:
+                    prev_v = dou.load_npa(cdatstr + '__vel')
+                except IOError:
+                    prv_datastrdict['time'] = None
+                    pdatstr = get_datastring(**prv_datastrdict)
+                    prev_v = dou.load_npa(pdatstr + '__vel')
 
             if lin_vel_point is None:
                 # linearize about the prev_v value
@@ -523,16 +523,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                        memory=fv_tmdp_memory,
                                        **fv_tmdp_params)
             fvn_n = fv_stbc + fvc + rhsv_conbc_n + rhs_con_n + fv_tmdp_cont
-
-            # print '\n ### norm of fv at time {0}: {1} ###\n'.\
-            #     format(t, np.linalg.norm(fvn_n))
-            # print 'fvstbc', np.linalg.norm(fv_stbc)
-            # print 'fvc', np.linalg.norm(fvc)
-            # print 'rhsvconbc', np.linalg.norm(rhsv_conbc_n)
-            # print 'rhscon', np.linalg.norm(rhs_con_n)
-
-            # fvn_n = fv_stbc + fvc + rhsv_conbc_n + rhs_con_n +\
-            #     fv_tmdp(time=t, curvel=v_old, **fv_tmdp_params)
 
             if closed_loop:
                 if static_feedback:
@@ -561,12 +551,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                       umat_c=umat_c, vmat_c=vmat_c,
                                       umat_n=umat_n, vmat_n=vmat_n)
 
-            # print 'A', np.linalg.norm(A.todense())
-            # print 'cc', np.linalg.norm(convc_mat_n.todense())
-            # print 'cn', np.linalg.norm(convc_mat_c.todense())
-            # print 'solvmat', np.linalg.norm(solvmat.todense())
-            # print 'rhsv', np.linalg.norm(rhsv)
-
             vp_new = lau.solve_sadpnt_smw(amat=solvmat,
                                           jmat=J, jmatT=JT,
                                           rhsv=rhsv,
@@ -579,14 +563,14 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             (umat_c, vmat_c, fvn_c,
                 convc_mat_c) = umat_n, vmat_n, fvn_n, convc_mat_n
 
-            dou.save_npa(v_old, fstring=cdatstr + '__vel')
+            if return_dictofvelstrs or not comp_nonl_semexp:
+                dou.save_npa(v_old, fstring=cdatstr + '__vel')
             if return_dictofvelstrs:
                 dictofvelstrs.update({t: cdatstr + '__vel'})
             if return_as_list:
                 vellist.append(v_old)
 
             prvoutdict.update(dict(vp=vp_new, t=t))
-            # fstring=prfdir+data_prfx+cdatstr))
             dou.output_paraview(**prvoutdict)
 
             # integrate the Newton error
