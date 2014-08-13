@@ -427,7 +427,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     v_old = iniv  # start vector for time integration in every Newtonit
     datastrdict['time'] = trange[0]
     cdatstr = get_datastring(**datastrdict)
-    dou.save_npa(v_old, fstring=cdatstr + '__vel')
+    if return_dictofvelstrs or not comp_nonl_semexp:
+        dou.save_npa(v_old, fstring=cdatstr + '__vel')
 
     if comp_nonl_semexp:
         print 'Explicit treatment of the nonlinearity !!!'
