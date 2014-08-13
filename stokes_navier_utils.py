@@ -459,7 +459,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         # use picard linearization in the first steps
         # unless solving stokes or oseen equations
         convc_mat_c, rhs_con_c, rhsv_conbc_c = \
-            get_v_conv_conts(prev_v=cur_lin_vel_point, invinds=invinds,
+            get_v_conv_conts(prev_v=iniv, invinds=invinds,
                              V=V, diribcs=diribcs, Picard=pcrd_anyone)
         if pcrd_anyone:
             print 'PICARD !!!'
