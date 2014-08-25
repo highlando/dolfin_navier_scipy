@@ -3,6 +3,8 @@ import scipy.io
 import json
 from dolfin_to_sparrays import expand_vp_dolfunc
 import dolfin
+import sys
+import datetime
 
 
 def output_paraview(V=None, Q=None, fstring='nn',
@@ -188,3 +190,11 @@ def load_or_comp(filestr=None, comprtn=None, comprtnargs={},
                 savertn(thing2, filestr[1])
                 print savemsg + filestr[0] + '/' + filestr[1]
         return thing1, thing2
+
+
+def logtofile(logstr):
+    print 'log goes ' + logstr
+    print 'how about \ntail -f '+logstr
+    sys.stdout = open(logstr, 'a', 0)
+    print('{0}'*10 + '\n log started at {1} \n' + '{0}'*10).\
+        format('X', str(datetime.datetime.now()))
