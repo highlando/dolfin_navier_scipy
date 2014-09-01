@@ -341,6 +341,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if trange is None:
         trange = np.linspace(t0, tE, Nts+1)
 
+    if comp_nonl_semexp and lin_vel_point is not None:
+        raise UserWarning('I am not sure what you want! ' +
+                          'set either `lin_vel_point=None` ' +
+                          'or `comp_nonl_semexp=False`! \n' +
+                          'as it is I will compute a linear case')
+
     NV = A.shape[0]
 
     if fv_tmdp is None:

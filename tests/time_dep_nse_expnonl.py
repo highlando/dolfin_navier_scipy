@@ -11,7 +11,8 @@ dolfin.parameters.linear_algebra_backend = 'uBLAS'
 krylovdict = {}
 
 
-def testit(problem='drivencavity', N=None, nu=1e-2):
+def testit(problem='drivencavity', N=None, nu=1e-2, Re=None,
+           t0=0.0, tE=1.0, Nts=1e2+1):
 
     problemdict = dict(drivencavity=dnsps.drivcav_fems,
                        cylinderwake=dnsps.cyl_fems)
@@ -21,7 +22,9 @@ def testit(problem='drivencavity', N=None, nu=1e-2):
     dolfin.plot(femp['V'].mesh())
 
     # setting some parameters
-    nu = nu  # this is so to say 1/Re
+    if Re is not None:
+        nu = femp['charlen']/Re
+
     nnewtsteps = 9  # n nwtn stps for vel comp
     vel_nwtn_tol = 1e-14
     # prefix for data files
@@ -31,7 +34,7 @@ def testit(problem='drivencavity', N=None, nu=1e-2):
     # paraview output
     ParaviewOutput = True
     proutdir = 'results/'
-    tips = dict(t0=0.0, tE=2.0, Nts=10)
+    tips = dict(t0=t0, tE=tE, Nts=Nts)
 
     try:
         os.chdir(ddir)
@@ -102,4 +105,4 @@ def testit(problem='drivencavity', N=None, nu=1e-2):
 
 if __name__ == '__main__':
     # testit(N=15, nu=1e-3)
-    testit(problem='cylinderwake', N=1, nu=3e-3)
+    testit(problem='cylinderwake', N=2, Re=2e2, t0=0.0, tE=2.0, Nts=1e3)
