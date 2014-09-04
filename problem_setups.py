@@ -228,7 +228,7 @@ def drivcav_fems(N, vdgree=2, pdgree=1):
 
 def cyl_fems(refinement_level=2, vdgree=2, pdgree=1):
     """
-    dictionary for the fem items of the (unit) driven cavity
+    dictionary for the fem items for the cylinder wake
 
     Parameters
     ----------
@@ -296,7 +296,7 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1):
         def inside(self, x, on_boundary):
             return on_boundary and x[0] > xmax - bmarg
 
-    ## meshes are available from https://launchpad.net/nsbench
+    # # meshes are available from https://launchpad.net/nsbench
     # Load mesh
     if refinement_level > 9:
         raise RuntimeError("No mesh available for refinement level {0}".

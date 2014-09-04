@@ -86,6 +86,17 @@ def comp_exp_nsmats(problemname='drivencavity',
     #       and necessity of regularization here
     #       by now, we go on number save
 
+    # the pressure observation mean over a small domain
+    if problemname == 'cylinderwake':
+        podcoo = dict(xmin=0.6,
+                      xmax=0.64,
+                      ymin=0.18,
+                      ymax=0.22)
+    else:
+        podcoo = femp['odcoo']
+
+    pcmat = cou.get_pavrg_onsubd(odcoo=podcoo, Q=femp['Q'])
+
     cdatstr = snu.get_datastr_snu(time=None, meshp=N, nu=nu, Nts=None)
 
     (coors, xinds,
@@ -96,7 +107,9 @@ def comp_exp_nsmats(problemname='drivencavity',
         ' B maps into the domain of control -' +\
         ' the first half of the columns' +\
         'actuate in x-direction, the second in y direction \n' +\
-        ' C measures averaged velocities in the domain of observation' +\
+        ' Cv measures averaged velocities in the domain of observation' +\
+        ' Cp measures the averaged pressure' +\
+        ' in the domain of pressure observation' +\
         ' the first components are in x, the last in y-direction \n\n' +\
         ' Visualization: \n\n' +\
         ' `coors`   -- array of (x,y) coordinates in ' +\
@@ -144,6 +157,7 @@ def comp_exp_nsmats(problemname='drivencavity',
                          dict(A=f_mat, M=stokesmatsc['M'],
                               nu=femp['nu'], Re=femp['Re'],
                               J=stokesmatsc['J'], B=b_mat, C=c_mat,
+                              Cp=pcmat,
                               v_ss_nse=v_ss_nse, info=infostr,
                               contsetupstr=contsetupstr, datastr=cdatstr,
                               coors=coors, xinds=xinds, yinds=yinds,
@@ -192,7 +206,8 @@ def comp_exp_nsmats(problemname='drivencavity',
                      dict(A=f_mat, M=stokesmatsc['M'],
                           H=-hmat, fv=fv, fp=fp,
                           nu=femp['nu'], Re=femp['Re'],
-                          J=stokesmatsc['J'], B=b_mat, C=c_mat,
+                          J=stokesmatsc['J'], B=b_mat, Cv=c_mat,
+                          Cp=pcmat,
                           info=infostr,
                           ss_stokes=old_v,
                           contsetupstr=contsetupstr, datastr=cdatstr,

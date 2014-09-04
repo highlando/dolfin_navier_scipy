@@ -60,6 +60,36 @@ def load_json_dicts(StrToJs):
     return JsDict
 
 
+def plot_prs_outp(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
+                  outsig=None, tmesh=None, fignum=222, reference=None,
+                  compress=5):
+    import matplotlib.pyplot as plt
+    from matplotlib2tikz import save as tikz_save
+
+    if str_to_json is not None:
+        jsdict = load_json_dicts(str_to_json)
+        tmesh = jsdict[tmeshkey]
+        outsig = jsdict[sigkey]
+    else:
+        str_to_json = 'notspecified'
+
+    redinds = range(1, len(tmesh), compress)
+
+    redina = np.array(redinds)
+
+    fig = plt.figure(fignum)
+    ax1 = fig.add_subplot(111)
+    ax1.plot(np.array(tmesh)[redina], np.array(outsig)[redina],
+             color='r', linewidth=2.0)
+
+    tikz_save(str_to_json + '{0}'.format(fignum) + '.tikz',
+              figureheight='\\figureheight',
+              figurewidth='\\figurewidth'
+              )
+    print 'tikz saved to ' + str_to_json + '{0}'.format(fignum) + '.tikz'
+    fig.show()
+
+
 def plot_outp_sig(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
                   outsig=None, tmesh=None, fignum=222, reference=None,
                   compress=5):
