@@ -401,8 +401,18 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         norm_nwtnupd_list.append(norm_nwtnupd)
         print 'found vel files'
         print 'norm of last Nwtn update: {0}'.format(norm_nwtnupd)
-        if norm_nwtnupd < vel_nwtn_tol:
+        if norm_nwtnupd < vel_nwtn_tol and not return_dictofvelstrs:
             return
+        elif norm_nwtnupd < vel_nwtn_tol:
+            dictofvelstrs = {trange[0]: cdatstr + '__vel'}
+            for t in trange[1:]:
+                # test if the vels are there
+                v_old = dou.load_npa(cdatstr + '__vel')
+                # update the dict
+                datastrdict.update(dict(time=t))
+                cdatstr = get_datastring(**datastrdict)
+                dictofvelstrs.update({t: cdatstr + '__vel'})
+            return dictofvelstrs
 
     except IOError:
         norm_nwtnupd = 2
@@ -440,18 +450,19 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         print 'Explicit treatment of the nonlinearity !!!'
         vel_nwtn_stps = 1
 
+    if return_dictofvelstrs:
+        dictofvelstrs = {trange[0]: cdatstr + '__vel'}
+
+    if return_as_list:
+        vellist = []
+        vellist.append(v_old)
+
     while (newtk < vel_nwtn_stps and norm_nwtnupd > vel_nwtn_tol):
-
-        if return_dictofvelstrs:
-            dictofvelstrs = {trange[0]: cdatstr + '__vel'}
-
-        if return_as_list:
-            vellist = []
-            vellist.append(v_old)
 
         newtk += 1
         print 'Computing Newton Iteration {0}'.format(newtk)
         v_old = iniv  # start vector for time integration in every Newtonit
+
         vfile = dolfin.File(vfileprfx+'__timestep.pvd')
         pfile = dolfin.File(pfileprfx+'__timestep.pvd')
         prvoutdict.update(dict(vp=None, vc=iniv, t=trange[0],
@@ -594,7 +605,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     if return_dictofvelstrs:
         return dictofvelstrs
-    if return_as_list:
+    elif return_as_list:
         return vellist
     else:
         return

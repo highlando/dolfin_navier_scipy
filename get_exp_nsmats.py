@@ -92,6 +92,11 @@ def comp_exp_nsmats(problemname='drivencavity',
                       xmax=0.64,
                       ymin=0.18,
                       ymax=0.22)
+    elif problemname == 'drivencavity':
+        podcoo = dict(xmin=0.45,
+                      xmax=0.55,
+                      ymin=0.7,
+                      ymax=0.8)
     else:
         podcoo = femp['odcoo']
 

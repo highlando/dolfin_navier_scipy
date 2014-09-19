@@ -15,10 +15,14 @@ __all__ = ['ass_convmat_asmatquad',
            'condense_sysmatsbybcs',
            'condense_velmatsbybcs',
            'expand_vp_dolfunc',
-           'expand_vecnbc_dolfunc']
+           'expand_vecnbc_dolfunc',
+           'mat_dolfin2sparse']
 
 
 def mat_dolfin2sparse(A):
+    """get the csr matrix representing an assembled linear dolfin form
+
+    """
     rows, cols, values = A.data()
     return sps.csr_matrix((values, cols, rows))
 
