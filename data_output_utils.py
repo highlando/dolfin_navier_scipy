@@ -157,7 +157,7 @@ def extract_output(dictofpaths=None, tmesh=None, c_mat=None, ystarvec=None):
     yn = c_mat*cur_v
     yscomplist = [yn.flatten().tolist()]
     for t in tmesh[1:]:
-        cur_v = load_npa(dictofpaths[tmesh[t]])
+        cur_v = load_npa(dictofpaths[t])
         yn = c_mat*cur_v
         yscomplist.append(yn.flatten().tolist())
     if ystarvec is not None:
