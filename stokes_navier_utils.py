@@ -279,6 +279,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               return_dictofvelstrs=False,
               comp_nonl_semexp=False,
               return_as_list=False,
+              start_ssstokes=False,
               **kw):
     """
     solution of the time-dependent nonlinear Navier-Stokes equation
@@ -321,6 +322,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
           *preconditioner
 
+    start_ssstokes : boolean, optional
+        for your convenience, compute and use the steady state stokes solution
+        as initial value, defaults to `False`
+
 
     Returns
     -------
@@ -347,6 +352,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                           'or `comp_nonl_semexp=False`! \n' +
                           'as it is I will compute a linear case')
 
+    if comp_nonl_semexp:
+        print 'Explicit treatment of the nonlinearity !!!'
+        vel_nwtn_stps = 1
+
     NV = A.shape[0]
 
     if fv_tmdp is None:
@@ -354,17 +363,18 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             return np.zeros((NV, 1)), None
 
     if iniv is None:
-        # Stokes solution as starting value
-        (fv_tmdp_cont,
-         fv_tmdp_memory) = fv_tmdp(time=0, **fv_tmdp_params)
-        # TODO: make this save -- although if we do control
-        # we should provide an initial value
-        vp_stokes = lau.solve_sadpnt_smw(amat=A, jmat=J, jmatT=JT,
-                                         rhsv=fv_stbc + fvc + fv_tmdp_cont,
-                                         krylov=krylov, krpslvprms=krpslvprms,
-                                         krplsprms=krplsprms,
-                                         rhsp=fp_stbc + fpr)
-        iniv = vp_stokes[:NV]
+        if start_ssstokes:
+            # Stokes solution as starting value
+            (fv_tmdp_cont,
+             fv_tmdp_memory) = fv_tmdp(time=0, **fv_tmdp_params)
+            vp_stokes =\
+                lau.solve_sadpnt_smw(amat=A, jmat=J, jmatT=JT,
+                                     rhsv=fv_stbc + fvc + fv_tmdp_cont,
+                                     krylov=krylov, krpslvprms=krpslvprms,
+                                     krplsprms=krplsprms, rhsp=fp_stbc + fpr)
+            iniv = vp_stokes[:NV]
+        else:
+            raise ValueError('No initial value given')
 
     datastrdict = dict(time=None, meshp=N, nu=nu,
                        Nts=trange.size-1, data_prfx=data_prfx)
@@ -378,14 +388,18 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             os.remove(fname)
 
     if lin_vel_point is None:
-        # linearize about the initial value
-        cur_lin_vel_point = iniv
+        comp_nonl_semexp = True
+        print('No linearization point given - explicit' +
+              ' treatment of the nonlinearity in the first Iteration')
     else:
         cur_lin_vel_point = lin_vel_point
+        # TODO: time dep linearizations
 
     # steady-state linearization point
     datastrdict['time'] = None
     cdatstr = get_datastring(**datastrdict)
+
+    # TODO: this below...
     dou.save_npa(cur_lin_vel_point, fstring=cdatstr + '__vel')
 
     newtk, norm_nwtnupd, norm_nwtnupd_list = 0, 1, []
@@ -445,10 +459,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     cdatstr = get_datastring(**datastrdict)
     if return_dictofvelstrs or not comp_nonl_semexp:
         dou.save_npa(v_old, fstring=cdatstr + '__vel')
-
-    if comp_nonl_semexp:
-        print 'Explicit treatment of the nonlinearity !!!'
-        vel_nwtn_stps = 1
 
     if return_dictofvelstrs:
         dictofvelstrs = {trange[0]: cdatstr + '__vel'}
