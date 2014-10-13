@@ -105,4 +105,4 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, Nts=1e3):
 
 if __name__ == '__main__':
     # testit(N=15, nu=1e-2)
-    testit(problem='cylinderwake', N=1, Re=300, Nts=1e1)
+    testit(problem='cylinderwake', N=1, Re=150, Nts=1e2)
