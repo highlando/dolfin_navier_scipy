@@ -518,11 +518,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                    curvel=v_old,
                                    memory=fv_tmdp_memory,
                                    **fv_tmdp_params)
-        if comp_nonl_semexp:
-            convc_mat_c = 0*A
-            fvn_c = fv_stbc + fvc - rhs_con_c + fv_tmdp_cont
-        else:
-            fvn_c = fv_stbc + fvc + rhsv_conbc_c + rhs_con_c + fv_tmdp_cont
+
+        fvn_c = fv_stbc + fvc + rhsv_conbc_c + rhs_con_c + fv_tmdp_cont
 
         if closed_loop:
             if static_feedback:
@@ -571,11 +568,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                        memory=fv_tmdp_memory,
                                        **fv_tmdp_params)
 
-            if comp_nonl_semexp:
-                convc_mat_n = 0*A
-                fvn_n = fv_stbc + fvc - rhs_con_n + fv_tmdp_cont
-            else:
-                fvn_n = fv_stbc + fvc + rhsv_conbc_n + rhs_con_n + fv_tmdp_cont
+            fvn_n = fv_stbc + fvc + rhsv_conbc_n + rhs_con_n + fv_tmdp_cont
 
             if closed_loop:
                 if static_feedback:
