@@ -90,6 +90,7 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, Nts=1e3):
                    get_datastring=None,
                    data_prfx=ddir+data_prfx,
                    paraviewoutput=ParaviewOutput,
+                   clearprvdata=True,
                    vfileprfx=proutdir+'vel_',
                    pfileprfx=proutdir+'p_')
 
@@ -104,4 +105,4 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, Nts=1e3):
 
 if __name__ == '__main__':
     # testit(N=15, nu=1e-2)
-    testit(problem='cylinderwake', N=1, Re=100, Nts=1e1)
+    testit(problem='cylinderwake', N=1, Re=150, Nts=1e2)
