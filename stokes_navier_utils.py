@@ -476,10 +476,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     while (newtk < vel_nwtn_stps and norm_nwtnupd > vel_nwtn_tol):
 
         if comp_nonl_semexp:
-            pcrd_anyone = True
+            pcrd_anyone = False
             print 'explicit treatment of nonl. for initial guess'
 
-        elif vel_pcrd_stps > 0:
+        elif vel_pcrd_stps > 0 and not comp_nonl_semexp:
             vel_pcrd_stps -= 1
             pcrd_anyone = True
             print 'Picard iterations for initial value -- {0} left'.\
