@@ -86,6 +86,7 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, Nts=1e3):
                    N=N, nu=nu,
                    vel_nwtn_stps=nnewtsteps,
                    vel_nwtn_tol=vel_nwtn_tol,
+                   start_ssstokes=True,
                    get_datastring=None,
                    data_prfx=ddir+data_prfx,
                    paraviewoutput=ParaviewOutput,
@@ -100,9 +101,7 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, Nts=1e3):
     # v_ss_nse, list_norm_nwtnupd = snu.solve_steadystate_nse(**soldict)
     snu.solve_nse(**soldict)
 
-    raise Warning('TODO: debug')
-
 
 if __name__ == '__main__':
     # testit(N=15, nu=1e-2)
-    testit(problem='cylinderwake', N=1, Re=100, Nts=1e2)
+    testit(problem='cylinderwake', N=1, Re=100, Nts=1e1)
