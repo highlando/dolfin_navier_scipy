@@ -11,7 +11,7 @@ dolfin.parameters.linear_algebra_backend = 'uBLAS'
 krylovdict = {}
 
 
-def testit(problem='drivencavity', N=None, nu=1e-2, Nts=1e3):
+def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, Nts=1e3):
 
     problemdict = dict(drivencavity=dnsps.drivcav_fems,
                        cylinderwake=dnsps.cyl_fems)
@@ -21,7 +21,9 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Nts=1e3):
     dolfin.plot(femp['V'].mesh())
 
     # setting some parameters
-    nu = nu  # this is so to say 1/Re
+    if Re is not None:
+        nu = femp['charlen']/Re  # this is so to say 1/Re
+
     nnewtsteps = 9  # n nwtn stps for vel comp
     vel_nwtn_tol = 1e-14
     # prefix for data files
@@ -84,9 +86,11 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Nts=1e3):
                    N=N, nu=nu,
                    vel_nwtn_stps=nnewtsteps,
                    vel_nwtn_tol=vel_nwtn_tol,
+                   start_ssstokes=True,
                    get_datastring=None,
                    data_prfx=ddir+data_prfx,
                    paraviewoutput=ParaviewOutput,
+                   clearprvdata=True,
                    vfileprfx=proutdir+'vel_',
                    pfileprfx=proutdir+'p_')
 
@@ -100,5 +104,5 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Nts=1e3):
 
 
 if __name__ == '__main__':
-    testit(N=15, nu=1e-3)
-    # testit(problem='cylinderwake', N=1, nu=3e-3, Nts=1e2)
+    # testit(N=15, nu=1e-2)
+    testit(problem='cylinderwake', N=1, Re=300, Nts=1e1)
