@@ -360,10 +360,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                           'or `comp_nonl_semexp=False`! \n' +
                           'as it is I will compute a linear case')
 
-    # if comp_nonl_semexp:
-    #     print 'Explicit treatment of the nonlinearity !!!'
-    #     vel_nwtn_stps = 1
-
     NV = A.shape[0]
 
     if fv_tmdp is None:
