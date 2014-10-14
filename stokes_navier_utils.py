@@ -409,32 +409,34 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     newtk, norm_nwtnupd, norm_nwtnupd_list = 0, 1, []
 
     # check for previously computed velocities
-    try:
-        datastrdict.update(dict(time=trange[-1]))
-        cdatstr = get_datastring(**datastrdict)
+    if lin_vel_point is None:
+        try:
+            datastrdict.update(dict(time=trange[-1]))
+            cdatstr = get_datastring(**datastrdict)
 
-        norm_nwtnupd = dou.load_npa(cdatstr + '__norm_nwtnupd')
-        v_old = dou.load_npa(cdatstr + '__vel')
+            norm_nwtnupd = dou.load_npa(cdatstr + '__norm_nwtnupd')
+            v_old = dou.load_npa(cdatstr + '__vel')
 
-        norm_nwtnupd_list.append(norm_nwtnupd)
-        print 'found vel files'
-        print 'norm of last Nwtn update: {0}'.format(norm_nwtnupd)
-        if norm_nwtnupd < vel_nwtn_tol and not return_dictofvelstrs:
-            return
-        elif norm_nwtnupd < vel_nwtn_tol:
-            dictofvelstrs = {trange[0]: cdatstr + '__vel'}
-            for t in trange[1:]:
-                # test if the vels are there
-                v_old = dou.load_npa(cdatstr + '__vel')
-                # update the dict
-                datastrdict.update(dict(time=t))
-                cdatstr = get_datastring(**datastrdict)
-                dictofvelstrs.update({t: cdatstr + '__vel'})
-            return dictofvelstrs
+            norm_nwtnupd_list.append(norm_nwtnupd)
+            print 'found vel files'
+            print 'norm of last Nwtn update: {0}'.format(norm_nwtnupd)
+            if norm_nwtnupd < vel_nwtn_tol and not return_dictofvelstrs:
+                return
+            elif norm_nwtnupd < vel_nwtn_tol:
+                dictofvelstrs = {trange[0]: cdatstr + '__vel'}
+                for t in trange[1:]:
+                    # test if the vels are there
+                    v_old = dou.load_npa(cdatstr + '__vel')
+                    # update the dict
+                    datastrdict.update(dict(time=t))
+                    cdatstr = get_datastring(**datastrdict)
+                    dictofvelstrs.update({t: cdatstr + '__vel'})
+                return dictofvelstrs
+            comp_nonl_semexp = False
 
-    except IOError:
-        norm_nwtnupd = 2
-        print 'no old velocity data found'
+        except IOError:
+            norm_nwtnupd = 2
+            print 'no old velocity data found'
 
     def _get_mats_rhs_ts(mmat=None, dt=None, var_c=None,
                          coeffmat_c=None,
