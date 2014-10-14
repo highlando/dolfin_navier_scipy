@@ -2,7 +2,7 @@ import numpy as np
 import os
 import glob
 import sys
-import copy
+# import copy
 import dolfin
 
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
@@ -270,6 +270,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               feedbackthroughdict=None,
               tb_mat=None, c_mat=None,
               vel_nwtn_stps=20, vel_nwtn_tol=5e-15,
+              vel_pcrd_stps=2,
               krylov=None, krpslvprms={}, krplsprms={},
               clearprvdata=False,
               get_datastring=None,
@@ -279,6 +280,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               return_dictofvelstrs=False,
               comp_nonl_semexp=False,
               return_as_list=False,
+              start_ssstokes=False,
               **kw):
     """
     solution of the time-dependent nonlinear Navier-Stokes equation
@@ -300,6 +302,13 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     Parameters
     ----------
+    lin_vel_point : dictionary, optional
+        contains the linearization point for the first Newton iteration
+
+         * Oseen: {`None`: 'path_to_nparray'}
+         * Newton: {`t`: 'path_to_nparray'}
+
+        defaults to `None`
     fv_tmdp : callable f(t, v, dict), optional
         time-dependent part of the right-hand side, set to zero if None
     fv_tmdp_params : dictionary, optional
@@ -320,6 +329,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         parameters to define the linear system like
 
           *preconditioner
+
+    start_ssstokes : boolean, optional
+        for your convenience, compute and use the steady state stokes solution
+        as initial value, defaults to `False`
 
 
     Returns
@@ -347,6 +360,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                           'or `comp_nonl_semexp=False`! \n' +
                           'as it is I will compute a linear case')
 
+    # if comp_nonl_semexp:
+    #     print 'Explicit treatment of the nonlinearity !!!'
+    #     vel_nwtn_stps = 1
+
     NV = A.shape[0]
 
     if fv_tmdp is None:
@@ -354,17 +371,18 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             return np.zeros((NV, 1)), None
 
     if iniv is None:
-        # Stokes solution as starting value
-        (fv_tmdp_cont,
-         fv_tmdp_memory) = fv_tmdp(time=0, **fv_tmdp_params)
-        # TODO: make this save -- although if we do control
-        # we should provide an initial value
-        vp_stokes = lau.solve_sadpnt_smw(amat=A, jmat=J, jmatT=JT,
-                                         rhsv=fv_stbc + fvc + fv_tmdp_cont,
-                                         krylov=krylov, krpslvprms=krpslvprms,
-                                         krplsprms=krplsprms,
-                                         rhsp=fp_stbc + fpr)
-        iniv = vp_stokes[:NV]
+        if start_ssstokes:
+            # Stokes solution as starting value
+            (fv_tmdp_cont,
+             fv_tmdp_memory) = fv_tmdp(time=0, **fv_tmdp_params)
+            vp_stokes =\
+                lau.solve_sadpnt_smw(amat=A, jmat=J, jmatT=JT,
+                                     rhsv=fv_stbc + fvc + fv_tmdp_cont,
+                                     krylov=krylov, krpslvprms=krpslvprms,
+                                     krplsprms=krplsprms, rhsp=fp_stbc + fpr)
+            iniv = vp_stokes[:NV]
+        else:
+            raise ValueError('No initial value given')
 
     datastrdict = dict(time=None, meshp=N, nu=nu,
                        Nts=trange.size-1, data_prfx=data_prfx)
@@ -378,15 +396,19 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             os.remove(fname)
 
     if lin_vel_point is None:
-        # linearize about the initial value
-        cur_lin_vel_point = iniv
+        comp_nonl_semexp = True
+        print('No linearization point given - explicit' +
+              ' treatment of the nonlinearity in the first Iteration')
     else:
-        cur_lin_vel_point = lin_vel_point
+        cur_linvel_point = lin_vel_point
+        # TODO: time dep linearizations
 
-    # steady-state linearization point
-    datastrdict['time'] = None
-    cdatstr = get_datastring(**datastrdict)
-    dou.save_npa(cur_lin_vel_point, fstring=cdatstr + '__vel')
+    # # steady-state linearization point
+    # datastrdict['time'] = None
+    # cdatstr = get_datastring(**datastrdict)
+
+    # # TODO: this below...
+    # dou.save_npa(cur_linvel_point, fstring=cdatstr + '__vel')
 
     newtk, norm_nwtnupd, norm_nwtnupd_list = 0, 1, []
 
@@ -443,15 +465,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     v_old = iniv  # start vector for time integration in every Newtonit
     datastrdict['time'] = trange[0]
     cdatstr = get_datastring(**datastrdict)
-    if return_dictofvelstrs or not comp_nonl_semexp:
-        dou.save_npa(v_old, fstring=cdatstr + '__vel')
 
-    if comp_nonl_semexp:
-        print 'Explicit treatment of the nonlinearity !!!'
-        vel_nwtn_stps = 1
-
-    if return_dictofvelstrs:
-        dictofvelstrs = {trange[0]: cdatstr + '__vel'}
+    dou.save_npa(v_old, fstring=cdatstr + '__vel')
+    dictofvelstrs = {trange[0]: cdatstr + '__vel'}
 
     if return_as_list:
         vellist = []
@@ -459,8 +475,20 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     while (newtk < vel_nwtn_stps and norm_nwtnupd > vel_nwtn_tol):
 
-        newtk += 1
-        print 'Computing Newton Iteration {0}'.format(newtk)
+        if comp_nonl_semexp:
+            pcrd_anyone = False
+            print 'explicit treatment of nonl. for initial guess'
+
+        elif vel_pcrd_stps > 0 and not comp_nonl_semexp:
+            vel_pcrd_stps -= 1
+            pcrd_anyone = True
+            print 'Picard iterations for initial value -- {0} left'.\
+                format(vel_pcrd_stps)
+        else:
+            pcrd_anyone = False
+            newtk += 1
+            print 'Computing Newton Iteration {0}'.format(newtk)
+
         v_old = iniv  # start vector for time integration in every Newtonit
 
         vfile = dolfin.File(vfileprfx+'__timestep.pvd')
@@ -472,20 +500,25 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         norm_nwtnupd = 0
 
         # ## current values_c for application of trap rule
-        pcrd_anyone = newtk < 2 and vel_nwtn_stps > 1
         # use picard linearization in the first steps
-        # unless solving stokes or oseen equations
+        # TODO: unless solving stokes or oseen equations
+        if comp_nonl_semexp:
+            prev_v = v_old
+        else:
+            try:
+                prev_v = dou.load_npa(cur_linvel_point[trange[0]])
+            except KeyError:
+                prev_v = dou.load_npa(cur_linvel_point[None])
+
         convc_mat_c, rhs_con_c, rhsv_conbc_c = \
             get_v_conv_conts(prev_v=iniv, invinds=invinds,
                              V=V, diribcs=diribcs, Picard=pcrd_anyone)
-        if pcrd_anyone:
-            print 'PICARD !!!'
-
         (fv_tmdp_cont,
          fv_tmdp_memory) = fv_tmdp(time=0,
                                    curvel=v_old,
                                    memory=fv_tmdp_memory,
                                    **fv_tmdp_params)
+
         fvn_c = fv_stbc + fvc + rhsv_conbc_c + rhs_con_c + fv_tmdp_cont
 
         if closed_loop:
@@ -514,29 +547,19 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             cdatstr = get_datastring(**datastrdict)
             sys.stdout.write("\rEnd: {1} -- now: {0:f}".format(t, trange[-1]))
             sys.stdout.flush()
-            prv_datastrdict = copy.deepcopy(datastrdict)
+            # prv_datastrdict = copy.deepcopy(datastrdict)
 
             # coeffs and rhs at next time instance
-            if pcrd_anyone or comp_nonl_semexp:
-                # we rather use an explicit scheme
-                # than an unstable implicit --> to get a good start value
+            if comp_nonl_semexp:
                 prev_v = v_old
             else:
                 try:
-                    prev_v = dou.load_npa(cdatstr + '__vel')
-                except IOError:
-                    prv_datastrdict['time'] = None
-                    pdatstr = get_datastring(**prv_datastrdict)
-                    prev_v = dou.load_npa(pdatstr + '__vel')
-
-            if newtk == 1 and lin_vel_point is not None:
-                cur_lin_vel_point = lin_vel_point
-            else:
-                # linearize about the prev_v value
-                cur_lin_vel_point = prev_v
+                    prev_v = dou.load_npa(cur_linvel_point[t])
+                except KeyError:
+                    prev_v = dou.load_npa(cur_linvel_point[None])
 
             convc_mat_n, rhs_con_n, rhsv_conbc_n = \
-                get_v_conv_conts(prev_v=cur_lin_vel_point, invinds=invinds,
+                get_v_conv_conts(prev_v=prev_v, invinds=invinds,
                                  V=V, diribcs=diribcs, Picard=pcrd_anyone)
 
             (fv_tmdp_cont,
@@ -544,6 +567,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                        curvel=v_old,
                                        memory=fv_tmdp_memory,
                                        **fv_tmdp_params)
+
             fvn_n = fv_stbc + fvc + rhsv_conbc_n + rhs_con_n + fv_tmdp_cont
 
             if closed_loop:
@@ -585,10 +609,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             (umat_c, vmat_c, fvn_c,
                 convc_mat_c) = umat_n, vmat_n, fvn_n, convc_mat_n
 
-            if return_dictofvelstrs or not comp_nonl_semexp:
-                dou.save_npa(v_old, fstring=cdatstr + '__vel')
-            if return_dictofvelstrs:
-                dictofvelstrs.update({t: cdatstr + '__vel'})
+            dou.save_npa(v_old, fstring=cdatstr + '__vel')
+            dictofvelstrs.update({t: cdatstr + '__vel'})
+
             if return_as_list:
                 vellist.append(v_old)
 
@@ -596,12 +619,17 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             dou.output_paraview(**prvoutdict)
 
             # integrate the Newton error
-            norm_nwtnupd += cts * m_innerproduct(M, v_old - prev_v)
+            if comp_nonl_semexp:
+                norm_nwtnupd += np.array([cts])
+            else:
+                norm_nwtnupd += cts * m_innerproduct(M, v_old - prev_v)
 
         dou.save_npa(norm_nwtnupd, cdatstr + '__norm_nwtnupd')
         norm_nwtnupd_list.append(norm_nwtnupd[0])
-
         print '\nnorm of current Newton update: {}'.format(norm_nwtnupd)
+        comp_nonl_semexp = False
+
+        cur_linvel_point = dictofvelstrs
 
     if return_dictofvelstrs:
         return dictofvelstrs
