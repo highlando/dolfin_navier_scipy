@@ -328,7 +328,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     krplsprms : dictionary, optional
         parameters to define the linear system like
 
-          *preconditioner
+          * preconditioner
 
     start_ssstokes : boolean, optional
         for your convenience, compute and use the steady state stokes solution
@@ -339,6 +339,11 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     -------
     dictofvelstrs : dictionary, on demand
         dictionary with time `t` as keys and path to velocity files as values
+
+    or ...
+
+    vellist : list, on demand
+        list of the velocity solutions
 
     """
 
