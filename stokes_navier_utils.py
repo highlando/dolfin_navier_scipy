@@ -305,7 +305,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     lin_vel_point : dictionary, optional
         contains the linearization point for the first Newton iteration
 
-         * Oseen: {`None`: 'path_to_nparray'}
+         * Steady State: {{`None`: 'path_to_nparray'}, {'None': nparray}}
          * Newton: {`t`: 'path_to_nparray'}
 
         defaults to `None`
@@ -397,19 +397,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             os.remove(fname)
 
     if lin_vel_point is None:
-        comp_nonl_semexp = True
-        print('No linearization point given - explicit' +
-              ' treatment of the nonlinearity in the first Iteration')
+        comp_nonl_semexp_inig = True
+        if not comp_nonl_semexp:
+            print('No linearization point given - explicit' +
+                  ' treatment of the nonlinearity in the first Iteration')
     else:
         cur_linvel_point = lin_vel_point
-        # TODO: time dep linearizations
-
-    # # steady-state linearization point
-    # datastrdict['time'] = None
-    # cdatstr = get_datastring(**datastrdict)
-
-    # # TODO: this below...
-    # dou.save_npa(cur_linvel_point, fstring=cdatstr + '__vel')
 
     newtk, norm_nwtnupd, norm_nwtnupd_list = 0, 1, []
 
@@ -478,15 +471,18 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     while (newtk < vel_nwtn_stps and norm_nwtnupd > vel_nwtn_tol):
 
-        if comp_nonl_semexp:
+        if comp_nonl_semexp_inig and not comp_nonl_semexp:
             pcrd_anyone = False
             print 'explicit treatment of nonl. for initial guess'
-
         elif vel_pcrd_stps > 0 and not comp_nonl_semexp:
             vel_pcrd_stps -= 1
             pcrd_anyone = True
             print 'Picard iterations for initial value -- {0} left'.\
                 format(vel_pcrd_stps)
+        elif comp_nonl_semexp:
+            pcrd_anyone = False
+            newtk = vel_nwtn_stps
+            print 'No Newton iterations - explicit treatment of the nonlin.'
         else:
             pcrd_anyone = False
             newtk += 1
@@ -511,7 +507,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             try:
                 prev_v = dou.load_npa(cur_linvel_point[trange[0]])
             except KeyError:
-                prev_v = dou.load_npa(cur_linvel_point[None])
+                try:
+                    prev_v = dou.load_npa(cur_linvel_point[None])
+                except TypeError:
+                    prev_v = cur_linvel_point[None]
 
         convc_mat_c, rhs_con_c, rhsv_conbc_c = \
             get_v_conv_conts(prev_v=iniv, invinds=invinds,
@@ -528,6 +527,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             if static_feedback:
                 mtxtb_c = dou.load_npa(feedbackthroughdict[None]['mtxtb'])
                 next_w = dou.load_npa(feedbackthroughdict[None]['w'])
+                print '\nnorm of feedback: ', np.linalg.norm(mtxtb_c)
             else:
                 mtxtb_c = dou.load_npa(feedbackthroughdict[0]['mtxtb'])
                 next_w = dou.load_npa(feedbackthroughdict[0]['w'])
@@ -559,7 +559,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 try:
                     prev_v = dou.load_npa(cur_linvel_point[t])
                 except KeyError:
-                    prev_v = dou.load_npa(cur_linvel_point[None])
+                    try:
+                        prev_v = dou.load_npa(cur_linvel_point[None])
+                    except TypeError:
+                        prev_v = cur_linvel_point[None]
 
             convc_mat_n, rhs_con_n, rhsv_conbc_n = \
                 get_v_conv_conts(prev_v=prev_v, invinds=invinds,
@@ -577,6 +580,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 if static_feedback:
                     mtxtb_n = dou.load_npa(feedbackthroughdict[None]['mtxtb'])
                     next_w = dou.load_npa(feedbackthroughdict[None]['w'])
+                    fb = np.dot(tb_mat*mtxtb_n.T, v_old)
+                    print '\nnorm of feedback: ', np.linalg.norm(fb)
+                    print '\nnorm of v_old: ', np.linalg.norm(v_old)
+                    # print '\nnorm of feedthrough: ', np.linalg.norm(next_w)
                 else:
                     mtxtb_n = dou.load_npa(feedbackthroughdict[t]['mtxtb'])
                     next_w = dou.load_npa(feedbackthroughdict[t]['w'])
