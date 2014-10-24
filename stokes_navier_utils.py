@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.sparse as sps
 import os
 import glob
 import sys
@@ -262,6 +263,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               fv_tmdp=None, fv_tmdp_params={},
               fv_tmdp_memory=None,
               iniv=None, lin_vel_point=None,
+              stokes_flow=False,
               trange=None,
               t0=None, tE=None, Nts=None,
               V=None, Q=None, invinds=None, diribcs=None,
@@ -330,10 +332,11 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
           * preconditioner
 
+    stokes_flow : boolean, optional
+        whether to consider the Stokes linearization, defaults to `False`
     start_ssstokes : boolean, optional
         for your convenience, compute and use the steady state stokes solution
         as initial value, defaults to `False`
-
 
     Returns
     -------
@@ -365,7 +368,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                           'or `comp_nonl_semexp=False`! \n' +
                           'as it is I will compute a linear case')
 
-    NV = A.shape[0]
+    NV, NP = A.shape[0], J.shape[0]
 
     if fv_tmdp is None:
         def fv_tmdp(time=None, curvel=None, **kw):
@@ -396,18 +399,23 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         for fname in glob.glob(cdatstr + '__vel*'):
             os.remove(fname)
 
-    if lin_vel_point is None:
+    if stokes_flow:
+        vel_nwtn_stps = 1
+        vel_pcrd_stps = 0
+        print 'Stokes Flow!'
+    elif lin_vel_point is None:
         comp_nonl_semexp_inig = True
         if not comp_nonl_semexp:
             print('No linearization point given - explicit' +
                   ' treatment of the nonlinearity in the first Iteration')
     else:
         cur_linvel_point = lin_vel_point
+        comp_nonl_semexp_inig = False
 
     newtk, norm_nwtnupd, norm_nwtnupd_list = 0, 1, []
 
     # check for previously computed velocities
-    if lin_vel_point is None:
+    if lin_vel_point is None and not stokes_flow:
         try:
             datastrdict.update(dict(time=trange[-1]))
             cdatstr = get_datastring(**datastrdict)
@@ -470,8 +478,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         vellist.append(v_old)
 
     while (newtk < vel_nwtn_stps and norm_nwtnupd > vel_nwtn_tol):
-
-        if comp_nonl_semexp_inig and not comp_nonl_semexp:
+        if stokes_flow:
+            newtk = vel_nwtn_stps
+        elif comp_nonl_semexp_inig and not comp_nonl_semexp:
             pcrd_anyone = False
             print 'explicit treatment of nonl. for initial guess'
         elif vel_pcrd_stps > 0 and not comp_nonl_semexp:
@@ -489,6 +498,15 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             print 'Computing Newton Iteration {0}'.format(newtk)
 
         v_old = iniv  # start vector for time integration in every Newtonit
+        try:
+            if krpslvprms['krylovini'] == 'old':
+                vp_old = np.vstack([v_old, np.zeros((NP, 1))])
+            elif krpslvprms['krylovini'] == 'upd':
+                vp_old = np.vstack([v_old, np.zeros((NP, 1))])
+                vp_new = vp_old
+                cts_old = trange[1] - trange[0]
+        except (TypeError, KeyError):
+            pass  # no inival for krylov solver required
 
         vfile = dolfin.File(vfileprfx+'__timestep.pvd')
         pfile = dolfin.File(pfileprfx+'__timestep.pvd')
@@ -496,25 +514,26 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                pfile=pfile, vfile=vfile))
         dou.output_paraview(**prvoutdict)
 
-        norm_nwtnupd = 0
-
         # ## current values_c for application of trap rule
-        # use picard linearization in the first steps
-        # TODO: unless solving stokes or oseen equations
-        if comp_nonl_semexp:
-            prev_v = v_old
+        if stokes_flow:
+            convc_mat_c = sps.csr_matrix((NV, NV))
+            rhs_con_c, rhsv_conbc_c = np.zeros((NV, 1)), np.zeros((NV, 1))
         else:
-            try:
-                prev_v = dou.load_npa(cur_linvel_point[trange[0]])
-            except KeyError:
+            if comp_nonl_semexp or comp_nonl_semexp_inig:
+                prev_v = v_old
+            else:
                 try:
-                    prev_v = dou.load_npa(cur_linvel_point[None])
-                except TypeError:
-                    prev_v = cur_linvel_point[None]
+                    prev_v = dou.load_npa(cur_linvel_point[trange[0]])
+                except KeyError:
+                    try:
+                        prev_v = dou.load_npa(cur_linvel_point[None])
+                    except TypeError:
+                        prev_v = cur_linvel_point[None]
 
-        convc_mat_c, rhs_con_c, rhsv_conbc_c = \
-            get_v_conv_conts(prev_v=iniv, invinds=invinds,
-                             V=V, diribcs=diribcs, Picard=pcrd_anyone)
+            convc_mat_c, rhs_con_c, rhsv_conbc_c = \
+                get_v_conv_conts(prev_v=iniv, invinds=invinds,
+                                 V=V, diribcs=diribcs, Picard=pcrd_anyone)
+
         (fv_tmdp_cont,
          fv_tmdp_memory) = fv_tmdp(time=0,
                                    curvel=v_old,
@@ -526,13 +545,13 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         if closed_loop:
             if static_feedback:
                 mtxtb_c = dou.load_npa(feedbackthroughdict[None]['mtxtb'])
-                next_w = dou.load_npa(feedbackthroughdict[None]['w'])
-                print '\nnorm of feedback: ', np.linalg.norm(mtxtb_c)
+                w_c = dou.load_npa(feedbackthroughdict[None]['w'])
+                # print '\nnorm of feedback: ', np.linalg.norm(mtxtb_c)
             else:
                 mtxtb_c = dou.load_npa(feedbackthroughdict[0]['mtxtb'])
-                next_w = dou.load_npa(feedbackthroughdict[0]['w'])
+                w_c = dou.load_npa(feedbackthroughdict[0]['w'])
 
-            fvn_c = fvn_c + tb_mat * (tb_mat.T * next_w)
+            fvn_c = fvn_c + tb_mat * (tb_mat.T * w_c)
             vmat_c = mtxtb_c.T
             try:
                 umat_c = -np.array(tb_mat.todense())
@@ -543,6 +562,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             vmat_c = None
             umat_c = None
 
+        norm_nwtnupd = 0
         print 'time to go',
         for tk, t in enumerate(trange[1:]):
             cts = t - trange[tk]
@@ -553,20 +573,24 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             # prv_datastrdict = copy.deepcopy(datastrdict)
 
             # coeffs and rhs at next time instance
-            if comp_nonl_semexp:
-                prev_v = v_old
+            if stokes_flow:
+                convc_mat_n = sps.csr_matrix((NV, NV))
+                rhs_con_n, rhsv_conbc_n = np.zeros((NV, 1)), np.zeros((NV, 1))
             else:
-                try:
-                    prev_v = dou.load_npa(cur_linvel_point[t])
-                except KeyError:
+                if comp_nonl_semexp or comp_nonl_semexp_inig:
+                    prev_v = v_old
+                else:
                     try:
-                        prev_v = dou.load_npa(cur_linvel_point[None])
-                    except TypeError:
-                        prev_v = cur_linvel_point[None]
+                        prev_v = dou.load_npa(cur_linvel_point[t])
+                    except KeyError:
+                        try:
+                            prev_v = dou.load_npa(cur_linvel_point[None])
+                        except TypeError:
+                            prev_v = cur_linvel_point[None]
 
-            convc_mat_n, rhs_con_n, rhsv_conbc_n = \
-                get_v_conv_conts(prev_v=prev_v, invinds=invinds,
-                                 V=V, diribcs=diribcs, Picard=pcrd_anyone)
+                convc_mat_n, rhs_con_n, rhsv_conbc_n = \
+                    get_v_conv_conts(prev_v=prev_v, invinds=invinds,
+                                     V=V, diribcs=diribcs, Picard=pcrd_anyone)
 
             (fv_tmdp_cont,
              fv_tmdp_memory) = fv_tmdp(time=t,
@@ -579,16 +603,16 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             if closed_loop:
                 if static_feedback:
                     mtxtb_n = dou.load_npa(feedbackthroughdict[None]['mtxtb'])
-                    next_w = dou.load_npa(feedbackthroughdict[None]['w'])
-                    fb = np.dot(tb_mat*mtxtb_n.T, v_old)
-                    print '\nnorm of feedback: ', np.linalg.norm(fb)
-                    print '\nnorm of v_old: ', np.linalg.norm(v_old)
+                    w_n = dou.load_npa(feedbackthroughdict[None]['w'])
+                    # fb = np.dot(tb_mat*mtxtb_n.T, v_old)
+                    # print '\nnorm of feedback: ', np.linalg.norm(fb)
+                    # print '\nnorm of v_old: ', np.linalg.norm(v_old)
                     # print '\nnorm of feedthrough: ', np.linalg.norm(next_w)
                 else:
                     mtxtb_n = dou.load_npa(feedbackthroughdict[t]['mtxtb'])
-                    next_w = dou.load_npa(feedbackthroughdict[t]['w'])
+                    w_n = dou.load_npa(feedbackthroughdict[t]['w'])
 
-                fvn_n = fvn_n + tb_mat * (tb_mat.T * next_w)
+                fvn_n = fvn_n + tb_mat * (tb_mat.T * w_n)
                 vmat_n = mtxtb_n.T
                 try:
                     umat_n = -np.array(tb_mat.todense())
@@ -606,6 +630,18 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                       fv_c=fvn_c, fv_n=fvn_n,
                                       umat_c=umat_c, vmat_c=vmat_c,
                                       umat_n=umat_n, vmat_n=vmat_n)
+
+            try:
+                if krpslvprms['krylovini'] == 'old':
+                    krpslvprms['x0'] = vp_old
+                elif krpslvprms['krylovini'] == 'upd':
+                    vp_oldold = vp_old
+                    vp_old = vp_new
+                    krpslvprms['x0'] = vp_old + \
+                        cts*(vp_old - vp_oldold)/cts_old
+                    cts_old = cts
+            except (TypeError, KeyError):
+                pass  # no inival for krylov solver required
 
             vp_new = lau.solve_sadpnt_smw(amat=solvmat,
                                           jmat=J, jmatT=JT,
@@ -629,8 +665,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             dou.output_paraview(**prvoutdict)
 
             # integrate the Newton error
-            if comp_nonl_semexp:
-                norm_nwtnupd += np.array([cts])
+            if stokes_flow or comp_nonl_semexp or comp_nonl_semexp_inig:
+                norm_nwtnupd = [None]
             else:
                 norm_nwtnupd += cts * m_innerproduct(M, v_old - prev_v)
 
@@ -638,6 +674,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         norm_nwtnupd_list.append(norm_nwtnupd[0])
         print '\nnorm of current Newton update: {}'.format(norm_nwtnupd)
         comp_nonl_semexp = False
+        comp_nonl_semexp_inig = False
 
         cur_linvel_point = dictofvelstrs
 
