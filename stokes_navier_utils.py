@@ -460,7 +460,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             matvec = lau.mm_dnssps
             umat = 0.5*dt*umat_n
             vmat = vmat_n
-            rhs = rhs - 0.5*dt*matvec(umat_c, matvec(vmat_c, var_c))
+            # TODO: do we really need a PLUS here??'
+            rhs = rhs + 0.5*dt*matvec(umat_c, matvec(vmat_c, var_c))
         else:
             umat, vmat = umat_n, vmat_n
 
@@ -554,9 +555,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             fvn_c = fvn_c + tb_mat * (tb_mat.T * w_c)
             vmat_c = mtxtb_c.T
             try:
-                umat_c = -np.array(tb_mat.todense())
+                umat_c = np.array(tb_mat.todense())
             except AttributeError:
-                umat_c = -tb_mat
+                umat_c = tb_mat
 
         else:
             vmat_c = None
@@ -615,9 +616,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 fvn_n = fvn_n + tb_mat * (tb_mat.T * w_n)
                 vmat_n = mtxtb_n.T
                 try:
-                    umat_n = -np.array(tb_mat.todense())
+                    umat_n = np.array(tb_mat.todense())
                 except AttributeError:
-                    umat_n = -tb_mat
+                    umat_n = tb_mat
 
             else:
                 vmat_n = None
