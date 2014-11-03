@@ -89,7 +89,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           fv_stbc=None, fp_stbc=None,
                           V=None, Q=None, invinds=None, diribcs=None,
                           N=None, nu=None,
-                          vel_pcrd_stps=100, vel_pcrd_tol=1e-4,
+                          vel_pcrd_stps=10, vel_pcrd_tol=1e-4,
                           vel_nwtn_stps=20, vel_nwtn_tol=5e-15,
                           clearprvdata=False,
                           vel_start_nwtn=None,
@@ -170,7 +170,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
     except IOError:
         print 'no old velocity data found'
-        norm_nwtnupd = 2
+        norm_nwtnupd = None
 
     if paraviewoutput:
         cdatstr = get_datastring(**datastrdict)
@@ -224,7 +224,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
             break
 
     # Newton iteration
-    while (vel_newtk < vel_nwtn_stps and norm_nwtnupd > vel_nwtn_tol):
+    while (vel_newtk < vel_nwtn_stps
+            and norm_nwtnupd is None or norm_nwtnupd > vel_nwtn_tol):
         vel_newtk += 1
 
         cdatstr = get_datastring(**datastrdict)
@@ -239,7 +240,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
         norm_nwtnupd = np.sqrt(m_innerproduct(M, vel_k - vp_k[:NV, :]))[0]
         vel_k = vp_k[:NV, ]
-        print 'Newton iteration: {0} -- norm of update: {1}'\
+        print 'Steady State NSE: Newton iteration: {0} -- norm of update: {1}'\
             .format(vel_newtk, norm_nwtnupd)
 
         dou.save_npa(vel_k, fstring=cdatstr + '__vel')
@@ -327,7 +328,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
           * number of iterations
 
         defaults to `None`
-    krplsprms : dictionary, optional
+1   krplsprms : dictionary, optional
         parameters to define the linear system like
 
           * preconditioner
