@@ -12,12 +12,12 @@ krylovdict = {}
 
 
 def testit(problem='drivencavity', N=None, nu=1e-2, Re=None,
-           t0=0.0, tE=1.0, Nts=1e2+1):
+           t0=0.0, tE=1.0, Nts=1e2+1, scheme=None):
 
     problemdict = dict(drivencavity=dnsps.drivcav_fems,
                        cylinderwake=dnsps.cyl_fems)
     problemfem = problemdict[problem]
-    femp = problemfem(N)
+    femp = problemfem(N, scheme=scheme)
 
     dolfin.plot(femp['V'].mesh())
 
@@ -85,6 +85,7 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None,
     soldict.update(tips)  # adding time integration params
     soldict.update(fv_stbc=rhsd_stbc['fv'], fp_stbc=rhsd_stbc['fp'],
                    N=N, nu=nu,
+                   start_ssstokes=True,
                    vel_nwtn_stps=nnewtsteps,
                    vel_nwtn_tol=vel_nwtn_tol,
                    get_datastring=None,
@@ -105,4 +106,5 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None,
 
 if __name__ == '__main__':
     # testit(N=15, nu=1e-3)
-    testit(problem='cylinderwake', N=2, Re=2e2, t0=0.0, tE=2.0, Nts=1e3)
+    testit(problem='cylinderwake', N=3, Re=1e2, t0=0.0, tE=1.0, Nts=1e3,
+           scheme='CR')

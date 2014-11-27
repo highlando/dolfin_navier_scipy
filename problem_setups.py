@@ -20,7 +20,7 @@ import os
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 
 
-def get_sysmats(problem='drivencavity', N=10,
+def get_sysmats(problem='drivencavity', N=10, scheme=None,
                 Re=1e2, nu=1e-2, ParaviewOutput=False):
     """ retrieve the system matrices for stokes flow
 
@@ -84,7 +84,7 @@ def get_sysmats(problem='drivencavity', N=10,
     problemdict = dict(drivencavity=drivcav_fems,
                        cylinderwake=cyl_fems)
     problemfem = problemdict[problem]
-    femp = problemfem(N)
+    femp = problemfem(N, scheme=scheme)
 
     # setting some parameters
     if Re is not None:
@@ -149,7 +149,7 @@ def get_sysmats(problem='drivencavity', N=10,
     return femp, stokesmatsc, rhsd_vfrc, rhsd_stbc, data_prfx, ddir, proutdir
 
 
-def drivcav_fems(N, vdgree=2, pdgree=1):
+def drivcav_fems(N, vdgree=2, pdgree=1, scheme=None):
     """dictionary for the fem items of the (unit) driven cavity
 
     Parameters
@@ -160,6 +160,10 @@ def drivcav_fems(N, vdgree=2, pdgree=1):
         polynomial degree of the velocity basis functions, defaults to 2
     pdgree : int, optional
         polynomial degree of the pressure basis functions, defaults to 1
+    scheme : {None, 'CR'}
+        the finite element scheme to be applied, 'CR' for Crouzieux-Raviart,\
+        overrides `pdgree`, `vdgree`, defaults to `None`
+
 
     Returns
     -------
@@ -178,8 +182,13 @@ def drivcav_fems(N, vdgree=2, pdgree=1):
     """
 
     mesh = dolfin.UnitSquareMesh(N, N)
-    V = dolfin.VectorFunctionSpace(mesh, "CG", vdgree)
-    Q = dolfin.FunctionSpace(mesh, "CG", pdgree)
+    if scheme == 'CR':
+        print 'we use Crouzieux-Raviart elements !'
+        V = dolfin.VectorFunctionSpace(mesh, "CR", 1)
+        Q = dolfin.FunctionSpace(mesh, "DG", 0)
+    else:
+        V = dolfin.VectorFunctionSpace(mesh, "CG", vdgree)
+        Q = dolfin.FunctionSpace(mesh, "CG", pdgree)
 
     # Boundaries
     def top(x, on_boundary):
@@ -226,7 +235,7 @@ def drivcav_fems(N, vdgree=2, pdgree=1):
     return dfems
 
 
-def cyl_fems(refinement_level=2, vdgree=2, pdgree=1):
+def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None):
     """
     dictionary for the fem items for the cylinder wake
 
@@ -302,8 +311,13 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1):
         raise RuntimeError("No mesh available for refinement level {0}".
                            format(refinement_level))
     mesh = dolfin.Mesh("mesh/cylinder_%d.xml" % refinement_level)
-    V = dolfin.VectorFunctionSpace(mesh, "CG", vdgree)
-    Q = dolfin.FunctionSpace(mesh, "CG", pdgree)
+    if scheme == 'CR':
+        print 'we use Crouzieux-Raviart elements !'
+        V = dolfin.VectorFunctionSpace(mesh, "CR", 1)
+        Q = dolfin.FunctionSpace(mesh, "DG", 0)
+    else:
+        V = dolfin.VectorFunctionSpace(mesh, "CG", vdgree)
+        Q = dolfin.FunctionSpace(mesh, "CG", pdgree)
 
     # Create right-hand side function
     fv = dolfin.Constant((0, 0))
@@ -338,7 +352,8 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1):
                    fv=fv,
                    fp=fp,
                    uspacedep=0,
-                   charlen=0.1)
+                   charlen=0.1,
+                   mesh=mesh)
 
     # domains of observation and control
     odcoo = dict(xmin=0.6,
