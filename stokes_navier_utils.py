@@ -88,6 +88,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           fvc=None, fpr=None,
                           fv_stbc=None, fp_stbc=None,
                           V=None, Q=None, invinds=None, diribcs=None,
+                          ppin=-1,
                           N=None, nu=None,
                           vel_pcrd_stps=10, vel_pcrd_tol=1e-4,
                           vel_nwtn_stps=20, vel_nwtn_tol=5e-15,
@@ -132,7 +133,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         Number of Newton iterations, defaults to `20`
     vel_nwtn_tol : real, optional
         tolerance for the size of the Newton update, defaults to `5e-15`
-
+    ppin : {int, None}, optional
+        which dof of `p` is used to pin the pressure, defaults to `-1`
     """
 
     if get_datastring is None:
@@ -177,7 +179,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         vfile = dolfin.File(vfileprfx+'__steadystates.pvd')
         pfile = dolfin.File(pfileprfx+'__steadystates.pvd')
         prvoutdict = dict(V=V, Q=Q, vfile=vfile, pfile=pfile,
-                          invinds=invinds, diribcs=diribcs,
+                          invinds=invinds, diribcs=diribcs, ppin=ppin,
                           vp=None, t=None, writeoutput=True)
     else:
         prvoutdict = dict(writeoutput=False)  # save 'if statements' here
@@ -269,6 +271,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               t0=None, tE=None, Nts=None,
               V=None, Q=None, invinds=None, diribcs=None,
               N=None, nu=None,
+              ppin=-1,
               closed_loop=False, static_feedback=False,
               feedbackthroughdict=None,
               tb_mat=None, c_mat=None,
@@ -328,11 +331,13 @@ def solve_nse(A=None, M=None, J=None, JT=None,
           * number of iterations
 
         defaults to `None`
-1   krplsprms : dictionary, optional
+    krplsprms : dictionary, optional
         parameters to define the linear system like
 
           * preconditioner
 
+    ppin : {int, None}, optional
+        which dof of `p` is used to pin the pressure, defaults to `-1`
     stokes_flow : boolean, optional
         whether to consider the Stokes linearization, defaults to `False`
     start_ssstokes : boolean, optional
@@ -356,7 +361,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     if paraviewoutput:
         prvoutdict = dict(V=V, Q=Q, invinds=invinds, diribcs=diribcs,
-                          vp=None, t=None, writeoutput=True)
+                          vp=None, t=None, writeoutput=True, ppin=ppin)
     else:
         prvoutdict = dict(writeoutput=False)  # save 'if statements' here
 

@@ -90,7 +90,6 @@ def test_qbdae_ass(problemname='cylinderwake', N=1, Re=4e2, nu=3e-2,
         #                          diribcs=femp['diribcs'], Picard=False)
         # crhsv = M*old_v + DT*(fv_stbc + fvc + rhs_conv + rhsbc_conv
         #                       - conv_mat*old_v)
-        # raise Warning('TODO: debug')
         crhsv = M*old_v + DT*(fv - hmat*np.kron(old_v, old_v))
         crhs = np.vstack([crhsv, fp])
         vp_new = np.atleast_2d(sysmati(crhs.flatten())).T
@@ -105,7 +104,7 @@ def test_qbdae_ass(problemname='cylinderwake', N=1, Re=4e2, nu=3e-2,
         print t, np.linalg.norm(old_v)
 
 if __name__ == '__main__':
-    # test_qbdae_ass(problemname='cylinderwake', N=1, Re=1e2, tE=2.0, Nts=800)
-    test_qbdae_ass(problemname='cylinderwake', N=1, Re=1e2, tE=2.0, Nts=800,
-                   use_saved_mats='../data/' +
-                   'cylinderwakequadform__mats_N5812_Re100.0.mat')
+    test_qbdae_ass(problemname='cylinderwake', N=2, Re=1e2, tE=2.0, Nts=800)
+    # test_qbdae_ass(problemname='cylinderwake', N=1, Re=1e2, tE=2.0, Nts=800,
+    #                use_saved_mats='../data/' +
+    #                'cylinderwakequadform__mats_N5812_Re100.0.mat')

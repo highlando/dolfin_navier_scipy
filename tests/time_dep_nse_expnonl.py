@@ -58,9 +58,14 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None,
                              femp['fv'], femp['fp'], t=0)
 
     # remove the freedom in the pressure
-    stokesmats['J'] = stokesmats['J'][:-1, :][:, :]
-    stokesmats['JT'] = stokesmats['JT'][:, :-1][:, :]
-    rhsd_vf['fp'] = rhsd_vf['fp'][:-1, :]
+    # if required
+    if problem == 'cylinderwake':
+        ppin = None
+    else:
+        ppin = -1
+        stokesmats['J'] = stokesmats['J'][:-1, :][:, :]
+        stokesmats['JT'] = stokesmats['JT'][:, :-1][:, :]
+        rhsd_vf['fp'] = rhsd_vf['fp'][:-1, :]
 
     # reduce the matrices by resolving the BCs
     (stokesmatsc,
@@ -70,6 +75,7 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None,
      bcvals) = dts.condense_sysmatsbybcs(stokesmats,
                                          femp['diribcs'])
 
+    print stokesmatsc['J'].shape
     # pressure freedom and dirichlet reduced rhs
     rhsd_vfrc = dict(fpr=rhsd_vf['fp'], fvc=rhsd_vf['fv'][invinds, ])
 
@@ -84,7 +90,7 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None,
     soldict.update(rhsd_vfrc)  # adding fvc, fpr
     soldict.update(tips)  # adding time integration params
     soldict.update(fv_stbc=rhsd_stbc['fv'], fp_stbc=rhsd_stbc['fp'],
-                   N=N, nu=nu,
+                   N=N, nu=nu, ppin=ppin,
                    start_ssstokes=True,
                    vel_nwtn_stps=nnewtsteps,
                    vel_nwtn_tol=vel_nwtn_tol,
@@ -106,5 +112,5 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None,
 
 if __name__ == '__main__':
     # testit(N=15, nu=1e-3)
-    testit(problem='cylinderwake', N=3, Re=1e2, t0=0.0, tE=1.0, Nts=1e3,
+    testit(problem='cylinderwake', N=3, Re=.8e2, t0=0.0, tE=2.0, Nts=2**10-1,
            scheme='CR')

@@ -72,6 +72,9 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None,
         relative path to directory where data is stored
     proutdir : str
         relative path to directory of paraview output
+    ppin : {int, None}
+        which dof of `p` is used to pin the pressure, typically \
+        `-1` for internal flows, and `None` for flows with outflow
 
     Examples
     --------
@@ -122,10 +125,17 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None,
     rhsd_vf = dts.setget_rhs(femp['V'], femp['Q'],
                              femp['fv'], femp['fp'], t=0)
 
-    # remove the freedom in the pressure
-    stokesmats['J'] = stokesmats['J'][:-1, :][:, :]
-    stokesmats['JT'] = stokesmats['JT'][:, :-1][:, :]
-    rhsd_vf['fp'] = rhsd_vf['fp'][:-1, :]
+    # remove the freedom in the pressure if required
+    if problem == 'cylinderwake':
+        ppin = None
+        print 'cylinderwake: pressure need not be pinned'
+    else:
+        ppin = -1
+        stokesmats['J'] = stokesmats['J'][:-1, :][:, :]
+        stokesmats['JT'] = stokesmats['JT'][:, :-1][:, :]
+        rhsd_vf['fp'] = rhsd_vf['fp'][:-1, :]
+        print 'internal flow: pressure pinned at last dof `-1`'
+
 
     # reduce the matrices by resolving the BCs
     (stokesmatsc,
@@ -141,7 +151,8 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None,
     # add the info on boundary and inner nodes
     bcdata = {'bcinds': bcinds,
               'bcvals': bcvals,
-              'invinds': invinds}
+              'invinds': invinds,
+              'ppin': ppin}
     femp.update(bcdata)
     femp.update({'nu': nu})
     femp.update({'Re': Re})
@@ -160,9 +171,9 @@ def drivcav_fems(N, vdgree=2, pdgree=1, scheme=None):
         polynomial degree of the velocity basis functions, defaults to 2
     pdgree : int, optional
         polynomial degree of the pressure basis functions, defaults to 1
-    scheme : {None, 'CR'}
+    scheme : {None, 'CR', 'TH'}
         the finite element scheme to be applied, 'CR' for Crouzieux-Raviart,\
-        overrides `pdgree`, `vdgree`, defaults to `None`
+        'TH' for Taylor-Hood, overrides `pdgree`, `vdgree`, defaults to `None`
 
 
     Returns
@@ -186,6 +197,10 @@ def drivcav_fems(N, vdgree=2, pdgree=1, scheme=None):
         print 'we use Crouzieux-Raviart elements !'
         V = dolfin.VectorFunctionSpace(mesh, "CR", 1)
         Q = dolfin.FunctionSpace(mesh, "DG", 0)
+    if scheme == 'TH':
+        print 'we use Taylor-Hood elements !'
+        V = dolfin.VectorFunctionSpace(mesh, "CG", 2)
+        Q = dolfin.FunctionSpace(mesh, "CG", 1)
     else:
         V = dolfin.VectorFunctionSpace(mesh, "CG", vdgree)
         Q = dolfin.FunctionSpace(mesh, "CG", pdgree)
@@ -311,6 +326,8 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None):
         raise RuntimeError("No mesh available for refinement level {0}".
                            format(refinement_level))
     mesh = dolfin.Mesh("mesh/cylinder_%d.xml" % refinement_level)
+
+    # scheme = 'CR'
     if scheme == 'CR':
         print 'we use Crouzieux-Raviart elements !'
         V = dolfin.VectorFunctionSpace(mesh, "CR", 1)
@@ -318,6 +335,9 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None):
     else:
         V = dolfin.VectorFunctionSpace(mesh, "CG", vdgree)
         Q = dolfin.FunctionSpace(mesh, "CG", pdgree)
+
+    # dolfin.plot(mesh)
+    # dolfin.interactive(True)
 
     # Create right-hand side function
     fv = dolfin.Constant((0, 0))

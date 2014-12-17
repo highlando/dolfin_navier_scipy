@@ -11,7 +11,7 @@ dolfin.parameters.linear_algebra_backend = 'uBLAS'
 krylovdict = {}
 
 
-def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, Nts=1e3,
+def testit(problem='drivencavity', N=None, nu=None, Re=None, Nts=1e3,
            ParaviewOutput=False, tE=1.0, scheme=None):
 
     nnewtsteps = 9  # n nwtn stps for vel comp
@@ -20,7 +20,7 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, Nts=1e3,
 
     femp, stokesmatsc, rhsd_vfrc, \
         rhsd_stbc, data_prfx, ddir, proutdir \
-        = dnsps.get_sysmats(problem=problem, N=N, nu=nu, scheme=scheme)
+        = dnsps.get_sysmats(problem=problem, N=N, Re=Re, nu=nu, scheme=scheme)
 
     soldict = stokesmatsc  # containing A, J, JT
     soldict.update(femp)  # adding V, Q, invinds, diribcs
@@ -36,8 +36,8 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, Nts=1e3,
                    paraviewoutput=ParaviewOutput,
                    vel_pcrd_stps=1,
                    clearprvdata=True,
-                   vfileprfx=proutdir+'vel_',
-                   pfileprfx=proutdir+'p_')
+                   vfileprfx=proutdir+'vel_{0}_'.format(scheme),
+                   pfileprfx=proutdir+'p_{0}_'.format(scheme))
 
     soldict.update(krylovdict)  # if we wanna use an iterative solver
 
@@ -46,6 +46,9 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, Nts=1e3,
 
 
 if __name__ == '__main__':
-    # testit(N=15, nu=1e-2)
-    testit(problem='cylinderwake', N=1, Re=10, Nts=2e2, tE=1.,
+    scme = 0
+    schemel = ['CR', 'TH']
+    scheme = schemel[scme]
+    # testit(N=40, Re=1e3, Nts=.5e2, tE=.5, ParaviewOutput=True, scheme=scheme)
+    testit(problem='cylinderwake', N=0, Re=100, Nts=1e3, tE=2.,
            ParaviewOutput=True)

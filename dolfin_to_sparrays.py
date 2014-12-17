@@ -446,7 +446,7 @@ def condense_velmatsbybcs(A, velbcs, return_bcinfo=False):
 
 
 def expand_vp_dolfunc(V=None, Q=None, invinds=None, diribcs=None, vp=None,
-                      vc=None, pc=None):
+                      vc=None, pc=None, ppin=-1):
     """expand v [and p] to the dolfin function representation
 
     Parameters
@@ -461,10 +461,12 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None, diribcs=None, vp=None,
         of the (Dirichlet) velocity boundary conditions
     vp : (N+M,1) array, optional
         solution vector of velocity and pressure
-    v : (N,1) array, optional
+    vc : (N,1) array, optional
         solution vector of velocity
-    p : (M,1) array, optional
+    pc : (M,1) array, optional
         solution vector of pressure
+    ppin : {int, None}, optional
+        which dof of `p` is used to pin the pressure, defaults to `-1`
 
     Returns
     -------
@@ -496,7 +498,14 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None, diribcs=None, vp=None,
     ve[invinds] = vc
 
     if pc is not None:
-        pe = np.vstack([pc, [0]])
+        if ppin is None:
+            pe = pc
+        elif ppin == -1:
+            pe = np.vstack([pc, [0]])
+        elif ppin == 0:
+            pe = np.vstack([[0], pc])
+        else:
+            raise NotImplementedError()
         p.vector().set_local(pe)
     else:
         p = None
