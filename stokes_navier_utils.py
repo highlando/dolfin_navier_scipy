@@ -88,7 +88,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           fvc=None, fpr=None,
                           fv_stbc=None, fp_stbc=None,
                           V=None, Q=None, invinds=None, diribcs=None,
-                          ppin=-1,
+                          return_vp=False, ppin=-1,
                           N=None, nu=None,
                           vel_pcrd_stps=10, vel_pcrd_tol=1e-4,
                           vel_nwtn_stps=20, vel_nwtn_tol=5e-15,
@@ -104,7 +104,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
     """
     Solution of the steady state nonlinear NSE Problem
 
-    using Newton's scheme. If no starting value is provide, the iteration
+    using Newton's scheme. If no starting value is provided, the iteration
     is started with the steady state Stokes solution.
 
     Parameters
@@ -123,6 +123,10 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
     fv_stbc, fp_stbc : (N,1), (M,1) ndarrays
         contributions to the right hand side by the Dirichlet boundary
         conditions in the Stokes equations.
+    ppin : {int, None}, optional
+        which dof of `p` is used to pin the pressure, defaults to `-1`
+    return_vp : boolean, optional
+        whether to return also the pressure, defaults to `False`
     vel_pcrd_stps : int, optional
         Number of Picard iterations when computing a starting value for the
         Newton scheme, cf. Elman, Silvester, Wathen: *FEM and fast iterative
@@ -133,8 +137,6 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         Number of Newton iterations, defaults to `20`
     vel_nwtn_tol : real, optional
         tolerance for the size of the Newton update, defaults to `5e-15`
-    ppin : {int, None}, optional
-        which dof of `p` is used to pin the pressure, defaults to `-1`
     """
 
     if get_datastring is None:
@@ -168,7 +170,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         print 'found vel files'
         print 'norm of last Nwtn update: {0}'.format(norm_nwtnupd)
         if norm_nwtnupd < vel_nwtn_tol:
-            return vel_k, norm_nwtnupd_list
+            if not return_vp:
+                return vel_k, norm_nwtnupd_list
 
     except IOError:
         print 'no old velocity data found'
@@ -200,6 +203,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         dou.output_paraview(**prvoutdict)
 
         # Stokes solution as starting value
+        vp_k = vp_stokes
         vel_k = vp_stokes[:NV, ]
 
     else:
@@ -257,7 +261,10 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
     # savetomatlab = True
     # if savetomatlab:
     #     export_mats_to_matlab(E=None, A=None, matfname='matexport')
-    return vel_k, norm_nwtnupd_list
+    if return_vp:
+        return vp_k, norm_nwtnupd_list
+    else:
+        return vel_k, norm_nwtnupd_list
 
 
 def solve_nse(A=None, M=None, J=None, JT=None,
