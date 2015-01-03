@@ -343,6 +343,7 @@ def condense_sysmatsbybcs(stms, velbcs):
          * ``A``: the stiffness matrix,
          * ``JT``: the gradient matrix, and
          * ``J``: the divergence matrix
+         * ``MP``: the mass matrix of the pressure space
     rhsvecsb : dict
         a dictionary of the contributions of the boundary data to the rhs:
          * ``fv``: contribution to momentum equation,
@@ -383,7 +384,8 @@ def condense_sysmatsbybcs(stms, velbcs):
     stokesmatsc = {'M': Mc,
                    'A': Ac,
                    'JT': JTc,
-                   'J': Jc}
+                   'J': Jc,
+                   'MP': stms['MP']}
 
     rhsvecsbc = {'fv': fvbc,
                  'fp': fpbc}
