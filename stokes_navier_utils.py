@@ -193,6 +193,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                                          rhsv=fv_stbc + fvc,
                                          rhsp=fp_stbc + fpr
                                          )
+        vp_stokes[NV:] = -vp_stokes[NV:]
+        # pressure was flipped for symmetry
 
         # save the data
         cdatstr = get_datastring(**datastrdict)
@@ -225,6 +227,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
             .format(k+1, normpicupd)
 
         vel_k = vp_k[:NV, ]
+        vp_k[NV:] = -vp_k[NV:]
+        # pressure was flipped for symmetry
 
         if normpicupd < vel_pcrd_tol:
             break
@@ -246,6 +250,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
         norm_nwtnupd = np.sqrt(m_innerproduct(M, vel_k - vp_k[:NV, :]))[0]
         vel_k = vp_k[:NV, ]
+        vp_k[NV:] = -vp_k[NV:]
+        # pressure was flipped for symmetry
         print 'Steady State NSE: Newton iteration: {0} -- norm of update: {1}'\
             .format(vel_newtk, norm_nwtnupd)
 
