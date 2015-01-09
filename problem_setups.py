@@ -60,6 +60,7 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None,
          * `A`: the stiffness matrix,
          * `JT`: the gradient matrix, and
          * `J`: the divergence matrix
+         * `Jfull`: the uncondensed divergence matrix
     rhsd_vfrc : dict
         of the dirichlet and pressure fix reduced right hand sides
     rhsd_stbc : dict
@@ -136,7 +137,6 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None,
         rhsd_vf['fp'] = rhsd_vf['fp'][:-1, :]
         print 'internal flow: pressure pinned at last dof `-1`'
 
-
     # reduce the matrices by resolving the BCs
     (stokesmatsc,
      rhsd_stbc,
@@ -144,6 +144,7 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None,
      bcinds,
      bcvals) = dts.condense_sysmatsbybcs(stokesmats,
                                          femp['diribcs'])
+    stokesmatsc.update({'Jfull': stokesmats['J']})
 
     # pressure freedom and dirichlet reduced rhs
     rhsd_vfrc = dict(fpr=rhsd_vf['fp'], fvc=rhsd_vf['fv'][invinds, ])
