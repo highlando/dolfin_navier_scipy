@@ -143,7 +143,6 @@ def comp_exp_nsmats(problemname='drivencavity',
         'Created in `get_exp_nsmats.py` ' +\
         '(see https://github.com/highlando/dolfin_navier_scipy) at\n' +\
         datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y")
-    raise Warning('TODO: debug')
 
     if linear_system:
         soldict = stokesmatsc  # containing A, J, JT
