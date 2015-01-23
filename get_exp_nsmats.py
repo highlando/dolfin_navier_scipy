@@ -27,11 +27,11 @@ def comp_exp_nsmats(problemname='drivencavity',
         dnsps.get_sysmats(problem=problemname, N=N, Re=Re)
 
     invinds = femp['invinds']
-    A, J, M = stokesmatsc['A'], stokesmatsc['J'], stokesmatsc['M']
+    A, J = stokesmatsc['A'], stokesmatsc['J']
     fvc, fpc = rhsd_vfrc['fvc'], rhsd_vfrc['fpr']
     fv_stbc, fp_stbc = rhsd_stbc['fv'], rhsd_stbc['fp']
     invinds = femp['invinds']
-    NV, NP = invinds.shape[0], J.shape[0]
+    NV = invinds.shape[0]
 
     data_prfx = problemname + '__'
     NU, NY = 3, 4
@@ -100,6 +100,20 @@ def comp_exp_nsmats(problemname='drivencavity',
     else:
         podcoo = femp['odcoo']
 
+    # description of the control and observation domains
+    dmd = femp['cdcoo']
+    xmin, xmax, ymin, ymax = dmd['xmin'], dmd['xmax'], dmd['ymin'], dmd['ymax']
+    velcondomstr = 'vel control domain: [{0}, {1}]x[{2}, {3}]\n'.\
+        format(xmin, xmax, ymin, ymax)
+    dmd = femp['odcoo']
+    xmin, xmax, ymin, ymax = dmd['xmin'], dmd['xmax'], dmd['ymin'], dmd['ymax']
+    velobsdomstr = 'vel observation domain: [{0}, {1}]x[{2}, {3}]\n'.\
+        format(xmin, xmax, ymin, ymax)
+    dmd = podcoo
+    xmin, xmax, ymin, ymax = dmd['xmin'], dmd['xmax'], dmd['ymin'], dmd['ymax']
+    pobsdomstr = 'pressure observation domain: [{0}, {1}]x[{2}, {3}]\n'.\
+        format(xmin, xmax, ymin, ymax)
+
     pcmat = cou.get_pavrg_onsubd(odcoo=podcoo, Q=femp['Q'])
 
     cdatstr = snu.get_datastr_snu(time=None, meshp=N, nu=nu, Nts=None)
@@ -110,11 +124,14 @@ def comp_exp_nsmats(problemname='drivencavity',
     ctrl_visu_str = \
         ' the control setup is as follows \n' +\
         ' B maps into the domain of control -' +\
+        velcondomstr +\
         ' the first half of the columns' +\
         'actuate in x-direction, the second in y direction \n' +\
         ' Cv measures averaged velocities in the domain of observation' +\
+        velobsdomstr +\
         ' Cp measures the averaged pressure' +\
-        ' in the domain of pressure observation' +\
+        ' in the domain of pressure observation: ' +\
+        pobsdomstr +\
         ' the first components are in x, the last in y-direction \n\n' +\
         ' Visualization: \n\n' +\
         ' `coors`   -- array of (x,y) coordinates in ' +\
@@ -126,6 +143,7 @@ def comp_exp_nsmats(problemname='drivencavity',
         'Created in `get_exp_nsmats.py` ' +\
         '(see https://github.com/highlando/dolfin_navier_scipy) at\n' +\
         datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y")
+    raise Warning('TODO: debug')
 
     if linear_system:
         soldict = stokesmatsc  # containing A, J, JT
@@ -206,18 +224,18 @@ def comp_exp_nsmats(problemname='drivencavity',
             ' master/tests/solve_nse_quadraticterm.py for appl example\n' +\
             ctrl_visu_str
 
-    scipy.io.savemat(mddir + problemname +
-                     'quadform__mats_N{0}_Re{1}'.format(NV, Re),
-                     dict(A=f_mat, M=stokesmatsc['M'],
-                          H=-hmat, fv=fv, fp=fp,
-                          nu=femp['nu'], Re=femp['Re'],
-                          J=stokesmatsc['J'], B=b_mat, Cv=c_mat,
-                          Cp=pcmat,
-                          info=infostr,
-                          ss_stokes=old_v,
-                          contsetupstr=contsetupstr, datastr=cdatstr,
-                          coors=coors, xinds=xinds, yinds=yinds,
-                          corfunvec=corfunvec))
+        scipy.io.savemat(mddir + problemname +
+                         'quadform__mats_N{0}_Re{1}'.format(NV, Re),
+                         dict(A=f_mat, M=stokesmatsc['M'],
+                              H=-hmat, fv=fv, fp=fp,
+                              nu=femp['nu'], Re=femp['Re'],
+                              J=stokesmatsc['J'], B=b_mat, Cv=c_mat,
+                              Cp=pcmat,
+                              info=infostr,
+                              ss_stokes=old_v,
+                              contsetupstr=contsetupstr, datastr=cdatstr,
+                              coors=coors, xinds=xinds, yinds=yinds,
+                              corfunvec=corfunvec))
 
 
 if __name__ == '__main__':
