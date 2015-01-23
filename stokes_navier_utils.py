@@ -287,6 +287,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               ppin=-1,
               closed_loop=False, static_feedback=False,
               feedbackthroughdict=None,
+              return_vp=False,
               tb_mat=None, c_mat=None,
               vel_nwtn_stps=20, vel_nwtn_tol=5e-15,
               vel_pcrd_stps=4,
@@ -297,6 +298,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               paraviewoutput=False, prfdir='',
               vfileprfx='', pfileprfx='',
               return_dictofvelstrs=False,
+              return_dictofpstrs=False,
               comp_nonl_semexp=False,
               return_as_list=False,
               start_ssstokes=False,
@@ -362,7 +364,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     dictofvelstrs : dictionary, on demand
         dictionary with time `t` as keys and path to velocity files as values
 
-    or ...
+    dictofpstrs : dictionary, on demand
+        dictionary with time `t` as keys and path to pressure files as values
 
     vellist : list, on demand
         list of the velocity solutions
@@ -456,7 +459,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     datastrdict.update(dict(time=t))
                     cdatstr = get_datastring(**datastrdict)
                     dictofvelstrs.update({t: cdatstr + '__vel'})
-                return dictofvelstrs
+
+                if not return_dictofpstrs:
+                    return dictofvelstrs
             comp_nonl_semexp = False
 
         except IOError:
@@ -704,3 +709,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         return vellist
     else:
         return
+
+    def get_pfromv(v=None, V=None, iniv=None, diribcs=None, M=None, A=None,
+                   J=None, fv=None, fp=None):
+        return None
