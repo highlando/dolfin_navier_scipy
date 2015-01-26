@@ -85,8 +85,7 @@ def m_innerproduct(M, v1, v2=None):
 
 
 def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
-                          fvc=None, fpr=None,
-                          fv_stbc=None, fp_stbc=None,
+                          fv=None, fp=None,
                           V=None, Q=None, invinds=None, diribcs=None,
                           return_vp=False, ppin=-1,
                           N=None, nu=None,
@@ -117,12 +116,9 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         discrete divergence operator
     JT : (N,M) sparse matrix, optional
         discrete gradient operator, set to J.T if not provided
-    fvc, fpr : (N,1), (M,1) ndarrays
+    fv, fp : (N,1), (M,1) ndarrays
         right hand sides restricted via removing the boundary nodes in the
         momentum and the pressure freedom in the continuity equation
-    fv_stbc, fp_stbc : (N,1), (M,1) ndarrays
-        contributions to the right hand side by the Dirichlet boundary
-        conditions in the Stokes equations.
     ppin : {int, None}, optional
         which dof of `p` is used to pin the pressure, defaults to `-1`
     return_vp : boolean, optional
@@ -144,6 +140,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
     if JT is None:
         JT = J.T
+
+    NV = J.shape[1]
 
 #
 # Compute or load the uncontrolled steady state Navier-Stokes solution
@@ -172,6 +170,10 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         if norm_nwtnupd < vel_nwtn_tol:
             if not return_vp:
                 return vel_k, norm_nwtnupd_list
+            else:
+                pfv = get_pfromv(v=vel_k[:NV, :], V=V, M=M, A=A, J=J, fv=fv,
+                                 invinds=invinds, diribcs=diribcs)
+                return (np.vstack([vel_k, pfv]), norm_nwtnupd_list)
 
     except IOError:
         print 'no old velocity data found'
@@ -190,9 +192,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
     NV = A.shape[0]
     if vel_start_nwtn is None:
         vp_stokes = lau.solve_sadpnt_smw(amat=A, jmat=J, jmatT=JT,
-                                         rhsv=fv_stbc + fvc,
-                                         rhsp=fp_stbc + fpr
-                                         )
+                                         rhsv=fv, rhsp=fp)
         vp_stokes[NV:] = -vp_stokes[NV:]
         # pressure was flipped for symmetry
 
@@ -214,13 +214,13 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
     # Picard iterations for a good starting value for Newton
     for k in range(vel_pcrd_stps):
         (convc_mat,
-         rhs_con, rhsv_conbc) = get_v_conv_conts(vel_k, invinds=invinds,
+         rhs_con, rhsv_conbc) = get_v_conv_conts(prev_v=vel_k, invinds=invinds,
                                                  V=V, diribcs=diribcs,
                                                  Picard=True)
 
         vp_k = lau.solve_sadpnt_smw(amat=A+convc_mat, jmat=J, jmatT=JT,
-                                    rhsv=fv_stbc+fvc+rhs_con+rhsv_conbc,
-                                    rhsp=fp_stbc + fpr)
+                                    rhsv=fv+rhs_con+rhsv_conbc,
+                                    rhsp=fp)
         normpicupd = np.sqrt(m_innerproduct(M, vel_k-vp_k[:NV, :]))[0]
 
         print 'Picard iteration: {0} -- norm of update: {1}'\
@@ -235,7 +235,10 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
     # Newton iteration
     while (vel_newtk < vel_nwtn_stps
-            and norm_nwtnupd is None or norm_nwtnupd > vel_nwtn_tol):
+            and norm_nwtnupd is None or
+            norm_nwtnupd > vel_nwtn_tol or
+            norm_nwtnupd == np.array(None)):
+
         vel_newtk += 1
 
         cdatstr = get_datastring(**datastrdict)
@@ -245,8 +248,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                                                  V=V, diribcs=diribcs)
 
         vp_k = lau.solve_sadpnt_smw(amat=A+convc_mat, jmat=J, jmatT=JT,
-                                    rhsv=fv_stbc+fvc+rhs_con+rhsv_conbc,
-                                    rhsp=fp_stbc + fpr)
+                                    rhsv=fv+rhs_con+rhsv_conbc,
+                                    rhsp=fp)
 
         norm_nwtnupd = np.sqrt(m_innerproduct(M, vel_k - vp_k[:NV, :]))[0]
         vel_k = vp_k[:NV, ]
@@ -710,6 +713,20 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     else:
         return
 
-    def get_pfromv(v=None, V=None, iniv=None, diribcs=None, M=None, A=None,
-                   J=None, fv=None, fp=None):
-        return None
+
+def get_pfromv(v=None, V=None, M=None, A=None, J=None, fv=None, fp=None,
+               diribcs=None, invinds=None):
+    """ for a velocity `v`, get the corresponding `p`
+
+    Notes
+    -----
+    Formula is only valid for constant rhs in the continuity equation
+    """
+
+    _, rhs_con, _ = get_v_conv_conts(prev_v=v, V=V, invinds=invinds,
+                                     diribcs=diribcs)
+
+    vp = lau.solve_sadpnt_smw(amat=M, jmat=J, jmatT=-J.T,
+                              rhsv=-A*v-rhs_con+fv)
+
+    return vp[J.shape[1]:, :]

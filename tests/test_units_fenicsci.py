@@ -3,6 +3,10 @@ import sympy as smp
 import numpy as np
 import dolfin
 
+import dolfin_navier_scipy.problem_setups as dnsps
+import dolfin_navier_scipy.stokes_navier_utils as snu
+
+
 # unittests for the suite
 # if not specified otherwise we use the unit square
 # with 0-Dirichlet BCs with a known solution
@@ -33,13 +37,13 @@ class OptConPyFunctions(unittest.TestCase):
         def sympy2expression(term):
             '''Translate a SymPy expression to a FEniCS expression string.
                '''
-               # This is somewhat ugly:
-               # First replace the variables r, z, by something
-               # that probably doesn't appear anywhere else,
-               # e.g., RRR, ZZZ, then
-               # convert this into a string,
-               # and then replace the substrings RRR, ZZZ
-               # by x[0], x[1], respectively.
+            # This is somewhat ugly:
+            # First replace the variables r, z, by something
+            # that probably doesn't appear anywhere else,
+            # e.g., RRR, ZZZ, then
+            # convert this into a string,
+            # and then replace the substrings RRR, ZZZ
+            # by x[0], x[1], respectively.
             exp = smp.printing.ccode(term.subs('x', 'XXX').subs('y', 'YYY')) \
                 .replace('M_PI', 'pi') \
                 .replace('XXX', 'x[0]').replace('YYY', 'x[1]')
@@ -159,7 +163,7 @@ class OptConPyFunctions(unittest.TestCase):
         u_gamma = dolfin.Function(V)
         u_gamma.vector().set_local(uvec_gamma)
 
-        uvec_i = 0*uvec
+        uvec_i = 0 * uvec
         uvec_i[invinds, :] = uvec[invinds]
         u_i = dolfin.Function(V)
         u_i.vector().set_local(uvec_i)
@@ -177,15 +181,42 @@ class OptConPyFunctions(unittest.TestCase):
         N1, N2, fv = dns.dolfin_to_sparrays.\
             get_convmats(u0_dolfun=u_gamma, V=V)
 
-        #print np.linalg.norm(nmatrc * uvec_i + nmatrc * uvec_gamma)
+        # print np.linalg.norm(nmatrc * uvec_i + nmatrc * uvec_gamma)
         classicalconv = nmatrc * uvec
         quadconv = (hmat * np.kron(uvec[invinds], uvec[invinds])
-                    + ((N1+N2)*uvec_i)[invinds, :] + fv[invinds, :])
+                    + ((N1 + N2) * uvec_i)[invinds, :] + fv[invinds, :])
         self.assertTrue(np.allclose(classicalconv, quadconv))
         # print 'consistency tests'
         self.assertTrue((np.linalg.norm(uvec[invinds])
                          - np.linalg.norm(uvec_i)) < 1e-14)
         self.assertTrue(np.linalg.norm(uvec - uvec_gamma - uvec_i) < 1e-14)
+
+    def test_get_pfromv(self):
+
+        N, Re, scheme, ppin = 2, 50, 'TH', None
+
+        femp, stokesmatsc, rhsd_vfrc, \
+            rhsd_stbc, data_prfx, ddir, proutdir \
+            = dnsps.get_sysmats(problem='cylinderwake', N=N, Re=Re,
+                                scheme=scheme)
+
+        Mc, Ac = stokesmatsc['M'], stokesmatsc['A']
+        BTc, Bc = stokesmatsc['JT'], stokesmatsc['J']
+
+        invinds = femp['invinds']
+
+        fv, fp = rhsd_stbc['fv'], rhsd_stbc['fp']
+        inivdict = dict(A=Ac, J=Bc, JT=BTc, M=Mc, ppin=ppin, fv=fv, fp=fp,
+                        return_vp=True, V=femp['V'],
+                        invinds=invinds, diribcs=femp['diribcs'])
+        vp_init = snu.solve_steadystate_nse(**inivdict)[0]
+
+        NNV = Bc.shape[1]
+        pfv = snu.get_pfromv(v=vp_init[:NNV, :], V=femp['V'],
+                             M=Mc, A=Ac, J=Bc, fv=fv,
+                             invinds=femp['invinds'], diribcs=femp['diribcs'])
+
+        self.assertTrue(np.allclose(pfv, vp_init[NNV:, :]))
 
 
 if __name__ == '__main__':
