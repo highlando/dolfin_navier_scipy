@@ -399,6 +399,11 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                           'or `comp_nonl_semexp=False`! \n' +
                           'as it is I will compute a linear case')
 
+    if return_dictofpstrs:
+        gpfvd = dict(V=V, M=M, A=A, J=J,
+                     fv=fv, fp=fp,
+                     diribcs=diribcs, invinds=invinds)
+
     NV, NP = A.shape[0], J.shape[0]
 
     if fv_tmdp is None:
@@ -461,6 +466,15 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 return
             elif norm_nwtnupd < vel_nwtn_tol:
                 dictofvelstrs = {trange[0]: cdatstr + '__vel'}
+                if return_dictofpstrs:
+                    try:
+                        p_old = dou.load_npa(cdatstr + '__p')
+                        dictofpstrs = {trange[0]: cdatstr + '__p'}
+                    except:
+                        p_old = get_pfromv(v=v_old, **gpfvd)
+                        dou.save_npa(p_old, fstring=cdatstr + '__p')
+                        dictofpstrs = {trange[0]: cdatstr + '__p'}
+
                 for t in trange[1:]:
                     # test if the vels are there
                     v_old = dou.load_npa(cdatstr + '__vel')
@@ -468,9 +482,19 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     datastrdict.update(dict(time=t))
                     cdatstr = get_datastring(**datastrdict)
                     dictofvelstrs.update({t: cdatstr + '__vel'})
+                    try:
+                        p_old = dou.load_npa(cdatstr + '__p')
+                        dictofpstrs.update({t: cdatstr + '__p'})
+                    except:
+                        p_old = get_pfromv(v=v_old, **gpfvd)
+                        dou.save_npa(p_old, fstring=cdatstr + '__p')
+                        dictofpstrs.update({t: cdatstr + '__p'})
 
-                if not return_dictofpstrs:
+                if return_dictofpstrs:
+                    return dictofvelstrs, dictofpstrs
+                else:
                     return dictofvelstrs
+
             comp_nonl_semexp = False
 
         except IOError:
@@ -506,6 +530,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     dou.save_npa(v_old, fstring=cdatstr + '__vel')
     dictofvelstrs = {trange[0]: cdatstr + '__vel'}
+    if return_dictofpstrs:
+        p_old = get_pfromv(v=v_old, **gpfvd)
+        dou.save_npa(p_old, fstring=cdatstr + '__p')
+        dictofpstrs = {trange[0]: cdatstr + '__p'}
 
     if return_as_list:
         vellist = []
@@ -691,6 +719,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
             dou.save_npa(v_old, fstring=cdatstr + '__vel')
             dictofvelstrs.update({t: cdatstr + '__vel'})
+            if return_dictofpstrs:
+                p_new = -vp_new[NV:, ]  # p was flipped for symmetry
+                dou.save_npa(p_new, fstring=cdatstr + '__p')
+                dictofpstrs.update({t: cdatstr + '__p'})
 
             if return_as_list:
                 vellist.append(v_old)
@@ -713,7 +745,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         cur_linvel_point = dictofvelstrs
 
     if return_dictofvelstrs:
-        return dictofvelstrs
+        if return_dictofpstrs:
+            return dictofvelstrs, dictofpstrs
+        else:
+            return dictofvelstrs
     elif return_as_list:
         return vellist
     else:
@@ -721,7 +756,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
 
 def get_pfromv(v=None, V=None, M=None, A=None, J=None, fv=None, fp=None,
-               diribcs=None, invinds=None):
+               diribcs=None, invinds=None, **kwargs):
     """ for a velocity `v`, get the corresponding `p`
 
     Notes
