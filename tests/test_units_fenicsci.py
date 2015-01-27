@@ -3,10 +3,6 @@ import sympy as smp
 import numpy as np
 import dolfin
 
-import dolfin_navier_scipy.problem_setups as dnsps
-import dolfin_navier_scipy.stokes_navier_utils as snu
-
-
 # unittests for the suite
 # if not specified otherwise we use the unit square
 # with 0-Dirichlet BCs with a known solution
@@ -190,33 +186,6 @@ class OptConPyFunctions(unittest.TestCase):
         self.assertTrue((np.linalg.norm(uvec[invinds])
                          - np.linalg.norm(uvec_i)) < 1e-14)
         self.assertTrue(np.linalg.norm(uvec - uvec_gamma - uvec_i) < 1e-14)
-
-    def test_get_pfromv(self):
-
-        N, Re, scheme, ppin = 2, 50, 'TH', None
-
-        femp, stokesmatsc, rhsd_vfrc, \
-            rhsd_stbc, data_prfx, ddir, proutdir \
-            = dnsps.get_sysmats(problem='cylinderwake', N=N, Re=Re,
-                                scheme=scheme)
-
-        Mc, Ac = stokesmatsc['M'], stokesmatsc['A']
-        BTc, Bc = stokesmatsc['JT'], stokesmatsc['J']
-
-        invinds = femp['invinds']
-
-        fv, fp = rhsd_stbc['fv'], rhsd_stbc['fp']
-        inivdict = dict(A=Ac, J=Bc, JT=BTc, M=Mc, ppin=ppin, fv=fv, fp=fp,
-                        return_vp=True, V=femp['V'],
-                        invinds=invinds, diribcs=femp['diribcs'])
-        vp_init = snu.solve_steadystate_nse(**inivdict)[0]
-
-        NNV = Bc.shape[1]
-        pfv = snu.get_pfromv(v=vp_init[:NNV, :], V=femp['V'],
-                             M=Mc, A=Ac, J=Bc, fv=fv,
-                             invinds=femp['invinds'], diribcs=femp['diribcs'])
-
-        self.assertTrue(np.allclose(pfv, vp_init[NNV:, :]))
 
 
 if __name__ == '__main__':

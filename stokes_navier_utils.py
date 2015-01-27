@@ -12,6 +12,13 @@ import dolfin_navier_scipy.data_output_utils as dou
 import sadptprj_riclyap_adi.lin_alg_utils as lau
 
 
+__all__ = ['get_datastr_snu',
+           'get_v_conv_conts',
+           'solve_nse',
+           'solve_steadystate_nse',
+           'get_pfromv']
+
+
 def get_datastr_snu(time=None, meshp=None, nu=None, Nts=None, data_prfx=''):
 
     return (data_prfx +
@@ -277,8 +284,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
 
 def solve_nse(A=None, M=None, J=None, JT=None,
-              fvc=None, fpr=None,
-              fv_stbc=None, fp_stbc=None,
+              fv=None, fp=None,
               fv_tmdp=None, fv_tmdp_params={},
               fv_tmdp_memory=None,
               iniv=None, lin_vel_point=None,
@@ -406,9 +412,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
              fv_tmdp_memory) = fv_tmdp(time=0, **fv_tmdp_params)
             vp_stokes =\
                 lau.solve_sadpnt_smw(amat=A, jmat=J, jmatT=JT,
-                                     rhsv=fv_stbc + fvc + fv_tmdp_cont,
+                                     rhsv=fv + fv_tmdp_cont,
                                      krylov=krylov, krpslvprms=krpslvprms,
-                                     krplsprms=krplsprms, rhsp=fp_stbc + fpr)
+                                     krplsprms=krplsprms, rhsp=fp)
             iniv = vp_stokes[:NV]
         else:
             raise ValueError('No initial value given')
@@ -568,7 +574,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                    memory=fv_tmdp_memory,
                                    **fv_tmdp_params)
 
-        fvn_c = fv_stbc + fvc + rhsv_conbc_c + rhs_con_c + fv_tmdp_cont
+        fvn_c = fv + rhsv_conbc_c + rhs_con_c + fv_tmdp_cont
 
         if closed_loop:
             if static_feedback:
@@ -626,7 +632,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                        memory=fv_tmdp_memory,
                                        **fv_tmdp_params)
 
-            fvn_n = fv_stbc + fvc + rhsv_conbc_n + rhs_con_n + fv_tmdp_cont
+            fvn_n = fv + rhsv_conbc_n + rhs_con_n + fv_tmdp_cont
 
             if closed_loop:
                 if static_feedback:
@@ -674,7 +680,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             vp_new = lau.solve_sadpnt_smw(amat=solvmat,
                                           jmat=J, jmatT=JT,
                                           rhsv=rhsv,
-                                          rhsp=fp_stbc + fpr,
+                                          rhsp=fp,
                                           krylov=krylov, krpslvprms=krpslvprms,
                                           krplsprms=krplsprms,
                                           umat=umat, vmat=vmat)

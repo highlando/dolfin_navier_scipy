@@ -76,7 +76,7 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=1e2):
     soldict = stokesmatsc  # containing A, J, JT
     soldict.update(femp)  # adding V, Q, invinds, diribcs
     soldict.update(rhsd_vfrc)  # adding fvc, fpr
-    soldict.update(fv_stbc=rhsd_stbc['fv'], fp_stbc=rhsd_stbc['fp'],
+    soldict.update(fv=rhsd_stbc['fv'], fp=rhsd_stbc['fp'],
                    N=N, nu=nu,
                    vel_nwtn_stps=nnewtsteps,
                    vel_nwtn_tol=vel_nwtn_tol,
