@@ -304,7 +304,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               clearprvdata=False,
               get_datastring=None,
               data_prfx='',
-              paraviewoutput=False, prfdir='',
+              paraviewoutput=False,
               vfileprfx='', pfileprfx='',
               return_dictofvelstrs=False,
               return_dictofpstrs=False,
@@ -433,6 +433,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         datastrdict['time'] = '*'
         cdatstr = get_datastring(**datastrdict)
         for fname in glob.glob(cdatstr + '__vel*'):
+            os.remove(fname)
+        for fname in glob.glob(cdatstr + '__p*'):
             os.remove(fname)
 
     if stokes_flow:
@@ -720,7 +722,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             dou.save_npa(v_old, fstring=cdatstr + '__vel')
             dictofvelstrs.update({t: cdatstr + '__vel'})
             if return_dictofpstrs:
-                p_new = -vp_new[NV:, ]  # p was flipped for symmetry
+                p_new = -1/cts*vp_new[NV:, ]
+                # p was flipped and scaled for symmetry
                 dou.save_npa(p_new, fstring=cdatstr + '__p')
                 dictofpstrs.update({t: cdatstr + '__p'})
 

@@ -26,7 +26,7 @@ def testit(problem='drivencavity', N=None, nu=None, Re=None, Nts=1e3,
     soldict.update(femp)  # adding V, Q, invinds, diribcs
     soldict.update(rhsd_vfrc)  # adding fvc, fpr
     soldict.update(tips)  # adding time integration params
-    soldict.update(fv_stbc=rhsd_stbc['fv'], fp_stbc=rhsd_stbc['fp'],
+    soldict.update(fv=rhsd_stbc['fv'], fp=rhsd_stbc['fp'],
                    N=N, nu=nu,
                    vel_nwtn_stps=nnewtsteps,
                    vel_nwtn_tol=vel_nwtn_tol,
@@ -46,9 +46,9 @@ def testit(problem='drivencavity', N=None, nu=None, Re=None, Nts=1e3,
 
 
 if __name__ == '__main__':
-    scme = 1
+    scme = 0
     schemel = ['CR', 'TH']
     scheme = schemel[scme]
     # testit(N=40, Re=1e3, Nts=.5e2, tE=.5, ParaviewOutput=True, scheme=scheme)
-    testit(problem='cylinderwake', N=2, Re=50, Nts=128, tE=1.,
-           ParaviewOutput=True)
+    testit(problem='cylinderwake', N=2, Re=60, Nts=512, tE=.2,
+           ParaviewOutput=True, scheme=scheme)
