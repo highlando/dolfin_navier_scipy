@@ -19,8 +19,12 @@ dolfin.parameters.linear_algebra_backend = 'uBLAS'
 
 def comp_exp_nsmats(problemname='drivencavity',
                     N=10, Re=1e2, nu=None,
-                    linear_system=False,
+                    linear_system=False, refree=False,
                     mddir='pathtodatastorage'):
+
+    if refree:
+        Re = 1
+        print 'For the Reynoldsnumber free mats, we set Re=1'
 
     femp, stokesmatsc, rhsd_vfrc, rhsd_stbc, \
         data_prfx, ddir, proutdir = \
@@ -185,6 +189,55 @@ def comp_exp_nsmats(problemname='drivencavity',
                               coors=coors, xinds=xinds, yinds=yinds,
                               corfunvec=corfunvec))
 
+    elif refree:
+        hstr = ddir + problemname + '_N{0}_hmat'.format(N)
+        try:
+            hmat = dou.load_spa(hstr)
+            print 'loaded `hmat`'
+        except IOError:
+            print 'assembling hmat ...'
+            hmat = dts.ass_convmat_asmatquad(W=femp['V'], invindsw=invinds)
+            dou.save_spa(hmat, hstr)
+
+        zerv = np.zeros((NV, 1))
+        bc_conv, bc_rhs_conv, rhsbc_convbc = \
+            snu.get_v_conv_conts(prev_v=zerv, V=femp['V'], invinds=invinds,
+                                 diribcs=femp['diribcs'], Picard=False)
+
+        diff_mat = stokesmatsc['A']
+        bcconv_mat = bc_conv
+        fv_bcdiff = fv_stbc
+        fv_bcconv = - bc_rhs_conv
+        fv = fvc
+        fp = fpc
+        fp_bc = fp_stbc
+
+        infostr = 'These are the coefficient matrices of the quadratic ' +\
+            'formulation of the Navier-Stokes Equations \n for the ' +\
+            problemname + ' to be used as \n\n' +\
+            ' $M \\dot v + Av + H*kron(v,v) + J^Tp = Bu + fv$ \n' +\
+            ' and  $Jv = fp$ \n\n' +\
+            ' the Reynoldsnumber is computed as L/nu \n' +\
+            ' note that `A` contains the diffusion and the linear term \n' +\
+            ' that comes from the dirichlet boundary values \n' +\
+            ' as initial value one can use the provided steady state \n' +\
+            ' Stokes solution \n' +\
+            ' see https://github.com/highlando/dolfin_navier_scipy/blob/' +\
+            ' master/tests/solve_nse_quadraticterm.py for appl example\n' +\
+            ctrl_visu_str
+
+        scipy.io.savemat(mddir + problemname +
+                         'quadform__mats_N{0}_Re{1}'.format(NV, Re),
+                         dict(A=f_mat, M=stokesmatsc['M'],
+                              H=-hmat, fv=fv, fp=fp,
+                              nu=femp['nu'], Re=femp['Re'],
+                              J=stokesmatsc['J'], B=b_mat, Cv=c_mat,
+                              Cp=pcmat,
+                              info=infostr,
+                              ss_stokes=old_v,
+                              contsetupstr=contsetupstr, datastr=cdatstr,
+                              coors=coors, xinds=xinds, yinds=yinds,
+                              corfunvec=corfunvec))
     else:
         hstr = ddir + problemname + '_N{0}_hmat'.format(N)
         try:
