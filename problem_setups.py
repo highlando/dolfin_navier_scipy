@@ -15,13 +15,11 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 import dolfin
-import os
-
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 
 
 def get_sysmats(problem='drivencavity', N=10, scheme=None,
-                Re=1e2, nu=1e-2, ParaviewOutput=False):
+                Re=None, nu=None, ParaviewOutput=False):
     """ retrieve the system matrices for stokes flow
 
     Parameters
@@ -33,7 +31,7 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None,
     nu : real, optional
         kinematic viscosity, is set to `L/Re` if `Re` is provided
     Re : real, optional
-        Reynoldsnumber
+        Reynoldsnumber, is set to `L/nu` if `nu` is provided
 
     Returns
     -------
@@ -53,7 +51,10 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None,
          * `odcoo`: dictionary with the coordinates of the domain of \
                  observation
          * `cdcoo`: dictionary with the coordinates of the domain of \
-                 control
+         * `ppin` : {int, None}
+                which dof of `p` is used to pin the pressure, typically \
+                `-1` for internal flows, and `None` for flows with outflow
+                         control
     stokesmatsc : dict
         a dictionary of the condensed matrices:
          * `M`: the mass matrix of the velocity space,
@@ -67,20 +68,10 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None,
         of the contributions of the boundary data to the rhs:
          * `fv`: contribution to momentum equation,
          * `fp`: contribution to continuity equation
-    data_prfx : str
-        problem name as prefix for data files
-    ddir : str
-        relative path to directory where data is stored
-    proutdir : str
-        relative path to directory of paraview output
-    ppin : {int, None}
-        which dof of `p` is used to pin the pressure, typically \
-        `-1` for internal flows, and `None` for flows with outflow
 
     Examples
     --------
-    femp, stokesmatsc, rhsd_vfrc, \
-        rhsd_stbc, data_prfx, ddir, proutdir \
+    femp, stokesmatsc, rhsd_vfrc, rhsd_stbc \
         = get_sysmats(problem='drivencavity', N=10, nu=1e-2)
 
     """
@@ -95,31 +86,6 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None,
         nu = femp['charlen']/Re
     else:
         Re = femp['charlen']/nu
-
-    # prefix for data files
-    data_prfx = problem
-    # dir to store data
-    ddir = 'data/'
-    # paraview output dir
-    proutdir = 'results/'
-
-    # try:
-    #     os.chdir(ddir)
-    # except OSError:
-    #     raise Warning('need "' + ddir + '" subdir for storing the data')
-    # os.chdir('..')
-
-    if ParaviewOutput:
-        curwd = os.getcwd()
-        try:
-            os.chdir(proutdir)
-            # for fname in glob.glob(data_prfx + '*'):
-            #     os.remove(fname)
-            os.chdir(curwd)
-        except OSError:
-            raise Warning('the ' + proutdir + ' subdir for storing the' +
-                          ' output does not exist. Make it yourself' +
-                          ' or set paraviewoutput=False')
 
     stokesmats = dts.get_stokessysmats(femp['V'], femp['Q'], nu)
 
@@ -158,7 +124,7 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None,
     femp.update({'nu': nu})
     femp.update({'Re': Re})
 
-    return femp, stokesmatsc, rhsd_vfrc, rhsd_stbc, data_prfx, ddir, proutdir
+    return femp, stokesmatsc, rhsd_vfrc, rhsd_stbc
 
 
 def drivcav_fems(N, vdgree=2, pdgree=1, scheme=None):

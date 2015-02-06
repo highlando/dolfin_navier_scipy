@@ -110,7 +110,7 @@ def ass_convmat_asmatquad(W=None, invindsw=None):
     return hmat
 
 
-def get_stokessysmats(V, Q, nu=1):
+def get_stokessysmats(V, Q, nu=None):
     """ Assembles the system matrices for Stokes equation
 
     in mixed FEM formulation, namely
@@ -154,6 +154,10 @@ def get_stokessysmats(V, Q, nu=1):
     p = dolfin.TrialFunction(Q)
     v = dolfin.TestFunction(V)
     q = dolfin.TestFunction(Q)
+
+    if nu is None:
+        nu = 1
+        print 'No viscosity provided -- we set `nu=1`'
 
     ma = inner(u, v) * dx
     mp = inner(p, q) * dx
