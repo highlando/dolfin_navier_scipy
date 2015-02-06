@@ -18,7 +18,7 @@ import dolfin
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 
 
-def get_sysmats(problem='drivencavity', N=10, scheme=None,
+def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
                 Re=None, nu=None, ParaviewOutput=False):
     """ retrieve the system matrices for stokes flow
 
@@ -94,14 +94,18 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None,
 
     # remove the freedom in the pressure if required
     if problem == 'cylinderwake':
-        ppin = None
         print 'cylinderwake: pressure need not be pinned'
-    else:
-        ppin = -1
+        if ppin is not None:
+            raise UserWarning('pinning the p will give wrong results')
+    elif ppin is None:
+        print 'pressure is not pinned - `J` may be singular for internal flow'
+    elif ppin == -1:
         stokesmats['J'] = stokesmats['J'][:-1, :][:, :]
         stokesmats['JT'] = stokesmats['JT'][:, :-1][:, :]
         rhsd_vf['fp'] = rhsd_vf['fp'][:-1, :]
-        print 'internal flow: pressure pinned at last dof `-1`'
+        print 'pressure pinned at last dof `-1`'
+    else:
+        raise NotImplementedError('Cannot pin `p` other than at `-1`')
 
     # reduce the matrices by resolving the BCs
     (stokesmatsc,
