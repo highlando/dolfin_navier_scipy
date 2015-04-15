@@ -222,7 +222,8 @@ def drivcav_fems(N, vdgree=2, pdgree=1, scheme=None):
     return dfems
 
 
-def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None):
+def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
+             bccontrol=False):
     """
     dictionary for the fem items for the cylinder wake
 
@@ -233,6 +234,9 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None):
         defaults to 2
     pdgree : polynomial degree of the pressure basis functions,
         defaults to 1
+    scheme : {None, 'CR', 'TH'}
+        the finite element scheme to be applied, 'CR' for Crouzieux-Raviart,\
+        'TH' for Taylor-Hood, overrides `pdgree`, `vdgree`, defaults to `None`
 
     Returns
     -------
@@ -250,6 +254,8 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None):
          * `cdcoo`: dictionary with the coordinates of the domain of control
          * `uspacedep`: int that specifies in what spatial direction Bu \
                 changes. The remaining is constant
+         * `bcsubdoms`: list of subdomains that define the segments where \
+                 the boundary control is applied
 
     Notes
     -----
@@ -289,20 +295,58 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None):
     b2xmin, b2xmax = b1xmin, b1xmax
     b2ymin, b2ymax = -b1ymax, -b1ymin
 
+    def insidebbox(x, whichbox=None):
+        inbbone = (x[0] > b1xmin and x[0] < b1xmax
+                   and x[1] > b1ymin and x[1] < b1ymax)
+        inbbtwo = (x[0] > b2xmin and x[0] < b2xmax
+                   and x[1] > b2ymin and x[1] < b2ymax)
+        if whichbox is None:
+            return inbbone or inbbtwo
+        if whichbox == 1:
+            return inbbone
+        if whichbox == 2:
+            return inbbtwo
+
     # Inflow boundary
     class InflowBoundary(dolfin.SubDomain):
         def inside(self, x, on_boundary):
             return on_boundary and x[0] < xmin + bmarg
 
     # No-slip boundary
-    class NoslipBoundary(dolfin.SubDomain):
+    class NoslipChannelWalls(dolfin.SubDomain):
+        def inside(self, x, on_boundary):
+            return on_boundary and (x[1] < ymin + bmarg or x[1] > ymax - bmarg)
+
+    class NoslipCylinderSurface(dolfin.SubDomain):
         def inside(self, x, on_boundary):
             dx = x[0] - xcenter
             dy = x[1] - ycenter
             r = dolfin.sqrt(dx*dx + dy*dy)
-            return on_boundary and \
-                (x[1] < ymin + bmarg or x[1] > ymax - bmarg or
-                    r < radius + bmarg)
+            if bccontrol:
+                notinbbx = not insidebbox(x)
+                return on_boundary and r < radius + bmarg and notinbbx
+            else:
+                return on_boundary and r < radius + bmarg
+
+    if bccontrol:
+        class ContBoundaryOne(dolfin.SubDomain):
+            def inside(self, x, on_boundary):
+                dx = x[0] - xcenter
+                dy = x[1] - ycenter
+                r = dolfin.sqrt(dx*dx + dy*dy)
+                inbbx = not insidebbox(x, whichbox=1)
+                return on_boundary and r < radius + bmarg and inbbx
+
+        class ContBoundaryTwo(dolfin.SubDomain):
+            def inside(self, x, on_boundary):
+                dx = x[0] - xcenter
+                dy = x[1] - ycenter
+                r = dolfin.sqrt(dx*dx + dy*dy)
+                inbbx = not insidebbox(x, whichbox=2)
+                return on_boundary and r < radius + bmarg and inbbx
+        bcsubdoms = [ContBoundaryOne, ContBoundaryTwo]
+    else:
+        bcsubdoms = [None, None]
 
     # Outflow boundary
     class OutflowBoundary(dolfin.SubDomain):
@@ -344,20 +388,24 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None):
 
     # Create no-slip boundary condition
     g1 = dolfin.Constant((0, 0))
-    bc1 = dolfin.DirichletBC(V, g1, NoslipBoundary())
+    bc1 = dolfin.DirichletBC(V, g1, NoslipChannelWalls())
+
+    # Create no-slip at cylinder surface
+    bc1cyl = dolfin.DirichletBC(V, g1, NoslipCylinderSurface())
 
     # Create outflow boundary condition for pressure
     g2 = dolfin.Constant(0)
     bc2 = dolfin.DirichletBC(Q, g2, OutflowBoundary())
 
     # Collect boundary conditions
-    bcu = [bc0, bc1]
+    bcu = [bc0, bc1, bc1cyl]
     bcp = [bc2]
 
     cylfems = dict(V=V,
                    Q=Q,
                    diribcs=bcu,
                    dirip=bcp,
+                   contrbcssubdomains=bcsubdoms,
                    fv=fv,
                    fp=fp,
                    uspacedep=0,
