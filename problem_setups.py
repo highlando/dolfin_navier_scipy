@@ -16,6 +16,7 @@
 
 import dolfin
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
+import numpy as np
 
 
 def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
@@ -270,6 +271,23 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None):
     xcenter = 0.2
     ycenter = 0.2
     radius = 0.05
+
+    # boundary control at the cylinder
+    # we define two symmetric wrt x-axis little outlets
+    # via the radian of the center of the outlets and the extension
+    centerrad = np.pi/4  # measured from the most downstream point (pi/2 = top)
+    extensrad = np.pi/12  # radian measure of the extension of the outlets
+
+    # bounding boxes for outlet domains
+    if centerrad + extensrad/2 > np.pi/2 or centerrad - extensrad/2 < 0:
+        raise NotImplementedError('1st outlet must lie in the 1st quadrant')
+    b1xmin = xcenter + np.cos(centerrad + extensrad/2)
+    b1ymax = ycenter + np.sin(centerrad + extensrad/2)
+    b1xmax = xcenter + np.cos(centerrad - extensrad/2)
+    b1ymin = ycenter + np.sin(centerrad - extensrad/2)
+    # symmetry wrt x-axis
+    b2xmin, b2xmax = b1xmin, b1xmax
+    b2ymin, b2ymax = -b1ymax, -b1ymin
 
     # Inflow boundary
     class InflowBoundary(dolfin.SubDomain):

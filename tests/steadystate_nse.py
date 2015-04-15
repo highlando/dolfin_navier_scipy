@@ -8,7 +8,8 @@ import dolfin_navier_scipy.problem_setups as dnsps
 dolfin.parameters.linear_algebra_backend = 'uBLAS'
 
 
-def testit(problem='drivencavity', N=None, nu=1e-2, Re=1e2):
+def testit(problem='drivencavity', N=None, nu=1e-2, Re=1e2,
+           nnwtnstps=9, npcrdstps=5):
 
     problemdict = dict(drivencavity=dnsps.drivcav_fems,
                        cylinderwake=dnsps.cyl_fems)
@@ -18,7 +19,6 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=1e2):
     # setting some parameters
     if Re is not None:
         nu = femp['charlen']/Re  # this is so to say 1/Re
-    nnewtsteps = 9  # n nwtn stps for vel comp
     vel_nwtn_tol = 1e-14
     # prefix for data files
     data_prfx = problem
@@ -78,7 +78,8 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=1e2):
     soldict.update(rhsd_vfrc)  # adding fvc, fpr
     soldict.update(fv=rhsd_stbc['fv'], fp=rhsd_stbc['fp'],
                    N=N, nu=nu,
-                   vel_nwtn_stps=nnewtsteps,
+                   vel_nwtn_stps=nnwtnstps,
+                   vel_pcrd_stps=npcrdstps,
                    vel_nwtn_tol=vel_nwtn_tol,
                    ddir=ddir, get_datastring=None,
                    clearprvdata=True,
@@ -97,4 +98,5 @@ if __name__ == '__main__':
     # testit(N=25, nu=3e-4)
     # testit(problem='cylinderwake', N=3, nu=2e-3)
     # testit(problem='drivencavity', N=25, Re=500)
-    testit(problem='drivencavity', N=10, nu=1e-3)
+    testit(problem='cylinderwake', N=2, nu=1e-0,
+           nnwtnstps=0, npcrdstps=0)
