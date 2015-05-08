@@ -223,7 +223,7 @@ def drivcav_fems(N, vdgree=2, pdgree=1, scheme=None):
 
 
 def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
-             bccontrol=False):
+             bccontrol=False, verbose=False):
     """
     dictionary for the fem items for the cylinder wake
 
@@ -281,19 +281,43 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
     # boundary control at the cylinder
     # we define two symmetric wrt x-axis little outlets
     # via the radian of the center of the outlets and the extension
-    centerrad = np.pi/4  # measured from the most downstream point (pi/2 = top)
-    extensrad = np.pi/12  # radian measure of the extension of the outlets
+    centerrad = np.pi/3  # measured from the most downstream point (pi/2 = top)
+    extensrad = np.pi/8  # radian measure of the extension of the outlets
 
     # bounding boxes for outlet domains
     if centerrad + extensrad/2 > np.pi/2 or centerrad - extensrad/2 < 0:
         raise NotImplementedError('1st outlet must lie in the 1st quadrant')
-    b1xmin = xcenter + np.cos(centerrad + extensrad/2)
-    b1ymax = ycenter + np.sin(centerrad + extensrad/2)
-    b1xmax = xcenter + np.cos(centerrad - extensrad/2)
-    b1ymin = ycenter + np.sin(centerrad - extensrad/2)
+    b1xmin = xcenter + radius*np.cos(centerrad + extensrad/2)
+    b1ymax = ycenter + radius*np.sin(centerrad + extensrad/2)
+    b1xmax = xcenter + radius*np.cos(centerrad - extensrad/2)
+    b1ymin = ycenter + radius*np.sin(centerrad - extensrad/2)
     # symmetry wrt x-axis
     b2xmin, b2xmax = b1xmin, b1xmax
-    b2ymin, b2ymax = -b1ymax, -b1ymin
+    b2ymin = ycenter - radius*np.sin(centerrad + extensrad/2)
+    b2ymax = ycenter - radius*np.sin(centerrad - extensrad/2)
+
+    # vectors from the center to the control domain corners
+    # we need them to define/parametrize the control shape functions
+    b1base = np.array([[b1xmax - xcenter], [b1ymin - ycenter]])
+    b2base = np.array([[b2xmax - xcenter], [b2ymax - ycenter]])
+
+    # normal vectors of the control domain (considered as a straight line)
+    b1tang = np.array([[b1xmax - b1xmin], [b1ymin - b1ymax]])
+    b2tang = np.array([[b2xmin - b2xmax], [b2ymin - b2ymax]])
+
+    rotby90 = np.array([[0, -1.], [1., 0]])
+    b1normal = rotby90.dot(b1tang) / np.linalg.norm(b1tang)
+    b2normal = rotby90.dot(b2tang) / np.linalg.norm(b2tang)
+
+    if verbose:
+        print b1xmin, b1xmax, b1ymin, b1ymax
+        print b2xmin, b2xmax, b2ymin, b2ymax
+        print b1base, np.linalg.norm(b1base)
+        print b1tang
+        print b1normal
+        print b2base, np.linalg.norm(b2base)
+        print b2tang
+        print b2normal
 
     def insidebbox(x, whichbox=None):
         inbbone = (x[0] > b1xmin and x[0] < b1xmax
@@ -329,24 +353,53 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
                 return on_boundary and r < radius + bmarg
 
     if bccontrol:
+        def _csf(s, nvec):
+            return (0.5*(1 + np.sin(s*np.pi + 0.5*np.pi))*nvec[0],
+                    0.5*(1 + np.sin(s*np.pi + 0.5*np.pi))*nvec[1])
+
         class ContBoundaryOne(dolfin.SubDomain):
             def inside(self, x, on_boundary):
                 dx = x[0] - xcenter
                 dy = x[1] - ycenter
                 r = dolfin.sqrt(dx*dx + dy*dy)
-                inbbx = not insidebbox(x, whichbox=1)
+                inbbx = insidebbox(x, whichbox=1)
                 return on_boundary and r < radius + bmarg and inbbx
+
+        class ContShapeOne(dolfin.Expression):
+            def eval(self, value, x):
+                if not insidebbox(x, whichbox=1):
+                    raise UserWarning('x is not at the control boundary')
+                s = np.arcsin(np.linalg.norm(x - b1base) / radius) / extensrad
+                vls = _csf(s, b1normal)
+                value[0], value[1] = vls[0], vls[1]
+
+            def value_shape(self):
+                return (2,)
 
         class ContBoundaryTwo(dolfin.SubDomain):
             def inside(self, x, on_boundary):
                 dx = x[0] - xcenter
                 dy = x[1] - ycenter
                 r = dolfin.sqrt(dx*dx + dy*dy)
-                inbbx = not insidebbox(x, whichbox=2)
+                inbbx = insidebbox(x, whichbox=2)
                 return on_boundary and r < radius + bmarg and inbbx
+
+        class ContShapeTwo(dolfin.Expression):
+            def eval(self, value, x):
+                if not insidebbox(x, whichbox=2):
+                    raise UserWarning('x is not at the control boundary')
+                s = np.arcsin(np.linalg.norm(x - b2base) / radius) / extensrad
+                vls = _csf(s, b2normal)
+                value[0], value[1] = vls[0], vls[1]
+
+            def value_shape(self):
+                return (2,)
+
         bcsubdoms = [ContBoundaryOne, ContBoundaryTwo]
+        bcshapefuns = [ContShapeOne(), ContShapeTwo()]
     else:
         bcsubdoms = [None, None]
+        bcshapefuns = [None, None]
 
     # Outflow boundary
     class OutflowBoundary(dolfin.SubDomain):
@@ -406,6 +459,7 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
                    diribcs=bcu,
                    dirip=bcp,
                    contrbcssubdomains=bcsubdoms,
+                   contrbcsshapefuns=bcshapefuns,
                    fv=fv,
                    fp=fp,
                    uspacedep=0,
