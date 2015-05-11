@@ -282,7 +282,7 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
     # we define two symmetric wrt x-axis little outlets
     # via the radian of the center of the outlets and the extension
     centerrad = np.pi/3  # measured from the most downstream point (pi/2 = top)
-    extensrad = np.pi/8  # radian measure of the extension of the outlets
+    extensrad = np.pi/6  # radian measure of the extension of the outlets
 
     # bounding boxes for outlet domains
     if centerrad + extensrad/2 > np.pi/2 or centerrad - extensrad/2 < 0:
@@ -302,6 +302,8 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
     b2base = np.array([[b2xmax - xcenter], [b2ymax - ycenter]])
 
     # normal vectors of the control domain (considered as a straight line)
+    centvec = np.array([[xcenter], [ycenter]])
+    print 'centvec :', centvec.flatten(), ' b1base', b1base.flatten()
     b1tang = np.array([[b1xmax - b1xmin], [b1ymin - b1ymax]])
     b2tang = np.array([[b2xmin - b2xmax], [b2ymin - b2ymax]])
 
@@ -354,8 +356,8 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
 
     if bccontrol:
         def _csf(s, nvec):
-            return (0.5*(1 + np.sin(s*np.pi + 0.5*np.pi))*nvec[0],
-                    0.5*(1 + np.sin(s*np.pi + 0.5*np.pi))*nvec[1])
+            return ((1. - 0.5*(1 + np.sin(s*2*np.pi + 0.5*np.pi)))*nvec[0],
+                    (1. - 0.5*(1 + np.sin(s*2*np.pi + 0.5*np.pi)))*nvec[1])
 
         class ContBoundaryOne(dolfin.SubDomain):
             def inside(self, x, on_boundary):
@@ -366,12 +368,40 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
                 return on_boundary and r < radius + bmarg and inbbx
 
         class ContShapeOne(dolfin.Expression):
+            def __init__(self):
+                self.xs = []
+
             def eval(self, value, x):
-                if not insidebbox(x, whichbox=1):
-                    raise UserWarning('x is not at the control boundary')
-                s = np.arcsin(np.linalg.norm(x - b1base) / radius) / extensrad
-                vls = _csf(s, b1normal)
-                value[0], value[1] = vls[0], vls[1]
+                if insidebbox(x, whichbox=1) or True:
+                    # segvec = x - centvec.flatten() - b1base.flatten()
+                    # seglength = np.linalg.norm(segvec)
+                    # gamonelength = np.linalg.norm(b1tang)
+                    self.xs.append([x[0], x[1]])
+                    xvec = x - centvec.flatten()
+                    aang = np.arccos(np.dot(xvec, b1base)
+                                     / (np.linalg.norm(xvec)
+                                        * np.linalg.norm(b1base)))
+                    s = aang/extensrad
+
+                    # print insidebbox(x, whichbox=1)
+                    # print x
+                    # print b1base.flatten()
+                    # print np.linalg.norm(seglength)  # / radius
+                    # print x - centvec.flatten() - b1base.flatten()
+                    # s = np.arcsin(seglength / radius) /\
+                    #     extensrad
+
+                    vls = _csf(s, b1normal)
+                    value[0], value[1] = vls[0], vls[1]
+                    if verbose:
+                        dx = x[0] - xcenter
+                        dy = x[1] - ycenter
+                        r = dolfin.sqrt(dx*dx + dy*dy)
+                        print x - centvec.flatten(), ': s=', s, ': r=', r, ':', np.linalg.norm(np.array(vls))
+                else:
+                    # raise UserWarning('x is not at the control boundary')
+                    print 'x is not at the control boundary', x - centvec.flatten()
+                    value[0], value[1] = 0, 0
 
             def value_shape(self):
                 return (2,)
