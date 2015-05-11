@@ -110,7 +110,8 @@ def ass_convmat_asmatquad(W=None, invindsw=None):
     return hmat
 
 
-def get_stokessysmats(V, Q, nu=None):
+def get_stokessysmats(V, Q, nu=None, bccontrol=False,
+                      cbclist=None, cbshapefuns=None):
     """ Assembles the system matrices for Stokes equation
 
     in mixed FEM formulation, namely
@@ -132,21 +133,39 @@ def get_stokessysmats(V, Q, nu=None):
     for a given trial and test space W = V * Q
     not considering boundary conditions.
 
-    :param V:
+    Parameters
+    ----------
+    V : dolfin.VectorFunctionSpace
         Fenics VectorFunctionSpace for the velocity
-    :param Q:
+    Q : dolfin.FunctionSpace
         Fenics FunctionSpace for the pressure
-    :param nu:
+    nu : float, optional
         viscosity parameter - defaults to 1
+    bccontrol : boolean, optional
+        whether boundary control (via penalized Robin conditions)
+        is applied, defaults to `False`
+    cbclist : list, optional
+        list of dolfin's Subdomain classes describing the control boundaries
+    cbshapefuns : list, optional
+        list of spatial shape functions of the control boundaries
 
-    :return:
+    Returns
+    -------
+    stokesmats, dictionary
         a dictionary with the following keys:
             * ``M``: the mass matrix of the velocity space,
             * ``A``: the stiffness matrix \
-                :math:` \\nu (\\nabla \\phi_i, \\nabla \\phi_j)`
+                :math:`\\nu \\int_\\Omega (\\nabla \\phi_i, \\nabla \\phi_j)`
             * ``JT``: the gradient matrix,
             * ``J``: the divergence matrix, and
             * ``MP``: the mass matrix of the pressure space
+            * ``Apbc``: (N, N) sparse matrix, \
+                the contribution of the Robin conditions to `A` \
+                :math:`\\nu \\int_\\Gamma (\\phi_i, \\phi_j)`
+            * ``Bpbc``: (N, k) sparse matrix, the input matrix of the Robin \
+                conditions :math:`\\nu \\int_\\Gamma (\\phi_i, g_k)`, \
+                where :math:`g_k` is the shape function associated with the \
+                j-th control boundary segment
 
     """
 
@@ -193,6 +212,36 @@ def get_stokessysmats(V, Q, nu=None):
                   'JT': JTa,
                   'J': Ja,
                   'MP': MPa}
+
+    if bccontrol:
+        amatrobl, bmatrobl = [], []
+        mesh = V.mesh()
+        for bc, bcfun in zip(cbclist, cbshapefuns):
+            # get an instance of the subdomain class
+            Gamma = bc()
+
+            bparts = dolfin.MeshFunction('size_t', mesh,
+                                         mesh.topology().dim() - 1)
+            Gamma.mark(bparts, 0)
+
+            # Robin boundary form
+            arob = dolfin.inner(u, v) * dolfin.ds(0)
+            brob = dolfin.inner(v, bcfun) * dolfin.ds(0)
+
+            amatrob = dolfin.assemble(arob, exterior_facet_domains=bparts)
+            bmatrob = dolfin.assemble(brob, exterior_facet_domains=bparts)
+
+            amatrob = mat_dolfin2sparse(amatrob)
+            amatrob.eliminate_zeros()
+            amatrobl.append(amatrob)
+            bmatrobl.append(bmatrob.array().reshape((V.dim(), 1)))  # [ININDS]
+
+        amatrob = amatrobl[0]
+        for amatadd in amatrobl[1:]:
+            amatrob = amatrob + amatadd
+        bmatrob = np.hstack(bmatrobl)
+
+        stokesmats.update({'amatrob': amatrob, 'bmatrob': bmatrob})
 
     return stokesmats
 

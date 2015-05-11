@@ -299,11 +299,10 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
     # vectors from the center to the control domain corners
     # we need them to define/parametrize the control shape functions
     b1base = np.array([[b1xmax - xcenter], [b1ymin - ycenter]])
-    b2base = np.array([[b2xmax - xcenter], [b2ymax - ycenter]])
+    b2base = np.array([[b2xmin - xcenter], [b2ymin - ycenter]])
 
     # normal vectors of the control domain (considered as a straight line)
     centvec = np.array([[xcenter], [ycenter]])
-    print 'centvec :', centvec.flatten(), ' b1base', b1base.flatten()
     b1tang = np.array([[b1xmax - b1xmin], [b1ymin - b1ymax]])
     b2tang = np.array([[b2xmin - b2xmax], [b2ymin - b2ymax]])
 
@@ -312,6 +311,7 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
     b2normal = rotby90.dot(b2tang) / np.linalg.norm(b2tang)
 
     if verbose:
+        print 'centvec :', centvec.flatten(), ' b1base', b1base.flatten()
         print b1xmin, b1xmax, b1ymin, b1ymax
         print b2xmin, b2xmax, b2ymin, b2ymax
         print b1base, np.linalg.norm(b1base)
@@ -372,36 +372,21 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
                 self.xs = []
 
             def eval(self, value, x):
-                if insidebbox(x, whichbox=1) or True:
-                    # segvec = x - centvec.flatten() - b1base.flatten()
-                    # seglength = np.linalg.norm(segvec)
-                    # gamonelength = np.linalg.norm(b1tang)
-                    self.xs.append([x[0], x[1]])
-                    xvec = x - centvec.flatten()
-                    aang = np.arccos(np.dot(xvec, b1base)
-                                     / (np.linalg.norm(xvec)
-                                        * np.linalg.norm(b1base)))
-                    s = aang/extensrad
+                self.xs.append([x[0], x[1]])
+                xvec = x - centvec.flatten()
+                aang = np.arccos(np.dot(xvec, b1base)
+                                 / (np.linalg.norm(xvec)
+                                    * np.linalg.norm(b1base)))
+                s = aang/extensrad
 
-                    # print insidebbox(x, whichbox=1)
-                    # print x
-                    # print b1base.flatten()
-                    # print np.linalg.norm(seglength)  # / radius
-                    # print x - centvec.flatten() - b1base.flatten()
-                    # s = np.arcsin(seglength / radius) /\
-                    #     extensrad
-
-                    vls = _csf(s, b1normal)
-                    value[0], value[1] = vls[0], vls[1]
-                    if verbose:
-                        dx = x[0] - xcenter
-                        dy = x[1] - ycenter
-                        r = dolfin.sqrt(dx*dx + dy*dy)
-                        print x - centvec.flatten(), ': s=', s, ': r=', r, ':', np.linalg.norm(np.array(vls))
-                else:
-                    # raise UserWarning('x is not at the control boundary')
-                    print 'x is not at the control boundary', x - centvec.flatten()
-                    value[0], value[1] = 0, 0
+                vls = _csf(s, b1normal)
+                value[0], value[1] = vls[0], vls[1]
+                if verbose:
+                    dx = x[0] - xcenter
+                    dy = x[1] - ycenter
+                    r = dolfin.sqrt(dx*dx + dy*dy)
+                    print x - centvec.flatten(), ': s=', s, ': r=', r, \
+                        ':', np.linalg.norm(np.array(vls))
 
             def value_shape(self):
                 return (2,)
@@ -415,12 +400,25 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
                 return on_boundary and r < radius + bmarg and inbbx
 
         class ContShapeTwo(dolfin.Expression):
+            def __init__(self):
+                self.xs = []
+
             def eval(self, value, x):
-                if not insidebbox(x, whichbox=2):
-                    raise UserWarning('x is not at the control boundary')
-                s = np.arcsin(np.linalg.norm(x - b2base) / radius) / extensrad
-                vls = _csf(s, b2normal)
+                self.xs.append([x[0], x[1]])
+                xvec = x - centvec.flatten()
+                aang = np.arccos(np.dot(xvec, b2base)
+                                 / (np.linalg.norm(xvec)
+                                    * np.linalg.norm(b2base)))
+                s = aang/extensrad
+
+                vls = _csf(s, b1normal)
                 value[0], value[1] = vls[0], vls[1]
+                if verbose:
+                    dx = x[0] - xcenter
+                    dy = x[1] - ycenter
+                    r = dolfin.sqrt(dx*dx + dy*dy)
+                    print x - centvec.flatten(), ': s=', s, ': r=', r, \
+                        ':', np.linalg.norm(np.array(vls))
 
             def value_shape(self):
                 return (2,)
