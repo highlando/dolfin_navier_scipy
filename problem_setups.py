@@ -18,9 +18,13 @@ import dolfin
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import numpy as np
 
+__all__ = ['get_sysmats',
+           'drivcav_fems',
+           'cyl_fems']
+
 
 def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
-                Re=None, nu=None, ParaviewOutput=False):
+                Re=None, nu=None, bccontrol=False):
     """ retrieve the system matrices for stokes flow
 
     Parameters
@@ -33,6 +37,9 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
         kinematic viscosity, is set to `L/Re` if `Re` is provided
     Re : real, optional
         Reynoldsnumber, is set to `L/nu` if `nu` is provided
+    bccontrol : boolean, optional
+        whether to consider boundary control via penalized Robin \
+        defaults to `False`
 
     Returns
     -------
@@ -80,7 +87,7 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
     problemdict = dict(drivencavity=drivcav_fems,
                        cylinderwake=cyl_fems)
     problemfem = problemdict[problem]
-    femp = problemfem(N, scheme=scheme)
+    femp = problemfem(N, scheme=scheme, bccontrol=bccontrol)
 
     # setting some parameters
     if Re is not None:
@@ -88,7 +95,8 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
     else:
         Re = femp['charlen']/nu
 
-    stokesmats = dts.get_stokessysmats(femp['V'], femp['Q'], nu)
+    stokesmats = dts.get_stokessysmats(femp['V'], femp['Q'], nu,
+                                       bccontrol=bccontrol)
 
     rhsd_vf = dts.setget_rhs(femp['V'], femp['Q'],
                              femp['fv'], femp['fp'], t=0)
@@ -132,7 +140,7 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
     return femp, stokesmatsc, rhsd_vfrc, rhsd_stbc
 
 
-def drivcav_fems(N, vdgree=2, pdgree=1, scheme=None):
+def drivcav_fems(N, vdgree=2, pdgree=1, scheme=None, bccontrol=None):
     """dictionary for the fem items of the (unit) driven cavity
 
     Parameters
@@ -146,7 +154,10 @@ def drivcav_fems(N, vdgree=2, pdgree=1, scheme=None):
     scheme : {None, 'CR', 'TH'}
         the finite element scheme to be applied, 'CR' for Crouzieux-Raviart,\
         'TH' for Taylor-Hood, overrides `pdgree`, `vdgree`, defaults to `None`
-
+    bccontrol : boolean, optional
+        whether to consider boundary control via penalized Robin \
+        defaults to false. TODO: not implemented yet but we need it here \
+        for consistency
 
     Returns
     -------
@@ -237,6 +248,9 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
     scheme : {None, 'CR', 'TH'}
         the finite element scheme to be applied, 'CR' for Crouzieux-Raviart,\
         'TH' for Taylor-Hood, overrides `pdgree`, `vdgree`, defaults to `None`
+    bccontrol : boolean, optional
+        whether to consider boundary control via penalized Robin \
+        defaults to `False`
 
     Returns
     -------
