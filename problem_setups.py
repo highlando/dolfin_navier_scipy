@@ -70,6 +70,10 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
          * `JT`: the gradient matrix, and
          * `J`: the divergence matrix
          * `Jfull`: the uncondensed divergence matrix
+        and, if `bccontrol=True`, the boundary control matrices that weakly \
+        impose `Arob*v = Brob*u`, where
+         * `Arob`: contribution to `A`
+         * `Brob`: input operator
     rhsd_vfrc : dict
         of the dirichlet and pressure fix reduced right hand sides
     rhsd_stbc : dict
@@ -95,7 +99,15 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
     else:
         Re = femp['charlen']/nu
 
+    if bccontrol:
+        cbclist = femp['contrbcssubdomains']
+        cbshapefuns = femp['contrbcsshapefuns']
+    else:
+        cbclist, cbshapefuns = None, None
+
     stokesmats = dts.get_stokessysmats(femp['V'], femp['Q'], nu,
+                                       cbclist=cbclist,
+                                       cbshapefuns=cbshapefuns,
                                        bccontrol=bccontrol)
 
     rhsd_vf = dts.setget_rhs(femp['V'], femp['Q'],
@@ -127,6 +139,14 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
 
     # pressure freedom and dirichlet reduced rhs
     rhsd_vfrc = dict(fpr=rhsd_vf['fp'], fvc=rhsd_vf['fv'][invinds, ])
+    if bccontrol:
+        Arob, fvrob = dts.condense_velmatsbybcs(stokesmats['amatrob'],
+                                                femp['diribcs'])
+        if np.linalg.norm(fvrob) > 1e-15:
+            raise UserWarning('diri and control bc must not intersect')
+
+        Brob = stokesmats['bmatrob'][invinds, :]
+        stokesmatsc.update({'Brob': Brob, 'Arob': Arob})
 
     # add the info on boundary and inner nodes
     bcdata = {'bcinds': bcinds,
