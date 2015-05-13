@@ -415,7 +415,7 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
 
                 vls = _csf(s, b1normal)
                 value[0], value[1] = vls[0], vls[1]
-                if verbose:
+                if verbose or True:
                     dx = x[0] - xcenter
                     dy = x[1] - ycenter
                     r = dolfin.sqrt(dx*dx + dy*dy)
