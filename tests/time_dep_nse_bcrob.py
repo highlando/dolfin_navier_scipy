@@ -22,7 +22,7 @@ def testit(problem='cylinderwake', N=2, nu=None, Re=1e2, Nts=1e3+1,
     data_prfx = problem + '_N{0}_Re{1}_Nts{2}_tE{3}'.\
         format(N, femp['Re'], Nts, tE)
 
-    palpha = 1e-3
+    palpha = 1e-5
     stokesmatsc['A'] = stokesmatsc['A'] + 1./palpha*stokesmatsc['Arob']
     Brob = 1./palpha*stokesmatsc['Brob']
     # import scipy.sparse as sps
@@ -37,7 +37,7 @@ def testit(problem='cylinderwake', N=2, nu=None, Re=1e2, Nts=1e3+1,
     # raise Warning('TODO: debug')
 
     def fv_tmdp(time=0, v=None, **kw):
-        return np.sin(time)*(Brob[:, :1] + Brob[:, 1:]), None
+        return np.sin(time)*(Brob[:, :1] - Brob[:, 1:]), None
 
     soldict = stokesmatsc  # containing A, J, JT
     soldict.update(femp)  # adding V, Q, invinds, diribcs
@@ -64,5 +64,5 @@ def testit(problem='cylinderwake', N=2, nu=None, Re=1e2, Nts=1e3+1,
 
 if __name__ == '__main__':
     # !!! bccontrol doesn't work for `scheme = 'CR'` !!!
-    testit(problem='cylinderwake', N=2, Re=60, Nts=1e3, tE=2.,
+    testit(problem='cylinderwake', N=2, Re=60, Nts=2e3, tE=4.,
            ParaviewOutput=True, scheme='TH')
