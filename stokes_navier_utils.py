@@ -285,6 +285,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
 def solve_nse(A=None, M=None, J=None, JT=None,
               fv=None, fp=None,
+              fvc=None, fpc=None,  # TODO: this is to catch deprecated calls
               fv_tmdp=None, fv_tmdp_params={},
               fv_tmdp_memory=None,
               iniv=None, lin_vel_point=None,
@@ -380,6 +381,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         list of the velocity solutions
 
     """
+    if fvc is not None or fpc is not None:  # TODO: this is for catching calls
+        raise UserWarning('deprecated use of `rhsd_vfrc`, use only `fv`, `fp`')
 
     if get_datastring is None:
         get_datastring = get_datastr_snu

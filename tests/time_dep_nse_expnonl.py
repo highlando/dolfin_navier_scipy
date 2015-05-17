@@ -89,7 +89,8 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None,
     soldict.update(femp)  # adding V, Q, invinds, diribcs
     soldict.update(rhsd_vfrc)  # adding fvc, fpr
     soldict.update(tips)  # adding time integration params
-    soldict.update(fv=rhsd_stbc['fv'], fp=rhsd_stbc['fp'],
+    soldict.update(fv=rhsd_stbc['fv']+rhsd_vfrc['fvc'],
+                   fp=rhsd_stbc['fp']+rhsd_vfrc['fpr'],
                    N=N, nu=nu, ppin=ppin,
                    start_ssstokes=True,
                    vel_nwtn_stps=nnewtsteps,

@@ -18,16 +18,19 @@ def testit(problem='drivencavity', N=None, nu=None, Re=None, Nts=1e3,
     vel_nwtn_tol = 1e-14
     tips = dict(t0=0.0, tE=tE, Nts=Nts)
 
-    femp, stokesmatsc, rhsd_vfrc, \
-        rhsd_stbc, data_prfx, ddir, proutdir \
-        = dnsps.get_sysmats(problem=problem, N=N, Re=Re, nu=nu, scheme=scheme)
+    femp, stokesmatsc, rhsd = dnsps.get_sysmats(problem=problem, N=N, Re=Re,
+                                                nu=nu, scheme=scheme,
+                                                mergerhs=True)
+    proutdir = 'results/'
+    ddir = 'data/'
+    data_prfx = problem + '_N{0}_Re{1}_Nts{2}_tE{3}'.\
+        format(N, femp['Re'], Nts, tE)
 
     soldict = stokesmatsc  # containing A, J, JT
     soldict.update(femp)  # adding V, Q, invinds, diribcs
-    soldict.update(rhsd_vfrc)  # adding fvc, fpr
     soldict.update(tips)  # adding time integration params
-    soldict.update(fv=rhsd_stbc['fv'], fp=rhsd_stbc['fp'],
-                   N=N, nu=nu,
+    soldict.update(rhsd)
+    soldict.update(N=N, nu=nu,
                    vel_nwtn_stps=nnewtsteps,
                    vel_nwtn_tol=vel_nwtn_tol,
                    start_ssstokes=True,
@@ -50,5 +53,5 @@ if __name__ == '__main__':
     schemel = ['CR', 'TH']
     scheme = schemel[scme]
     # testit(N=40, Re=1e3, Nts=.5e2, tE=.5, ParaviewOutput=True, scheme=scheme)
-    testit(problem='cylinderwake', N=2, Re=60, Nts=512, tE=.2,
+    testit(problem='cylinderwake', N=4, Re=80, Nts=1000, tE=1.,
            ParaviewOutput=True, scheme=scheme)

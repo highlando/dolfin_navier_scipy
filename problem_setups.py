@@ -24,7 +24,7 @@ __all__ = ['get_sysmats',
 
 
 def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
-                Re=None, nu=None, bccontrol=False):
+                Re=None, nu=None, bccontrol=False, mergerhs=False):
     """ retrieve the system matrices for stokes flow
 
     Parameters
@@ -40,6 +40,9 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
     bccontrol : boolean, optional
         whether to consider boundary control via penalized Robin \
         defaults to `False`
+    mergerhs : boolean, optional
+        whether to merge the actual rhs and the contribution from the \
+        boundary conditions into one rhs
 
     Returns
     -------
@@ -74,12 +77,17 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
         impose `Arob*v = Brob*u`, where
          * `Arob`: contribution to `A`
          * `Brob`: input operator
+    `if mergerhs`
+    rhsd : dict
+        `rhsd_vfrc` and `rhsd_stbc` merged
+    `else`
     rhsd_vfrc : dict
         of the dirichlet and pressure fix reduced right hand sides
     rhsd_stbc : dict
         of the contributions of the boundary data to the rhs:
          * `fv`: contribution to momentum equation,
          * `fp`: contribution to continuity equation
+
 
     Examples
     --------
@@ -157,7 +165,12 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
     femp.update({'nu': nu})
     femp.update({'Re': Re})
 
-    return femp, stokesmatsc, rhsd_vfrc, rhsd_stbc
+    if mergerhs:
+        rhsd = dict(fv=rhsd_vfrc['fvc']+rhsd_stbc['fv'],
+                    fp=rhsd_vfrc['fpr']+rhsd_stbc['fp'])
+        return femp, stokesmatsc, rhsd
+    else:
+        return femp, stokesmatsc, rhsd_vfrc, rhsd_stbc
 
 
 def drivcav_fems(N, vdgree=2, pdgree=1, scheme=None, bccontrol=None):

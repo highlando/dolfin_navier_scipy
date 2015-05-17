@@ -34,16 +34,15 @@ def testit(problem='cylinderwake', N=2, nu=None, Re=1e2, Nts=1e3+1,
     # # plt.show()
     # print 'nnz of Arob:', stokesmatsc['Arob'].nnz
     # print 'nnz of Brob:', sps.csr_matrix(Brob).nnz
-    # raise Warning('TODO: debug')
 
     def fv_tmdp(time=0, v=None, **kw):
         return np.sin(time)*(Brob[:, :1] - Brob[:, 1:]), None
 
     soldict = stokesmatsc  # containing A, J, JT
     soldict.update(femp)  # adding V, Q, invinds, diribcs
-    soldict.update(rhsd_vfrc)  # adding fvc, fpr
     soldict.update(tips)  # adding time integration params
-    soldict.update(fv=rhsd_stbc['fv'], fp=rhsd_stbc['fp'],
+    soldict.update(fv=rhsd_stbc['fv']+rhsd_vfrc['fvc'],
+                   fp=rhsd_stbc['fp']+rhsd_vfrc['fpr'],
                    N=N, nu=nu,
                    vel_nwtn_stps=nnewtsteps,
                    comp_nonl_semexp=True,

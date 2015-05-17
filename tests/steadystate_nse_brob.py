@@ -11,14 +11,17 @@ dolfin.parameters.linear_algebra_backend = 'uBLAS'
 def testit(problem='drivencavity', N=None, nu=1e-2, Re=1e2,
            nnwtnstps=9, npcrdstps=5):
 
-    problemdict = dict(drivencavity=dnsps.drivcav_fems,
-                       cylinderwake=dnsps.cyl_fems)
-    problemfem = problemdict[problem]
-    femp = problemfem(N)
+    palpha = 1e-8
 
-    # setting some parameters
-    if Re is not None:
-        nu = femp['charlen']/Re  # this is so to say 1/Re
+    femp, stokesmatsc, rhsd_vfrc, rhsd_stbc \
+        = dnsps.get_sysmats(problem=problem, N=N, Re=Re,
+                            bccontrol=True, scheme='TH')
+
+    nu = femp['charlen']/Re
+
+    stokesmatsc['A'] = stokesmatsc['A'] + 1./palpha*stokesmatsc['Arob']
+    b_mat = 1./palpha*stokesmatsc['Brob']
+
     vel_nwtn_tol = 1e-14
     # prefix for data files
     data_prfx = problem
@@ -27,12 +30,6 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=1e2,
     # paraview output
     ParaviewOutput = True
     proutdir = 'results/'
-
-    try:
-        os.chdir(ddir)
-    except OSError:
-        raise Warning('need "' + ddir + '" subdir for storing the data')
-    os.chdir('..')
 
     if ParaviewOutput:
         curwd = os.getcwd()
@@ -45,33 +42,6 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=1e2,
             raise Warning('the ' + proutdir + ' subdir for storing the' +
                           ' output does not exist. Make it yourself' +
                           ' or set paraviewoutput=False')
-
-    stokesmats = dts.get_stokessysmats(femp['V'], femp['Q'], nu)
-
-    rhsd_vf = dts.setget_rhs(femp['V'], femp['Q'],
-                             femp['fv'], femp['fp'], t=0)
-
-    # remove the freedom in the pressure
-    stokesmats['J'] = stokesmats['J'][:-1, :][:, :]
-    stokesmats['JT'] = stokesmats['JT'][:, :-1][:, :]
-    rhsd_vf['fp'] = rhsd_vf['fp'][:-1, :]
-
-    # reduce the matrices by resolving the BCs
-    (stokesmatsc,
-     rhsd_stbc,
-     invinds,
-     bcinds,
-     bcvals) = dts.condense_sysmatsbybcs(stokesmats,
-                                         femp['diribcs'])
-
-    # pressure freedom and dirichlet reduced rhs
-    rhsd_vfrc = dict(fpr=rhsd_vf['fp'], fvc=rhsd_vf['fv'][invinds, ])
-
-    # add the info on boundary and inner nodes
-    bcdata = {'bcinds': bcinds,
-              'bcvals': bcvals,
-              'invinds': invinds}
-    femp.update(bcdata)
 
     soldict = stokesmatsc  # containing A, J, JT
     soldict.update(femp)  # adding V, Q, invinds, diribcs
@@ -98,5 +68,5 @@ if __name__ == '__main__':
     # testit(N=25, nu=3e-4)
     # testit(problem='cylinderwake', N=3, nu=2e-3)
     # testit(problem='drivencavity', N=25, Re=500)
-    testit(problem='cylinderwake', N=2, nu=1e-0,
-           nnwtnstps=0, npcrdstps=0)
+    testit(problem='cylinderwake', N=4, Re=1.8e2,
+           nnwtnstps=5, npcrdstps=15)
