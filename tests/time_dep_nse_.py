@@ -49,9 +49,11 @@ def testit(problem='drivencavity', N=None, nu=None, Re=None, Nts=1e3,
 
 
 if __name__ == '__main__':
-    scme = 0
-    schemel = ['CR', 'TH']
-    scheme = schemel[scme]
+    # scme = 0
+    # schemel = ['CR', 'TH']
+    # scheme = schemel[scme]
     # testit(N=40, Re=1e3, Nts=.5e2, tE=.5, ParaviewOutput=True, scheme=scheme)
-    testit(problem='cylinderwake', N=4, Re=80, Nts=1000, tE=1.,
-           ParaviewOutput=True, scheme=scheme)
+    testit(problem='cylinderwake', N=2, Re=120, Nts=512, tE=1.,
+           ParaviewOutput=True, scheme='TH')
+    # testit(problem='cylinderwake', N=4, Re=80, Nts=1000, tE=1.,
+    #        ParaviewOutput=True, scheme='CR')
