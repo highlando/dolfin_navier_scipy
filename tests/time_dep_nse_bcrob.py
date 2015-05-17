@@ -22,18 +22,9 @@ def testit(problem='cylinderwake', N=2, nu=None, Re=1e2, Nts=1e3+1,
     data_prfx = problem + '_N{0}_Re{1}_Nts{2}_tE{3}'.\
         format(N, femp['Re'], Nts, tE)
 
-    palpha = 1e-5
+    palpha = 1e-8
     stokesmatsc['A'] = stokesmatsc['A'] + 1./palpha*stokesmatsc['Arob']
     Brob = 1./palpha*stokesmatsc['Brob']
-    # import scipy.sparse as sps
-    # # import matplotlib.pyplot as plt
-    # # plt.figure(1)
-    # # plt.spy(sps.csr_matrix(Brob))
-    # # plt.figure(2)
-    # # plt.spy(sps.csr_matrix(stokesmatsc['Arob']))
-    # # plt.show()
-    # print 'nnz of Arob:', stokesmatsc['Arob'].nnz
-    # print 'nnz of Brob:', sps.csr_matrix(Brob).nnz
 
     def fv_tmdp(time=0, v=None, **kw):
         return np.sin(time)*(Brob[:, :1] - Brob[:, 1:]), None
@@ -45,7 +36,7 @@ def testit(problem='cylinderwake', N=2, nu=None, Re=1e2, Nts=1e3+1,
                    fp=rhsd_stbc['fp']+rhsd_vfrc['fpr'],
                    N=N, nu=nu,
                    vel_nwtn_stps=nnewtsteps,
-                   comp_nonl_semexp=True,
+                   # comp_nonl_semexp=True,
                    vel_nwtn_tol=vel_nwtn_tol,
                    fv_tmdp=fv_tmdp,
                    start_ssstokes=True,
@@ -63,5 +54,7 @@ def testit(problem='cylinderwake', N=2, nu=None, Re=1e2, Nts=1e3+1,
 
 if __name__ == '__main__':
     # !!! bccontrol doesn't work for `scheme = 'CR'` !!!
-    testit(problem='cylinderwake', N=2, Re=60, Nts=2e3, tE=4.,
+    # testit(problem='cylinderwake', N=2, Re=60, Nts=2e3, tE=4.,
+    #        ParaviewOutput=True, scheme='TH')
+    testit(problem='cylinderwake', N=2, Re=120, Nts=128, tE=.2,
            ParaviewOutput=True, scheme='TH')
