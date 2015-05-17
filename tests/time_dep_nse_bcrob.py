@@ -36,7 +36,7 @@ def testit(problem='cylinderwake', N=2, nu=None, Re=1e2, Nts=1e3+1,
                    fp=rhsd_stbc['fp']+rhsd_vfrc['fpr'],
                    N=N, nu=nu,
                    vel_nwtn_stps=nnewtsteps,
-                   # comp_nonl_semexp=True,
+                   comp_nonl_semexp=True,
                    vel_nwtn_tol=vel_nwtn_tol,
                    fv_tmdp=fv_tmdp,
                    start_ssstokes=True,
@@ -56,5 +56,5 @@ if __name__ == '__main__':
     # !!! bccontrol doesn't work for `scheme = 'CR'` !!!
     # testit(problem='cylinderwake', N=2, Re=60, Nts=2e3, tE=4.,
     #        ParaviewOutput=True, scheme='TH')
-    testit(problem='cylinderwake', N=2, Re=120, Nts=128, tE=.2,
+    testit(problem='cylinderwake', N=4, Re=100, Nts=512, tE=1.,
            ParaviewOutput=True, scheme='TH')
