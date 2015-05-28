@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 def check_penaro(problemname='cylinderwake', N=2,
                  Re=1.0e2, t0=0.0, tE=2.0, Nts=1e3+1, plot=False):
 
-    femp = dnsps.cyl_fems(N, bccontrol=True)
+    femp = dnsps.cyl_fems(N, bccontrol=True, verbose=True)
     V = femp['V']
 
     nu = femp['charlen']/Re

@@ -501,7 +501,7 @@ def condense_velmatsbybcs(A, velbcs, return_bcinfo=False):
 
 
 def expand_vp_dolfunc(V=None, Q=None, invinds=None, diribcs=None, vp=None,
-                      vc=None, pc=None, ppin=-1):
+                      vc=None, pc=None, ppin=-1, **kwargs):
     """expand v [and p] to the dolfin function representation
 
     Parameters

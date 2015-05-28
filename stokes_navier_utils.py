@@ -9,7 +9,10 @@ import dolfin
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import dolfin_navier_scipy.data_output_utils as dou
 
-import sadptprj_riclyap_adi.lin_alg_utils as lau
+try:
+    import sadptprj_riclyap_adi.lin_alg_utils as lau
+except ImportError:
+    pass  # Only needed when using the solvers
 
 
 __all__ = ['get_datastr_snu',

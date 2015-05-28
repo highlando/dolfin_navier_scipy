@@ -367,6 +367,14 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
         print b2base, np.linalg.norm(b2base)
         print b2tang
         print b2normal
+        print 'diameter of the outlet', radius*2*np.sin(extensrad/2)
+        print 'midpoint of the outlet 1 secant: [{0}, {1}]'.\
+            format(centvec[0]+radius*np.cos(centerrad),
+                   centvec[1]+radius*np.sin(centerrad))
+        print 'midpoint of the outlet 2 secant: [{0}, {1}]'.\
+            format(centvec[0]+radius*np.cos(centerrad),
+                   centvec[1]-radius*np.sin(centerrad))
+        print 'angle of midpoint vec 1 and x-axis', np.rad2deg(centerrad)
 
     def insidebbox(x, whichbox=None):
         inbbone = (x[0] > b1xmin and x[0] < b1xmax
