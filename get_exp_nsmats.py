@@ -38,7 +38,7 @@ def comp_exp_nsmats(problemname='drivencavity',
     NV = invinds.shape[0]
 
     data_prfx = problemname + '__'
-    NU, NY = 3, 4
+    NU, NY = 7, 3
 
     # specify in what spatial direction Bu changes. The remaining is constant
     if problemname == 'drivencavity':

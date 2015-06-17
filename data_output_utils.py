@@ -6,6 +6,11 @@ import dolfin
 import sys
 import datetime
 
+__all__ = ['output_paraview',
+           'save_npa', 'save_spa',
+           'load_npa', 'load_spa',
+           'load_or_comp']
+
 
 def output_paraview(V=None, Q=None, fstring='nn',
                     invinds=None, diribcs=None, vp=None, vc=None, pc=None,
@@ -172,7 +177,7 @@ def extract_output(dictofpaths=None, tmesh=None, c_mat=None, ystarvec=None):
 
 
 def load_or_comp(filestr=None, comprtn=None, comprtnargs={},
-                 arraytype=None,
+                 arraytype=None, debug=False,
                  loadrtn=None, loadmsg='loaded ',
                  savertn=None, savemsg='saved ',
                  numthings=1):
@@ -186,8 +191,12 @@ def load_or_comp(filestr=None, comprtn=None, comprtnargs={},
     savertn: fun(), optional
         routine for saving the computed results, defaults to None, i.e. \
         no saving here
+    debug: boolean, optional
+        no saving or loading, defaults to `False`
 
     """
+    if debug:
+        return comprtn(**comprtnargs)
     if arraytype == 'dense':
         savertn = save_npa
         loadrtn = load_npa
