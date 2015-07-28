@@ -349,15 +349,20 @@ def get_curfv(V, fv, invinds, tcur):
     return fv[invinds, :]
 
 
-def get_convvec(u0_dolfun=None, V=None, u0_vec=None, femp=None):
+def get_convvec(u0_dolfun=None, V=None, u0_vec=None, femp=None,
+                diribcs=None, invinds=None):
     """return the convection vector e.g. for explicit schemes
 
     given a dolfin function or the coefficient vector
     """
 
     if u0_vec is not None:
-        u0, p = expand_vp_dolfunc(vc=u0_vec, V=V, diribcs=femp['diribcs'],
-                                  invinds=femp['invinds'])
+        if femp is not None:
+            diribcs = femp['diribcs']
+            invinds = femp['invinds']
+
+        u0, p = expand_vp_dolfunc(vc=u0_vec, V=V, diribcs=diribcs,
+                                  invinds=invinds)
     else:
         u0 = u0_dolfun
 

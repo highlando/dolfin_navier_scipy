@@ -19,8 +19,8 @@ def test_qbdae_ass(problemname='cylinderwake', N=1, Re=4e2, nu=3e-2,
     trange = np.linspace(t0, tE, Nts+1)
     DT = (tE-t0)/Nts
     rdir = 'results/'
-    femp, stokesmatsc, rhsd_vfrc, rhsd_stbc, \
-        data_prfx, ddir, proutdir = \
+    ddir = 'data/'
+    femp, stokesmatsc, rhsd_vfrc, rhsd_stbc = \
         dns.problem_setups.get_sysmats(problem=problemname, N=N, Re=Re)
     invinds = femp['invinds']
 
