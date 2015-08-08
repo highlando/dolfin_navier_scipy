@@ -20,10 +20,14 @@ __all__ = ['ass_convmat_asmatquad',
            'mat_dolfin2sparse']
 
 
-def append_bcs_vec(vvec, vdim=None, invinds=None, diribcs=None):
+def append_bcs_vec(vvec, V=None, vdim=None,
+                   invinds=None, diribcs=None, **kwargs):
     """ append given boundary conditions to a vector representing inner nodes
 
     """
+    if vdim is None:
+        vdim = V.dim()
+
     vwbcs = np.zeros((vdim, 1))
 
     # fill in the boundary values
