@@ -293,7 +293,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               trange=None,
               t0=None, tE=None, Nts=None,
               V=None, Q=None, invinds=None, diribcs=None,
-              includebcs=False,
+              output_includes_bcs=False,
               N=None, nu=None,
               ppin=-1,
               closed_loop=False, static_feedback=False,
@@ -347,7 +347,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         dictionary of parameters to be passed to `fv_tmdp`, defaults to `{}`
     fv_tmdp_memory : dictionary, optional
         memory of the function
-    includebcs : boolean, optional
+    output_includes_bcs : boolean, optional
         whether append the boundary nodes to the computed and stored \
         velocities, defaults to `False`
     krylov : {None, 'gmres'}, optional
@@ -513,7 +513,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             print 'no old velocity data found'
 
     def _append_bcs_ornot(vvec):
-        if includebcs:  # make the switch here for better readibility
+        if output_includes_bcs:  # make the switch here for better readibility
             vwbcs = dts.append_bcs_vec(vvec, vdim=V.dim(),
                                        invinds=invinds, diribcs=diribcs)
             return vwbcs
