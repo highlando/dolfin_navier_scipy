@@ -293,6 +293,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               trange=None,
               t0=None, tE=None, Nts=None,
               V=None, Q=None, invinds=None, diribcs=None,
+              includebcs=False,
               N=None, nu=None,
               ppin=-1,
               closed_loop=False, static_feedback=False,
@@ -346,6 +347,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         dictionary of parameters to be passed to `fv_tmdp`, defaults to `{}`
     fv_tmdp_memory : dictionary, optional
         memory of the function
+    includebcs : boolean, optional
+        whether append the boundary nodes to the computed and stored \
+        velocities, defaults to `False`
     krylov : {None, 'gmres'}, optional
         whether or not to use an iterative solver, defaults to `None`
     krpslvprms : dictionary, optional
@@ -508,6 +512,14 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             norm_nwtnupd = 2
             print 'no old velocity data found'
 
+    def _append_bcs_ornot(vvec):
+        if includebcs:  # make the switch here for better readibility
+            vwbcs = dts.append_bcs_vec(vvec, vdim=V.dim(),
+                                       invinds=invinds, diribcs=diribcs)
+            return vwbcs
+        else:
+            return vvec
+
     def _get_mats_rhs_ts(mmat=None, dt=None, var_c=None,
                          coeffmat_c=None,
                          coeffmat_n=None,
@@ -535,7 +547,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     datastrdict['time'] = trange[0]
     cdatstr = get_datastring(**datastrdict)
 
-    dou.save_npa(v_old, fstring=cdatstr + '__vel')
+    dou.save_npa(_append_bcs_ornot(v_old), fstring=cdatstr + '__vel')
     dictofvelstrs = {trange[0]: cdatstr + '__vel'}
     if return_dictofpstrs:
         p_old = get_pfromv(v=v_old, **gpfvd)
@@ -544,7 +556,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     if return_as_list:
         vellist = []
-        vellist.append(v_old)
+        vellist.append(_append_bcs_ornot(v_old))
 
     while (newtk < vel_nwtn_stps and norm_nwtnupd > vel_nwtn_tol):
         if stokes_flow:
@@ -724,7 +736,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             (umat_c, vmat_c, fvn_c,
                 convc_mat_c) = umat_n, vmat_n, fvn_n, convc_mat_n
 
-            dou.save_npa(v_old, fstring=cdatstr + '__vel')
+            dou.save_npa(_append_bcs_ornot(v_old), fstring=cdatstr + '__vel')
             dictofvelstrs.update({t: cdatstr + '__vel'})
             if return_dictofpstrs:
                 p_new = -1/cts*vp_new[NV:, ]
@@ -733,7 +745,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 dictofpstrs.update({t: cdatstr + '__p'})
 
             if return_as_list:
-                vellist.append(v_old)
+                vellist.append(_append_bcs_ornot(v_old))
 
             prvoutdict.update(dict(vp=vp_new, t=t))
             dou.output_paraview(**prvoutdict)

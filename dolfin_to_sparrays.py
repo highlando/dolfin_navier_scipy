@@ -16,7 +16,24 @@ __all__ = ['ass_convmat_asmatquad',
            'condense_velmatsbybcs',
            'expand_vp_dolfunc',
            'expand_vecnbc_dolfunc',
+           'append_bcs_vec',
            'mat_dolfin2sparse']
+
+
+def append_bcs_vec(vvec, vdim=None, invinds=None, diribcs=None):
+    """ append given boundary conditions to a vector representing inner nodes
+
+    """
+    vwbcs = np.zeros((vdim, 1))
+
+    # fill in the boundary values
+    for bc in diribcs:
+        bcdict = bc.get_boundary_values()
+        vwbcs[bcdict.keys(), 0] = bcdict.values()
+
+    vwbcs[invinds] = vvec
+
+    return vwbcs
 
 
 def mat_dolfin2sparse(A):
@@ -370,7 +387,7 @@ def get_convvec(u0_dolfun=None, V=None, u0_vec=None, femp=None,
     ConvForm = inner(grad(u0) * u0, v) * dx
 
     ConvForm = dolfin.assemble(ConvForm)
-    ConvVec = ConvForm.array()
+    ConvVec = ConvForm.array()[invinds]
     ConvVec = ConvVec.reshape(len(ConvVec), 1)
 
     return ConvVec

@@ -126,7 +126,7 @@ def comp_exp_nsmats(problemname='drivencavity',
     pobsdomstr = 'pressure observation domain: [{0}, {1}]x[{2}, {3}]\n'.\
         format(xmin, xmax, ymin, ymax)
 
-    pcmat = cou.get_pavrg_onsubd(odcoo=podcoo, Q=femp['Q'])
+    pcmat = cou.get_pavrg_onsubd(odcoo=podcoo, Q=femp['Q'], ppin=None)
 
     cdatstr = snu.get_datastr_snu(time=None, meshp=N, nu=nu, Nts=None)
 
