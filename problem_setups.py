@@ -24,7 +24,8 @@ __all__ = ['get_sysmats',
 
 
 def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
-                Re=None, nu=None, bccontrol=False, mergerhs=False):
+                Re=None, nu=None, bccontrol=False, mergerhs=False,
+                onlymesh=False):
     """ retrieve the system matrices for stokes flow
 
     Parameters
@@ -43,6 +44,9 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
     mergerhs : boolean, optional
         whether to merge the actual rhs and the contribution from the \
         boundary conditions into one rhs
+    onlymesh : boolean, optional
+        whether to only return `femp`, containing the mesh and FEM spaces, \
+        defaults to `False`
 
     Returns
     -------
@@ -100,6 +104,8 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
                        cylinderwake=cyl_fems)
     problemfem = problemdict[problem]
     femp = problemfem(N, scheme=scheme, bccontrol=bccontrol)
+    if onlymesh:
+        return femp
 
     # setting some parameters
     if Re is not None:

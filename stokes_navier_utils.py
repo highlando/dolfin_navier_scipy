@@ -668,7 +668,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                             prev_v = dou.load_npa(cur_linvel_point[None])
                         except TypeError:
                             prev_v = cur_linvel_point[None]
-
                 convc_mat_n, rhs_con_n, rhsv_conbc_n = \
                     get_v_conv_conts(prev_v=prev_v, invinds=invinds,
                                      V=V, diribcs=diribcs, Picard=pcrd_anyone)
@@ -754,6 +753,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             if stokes_flow or comp_nonl_semexp or comp_nonl_semexp_inig:
                 norm_nwtnupd = [None]
             else:
+                if len(prev_v) > len(invinds):
+                    prev_v = prev_v[invinds, :]
                 norm_nwtnupd += cts * m_innerproduct(M, v_old - prev_v)
 
         dou.save_npa(norm_nwtnupd, cdatstr + '__norm_nwtnupd')

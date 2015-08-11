@@ -538,8 +538,10 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None, diribcs=None, vp=None,
         FEM space of the pressure
     invinds : (N,) array
         vector of indices of the velocity nodes
-    diribcs : list
-        of the (Dirichlet) velocity boundary conditions
+    diribcs : list, optional
+        of the (Dirichlet) velocity boundary conditions, \
+        if `None` it is assumed that `vc` already contains the bc, \
+        defaults to `None`
     vp : (N+M,1) array, optional
         solution vector of velocity and pressure
     vc : (N,1) array, optional
@@ -569,14 +571,17 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None, diribcs=None, vp=None,
         p = dolfin.Function(Q)
 
     v = dolfin.Function(V)
-    ve = np.zeros((V.dim(), 1))
 
-    # fill in the boundary values
-    for bc in diribcs:
-        bcdict = bc.get_boundary_values()
-        ve[bcdict.keys(), 0] = bcdict.values()
-
-    ve[invinds] = vc
+    if diribcs is None or len(vc) > len(invinds):
+        # we assume that the boundary conditions are already contained in vc
+        ve = vc
+    else:
+        ve = np.zeros((V.dim(), 1))
+        # fill in the boundary values
+        for bc in diribcs:
+            bcdict = bc.get_boundary_values()
+            ve[bcdict.keys(), 0] = bcdict.values()
+        ve[invinds] = vc
 
     if pc is not None:
         if ppin is None:
