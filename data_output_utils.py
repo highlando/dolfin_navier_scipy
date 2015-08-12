@@ -180,6 +180,7 @@ def load_or_comp(filestr=None, comprtn=None, comprtnargs={},
                  arraytype=None, debug=False,
                  loadrtn=None, loadmsg='loaded ',
                  savertn=None, savemsg='saved ',
+                 itsadict=False,
                  numthings=1):
     """ routine for caching computation results on disc
 
@@ -188,6 +189,9 @@ def load_or_comp(filestr=None, comprtn=None, comprtnargs={},
     arraytype: {None, 'sparse', 'dense'}
         if not None, then it sets the default routines to save/load dense or \
         sparse arrays
+    itsadict: boolean, optional
+        whether it is *python dictionary* that can be JSON serialized, \
+        overrides all other options concerning arrays
     savertn: fun(), optional
         routine for saving the computed results, defaults to None, i.e. \
         no saving here
@@ -195,8 +199,24 @@ def load_or_comp(filestr=None, comprtn=None, comprtnargs={},
         no saving or loading, defaults to `False`
 
     """
+    if not filestr.__class__ == list:
+        filestr = [filestr]
+
     if debug:
         return comprtn(**comprtnargs)
+    if itsadict:
+        import json
+        try:
+            for filename in filestr:
+                fjs = open(filename)
+                thing = json.load(fjs)
+        except IOError:
+            things = comprtn(**comprtnargs)
+            for k, filename in enumerate(filestr):
+                f = open(filename, 'w')
+                f.write(json.dumps(things[k]))
+        return thing
+
     if arraytype == 'dense':
         savertn = save_npa
         loadrtn = load_npa
@@ -205,6 +225,7 @@ def load_or_comp(filestr=None, comprtn=None, comprtnargs={},
         loadrtn = load_spa
 
     if numthings == 1:
+        filestr = filestr[0]  # TODO: make this right (for multiple outputs)
         try:
             thing = loadrtn(filestr)
             print loadmsg + filestr
