@@ -54,7 +54,9 @@ def comp_exp_nsmats(problemname='drivencavity',
                    )
 
     # compute the uncontrolled steady state Navier-Stokes solution
-    v_ss_nse, list_norm_nwtnupd = snu.solve_steadystate_nse(**soldict)
+    vp_ss_nse, list_norm_nwtnupd = snu.solve_steadystate_nse(return_vp=True,
+                                                             **soldict)
+    v_ss_nse, p_ss_nse = vp_ss_nse[:NV], vp_ss_nse[NV:]
 
     # specify in what spatial direction Bu changes. The remaining is constant
     if problemname == 'drivencavity':
@@ -257,6 +259,7 @@ def comp_exp_nsmats(problemname='drivencavity',
                                          rhsv=fv_stbc + fvc,
                                          rhsp=fp_stbc + fpc)
         old_v = vp_stokes[:NV]
+        p_stokes = -vp_stokes[NV:]  # the pressure was flipped for symmetry
 
         infostr = 'These are the coefficient matrices of the quadratic ' +\
             'formulation of the Navier-Stokes Equations \n for the ' +\
@@ -281,6 +284,7 @@ def comp_exp_nsmats(problemname='drivencavity',
                               J=stokesmatsc['J'], B=b_mat, Cv=c_mat,
                               Cp=pcmat,
                               info=infostr,
+                              p_ss_stokes=p_stokes, p_ss_nse=p_ss_nse,
                               v_ss_stokes=old_v, v_ss_nse=v_ss_nse,
                               contsetupstr=contsetupstr, datastr=cdatstr,
                               coors=coors, xinds=xinds, yinds=yinds,
