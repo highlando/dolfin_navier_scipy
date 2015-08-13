@@ -38,7 +38,7 @@ def comp_exp_nsmats(problemname='drivencavity',
     fv_stbc, fp_stbc = rhsd_stbc['fv'], rhsd_stbc['fp']
     invinds = femp['invinds']
     NV = invinds.shape[0]
-    data_prfx = problemname + '__'
+    data_prfx = problemname + '__N{0}Re{1}'.format(N, Re)
 
     soldict = stokesmatsc  # containing A, J, JT
     soldict.update(femp)  # adding V, Q, invinds, diribcs
@@ -49,7 +49,7 @@ def comp_exp_nsmats(problemname='drivencavity',
     soldict.update(fv=fv, fp=fp,
                    N=N, nu=nu,
                    get_datastring=None,
-                   data_prfx=ddir+data_prfx,
+                   data_prfx=ddir+data_prfx+'_stst',
                    paraviewoutput=False
                    )
 

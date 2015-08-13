@@ -31,6 +31,7 @@ def linearzd_quadterm(H, linv, hlstr=None):
         nv = linv.size
         # HLm = np.array(H * (sps.kron(sps.eye(nv), linv) +
         #                     sps.kron(linv, sps.eye(nv))))
+        # that seems a fast option but too memory consuming for my laptop
         HL = []
         for k in range(nv):
             ek = np.zeros((nv, 1))
