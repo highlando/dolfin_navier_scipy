@@ -202,20 +202,31 @@ def load_or_comp(filestr=None, comprtn=None, comprtnargs={},
     if not filestr.__class__ == list:
         filestr = [filestr]
 
-    if debug:
-        return comprtn(**comprtnargs)
     if itsadict:
         import json
+        things = []
         try:
+            if debug:
+                raise IOError()
             for filename in filestr:
                 fjs = open(filename)
-                thing = json.load(fjs)
+                things.append(json.load(fjs))
+                fjs.close()
         except IOError:
             things = comprtn(**comprtnargs)
-            for k, filename in enumerate(filestr):
-                f = open(filename, 'w')
-                f.write(json.dumps(things[k]))
-        return thing
+            if things.__class__ == dict:
+                f = open(filestr[0], 'w')
+                f.write(json.dumps(things))
+                f.close()
+            else:
+                for k, filename in enumerate(filestr):
+                    f = open(filename, 'w')
+                    f.write(json.dumps(things[k]))
+                    f.close()
+        if len(things) == 1:
+            return things[0]
+        else:
+            return things
 
     if arraytype == 'dense':
         savertn = save_npa

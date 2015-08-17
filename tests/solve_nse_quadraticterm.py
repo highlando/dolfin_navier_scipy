@@ -23,6 +23,9 @@ compevs = True
 
 
 def linearzd_quadterm(H, linv, hlstr=None):
+    print 'TODO: this function will be deprecated soon'
+    print 'see ~/work/code/nse-quad-refree/python/conv_tensor_utils.py'
+    print 'for a maintained version'
     try:
         HLm = dou.load_spa(hlstr + '.mtx')
         print 'loaded `hlmat`'

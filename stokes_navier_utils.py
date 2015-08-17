@@ -310,6 +310,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               vfileprfx='', pfileprfx='',
               return_dictofvelstrs=False,
               return_dictofpstrs=False,
+              dictkeysstr=False,
               comp_nonl_semexp=False,
               return_as_list=False,
               start_ssstokes=False,
@@ -341,6 +342,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
          * Newton: {`t`: 'path_to_nparray'}
 
         defaults to `None`
+    dictkeysstr : boolean, optional
+        whether the `keys` of the result dictionaries are strings instead \
+        of floats, defaults to `False`
     fv_tmdp : callable f(t, v, dict), optional
         time-dependent part of the right-hand side, set to zero if None
     fv_tmdp_params : dictionary, optional
@@ -446,6 +450,18 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         for fname in glob.glob(cdatstr + '__p*'):
             os.remove(fname)
 
+    def _atdct(cdict, t, thing):
+        if dictkeysstr:
+            cdict.update({'{0}'.format(t): thing})
+        else:
+            cdict.update({t: thing})
+
+    def _gfdct(cdict, t):
+        if dictkeysstr:
+            return cdict['{0}'.format(t)]
+        else:
+            return cdict[t]
+
     if stokes_flow:
         vel_nwtn_stps = 1
         vel_pcrd_stps = 0
@@ -476,15 +492,16 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             if norm_nwtnupd < vel_nwtn_tol and not return_dictofvelstrs:
                 return
             elif norm_nwtnupd < vel_nwtn_tol:
-                dictofvelstrs = {trange[0]: cdatstr + '__vel'}
+                dictofvelstrs = {'{0}'.format(trange[0]): cdatstr + '__vel'}
                 if return_dictofpstrs:
                     try:
                         p_old = dou.load_npa(cdatstr + '__p')
-                        dictofpstrs = {trange[0]: cdatstr + '__p'}
+                        dictofpstrs = {}
+                        _atdct(dictofpstrs, trange[0], cdatstr+'__p')
                     except:
                         p_old = get_pfromv(v=v_old, **gpfvd)
                         dou.save_npa(p_old, fstring=cdatstr + '__p')
-                        dictofpstrs = {trange[0]: cdatstr + '__p'}
+                        _atdct(dictofpstrs, trange[0], cdatstr+'__p')
 
                 for t in trange[1:]:
                     # test if the vels are there
@@ -492,14 +509,14 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     # update the dict
                     datastrdict.update(dict(time=t))
                     cdatstr = get_datastring(**datastrdict)
-                    dictofvelstrs.update({t: cdatstr + '__vel'})
+                    _atdct(dictofvelstrs, t, cdatstr + '__vel')
                     try:
                         p_old = dou.load_npa(cdatstr + '__p')
-                        dictofpstrs.update({t: cdatstr + '__p'})
+                        _atdct(dictofpstrs, t, cdatstr + '__p')
                     except:
                         p_old = get_pfromv(v=v_old, **gpfvd)
                         dou.save_npa(p_old, fstring=cdatstr + '__p')
-                        dictofpstrs.update({t: cdatstr + '__p'})
+                        _atdct(dictofpstrs, t, cdatstr + '__p')
 
                 if return_dictofpstrs:
                     return dictofvelstrs, dictofpstrs
@@ -548,11 +565,13 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     cdatstr = get_datastring(**datastrdict)
 
     dou.save_npa(_append_bcs_ornot(v_old), fstring=cdatstr + '__vel')
-    dictofvelstrs = {trange[0]: cdatstr + '__vel'}
+    dictofvelstrs = {}
+    _atdct(dictofvelstrs, trange[0], cdatstr + '__vel')
     if return_dictofpstrs:
         p_old = get_pfromv(v=v_old, **gpfvd)
         dou.save_npa(p_old, fstring=cdatstr + '__p')
-        dictofpstrs = {trange[0]: cdatstr + '__p'}
+        dictofpstrs = {}
+        _atdct(dictofpstrs, trange[0], cdatstr+'__p')
 
     if return_as_list:
         vellist = []
@@ -604,10 +623,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 prev_v = v_old
             else:
                 try:
-                    prev_v = dou.load_npa(cur_linvel_point[trange[0]])
+                    prev_v = dou.load_npa(_gfdct(cur_linvel_point, trange[0]))
                 except KeyError:
                     try:
-                        prev_v = dou.load_npa(cur_linvel_point[None])
+                        prev_v = dou.load_npa(_gfdct(cur_linvel_point, None))
                     except TypeError:
                         prev_v = cur_linvel_point[None]
 
@@ -662,10 +681,11 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     prev_v = v_old
                 else:
                     try:
-                        prev_v = dou.load_npa(cur_linvel_point[t])
+                        prev_v = dou.load_npa(_gfdct(cur_linvel_point, t))
                     except KeyError:
                         try:
-                            prev_v = dou.load_npa(cur_linvel_point[None])
+                            prev_v = dou.load_npa(_gfdct(cur_linvel_point,
+                                                         None))
                         except TypeError:
                             prev_v = cur_linvel_point[None]
                 convc_mat_n, rhs_con_n, rhsv_conbc_n = \
@@ -736,12 +756,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 convc_mat_c) = umat_n, vmat_n, fvn_n, convc_mat_n
 
             dou.save_npa(_append_bcs_ornot(v_old), fstring=cdatstr + '__vel')
-            dictofvelstrs.update({t: cdatstr + '__vel'})
+            _atdct(dictofvelstrs, t, cdatstr + '__vel')
             if return_dictofpstrs:
                 p_new = -1/cts*vp_new[NV:, ]
                 # p was flipped and scaled for symmetry
                 dou.save_npa(p_new, fstring=cdatstr + '__p')
-                dictofpstrs.update({t: cdatstr + '__p'})
+                dictofpstrs.update({'{0}'.format(t): cdatstr + '__p'})
 
             if return_as_list:
                 vellist.append(_append_bcs_ornot(v_old))
