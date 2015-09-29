@@ -5,6 +5,7 @@ from dolfin_to_sparrays import expand_vp_dolfunc
 import dolfin
 import sys
 import datetime
+import time
 
 __all__ = ['output_paraview',
            'save_npa', 'save_spa',
@@ -269,3 +270,16 @@ def logtofile(logstr):
     sys.stdout = open(logstr, 'a', 0)
     print('{0}'*10 + '\n log started at {1} \n' + '{0}'*10).\
         format('X', str(datetime.datetime.now()))
+
+
+class Timer(object):
+    def __init__(self, name=None):
+        self.name = name
+
+    def __enter__(self):
+        self.tstart = time.time()
+
+    def __exit__(self, type, value, traceback):
+        if self.name:
+            print '[%s]' % self.name,
+        print 'Elapsed: %s' % (time.time() - self.tstart)
