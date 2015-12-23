@@ -23,14 +23,47 @@ ddir = 'data/'
 def comp_exp_nsmats(problemname='drivencavity',
                     N=10, Re=1e2, nu=None,
                     linear_system=False, refree=False,
+                    bccontrol=False, palpha=None,
                     mddir='pathtodatastorage'):
+    """compute and export the system matrices for Navier-Stokes equations
+
+    Parameters
+    ---
+    refree : boolean, optional
+        whether to use `Re=1` (so that the `Re` number can be applied later by
+        scaling the corresponding matrices, defaults to `False`
+    linear_system : boolean, optional
+        whether to compute/return the linearized system, defaults to `False`
+    bccontrol : boolean, optional
+        whether to model boundary control at the cylinder via penalized robin
+        boundary conditions, defaults to `False`
+    palpha : float, optional
+        penalization parameter for the boundary control, defaults to `None`,
+        `palpha` is mandatory for `linear_system`
+
+    """
 
     if refree:
         Re = 1
         print 'For the Reynoldsnumber free mats, we set Re=1'
 
+    if problemname == 'drivencavity' and bccontrol:
+        raise NotImplementedError('boundary control for the driven cavity' +
+                                  ' is not implemented yet')
+
+    if linear_system and bccontrol and palpha is None:
+        raise UserWarning('For the linear system a' +
+                          ' value for `palpha` is needed')
+    if not linear_system and bccontrol:
+        raise NotImplementedError('Nonlinear system with boundary control' +
+                                  ' is not implemented yet')
     femp, stokesmatsc, rhsd_vfrc, rhsd_stbc = \
-        dnsps.get_sysmats(problem=problemname, N=N, Re=Re)
+        dnsps.get_sysmats(problem=problemname, bccontrol=bccontrol, N=N, Re=Re)
+    if linear_system and bccontrol:
+        Arob = stokesmatsc['A'] + 1./palpha*stokesmatsc['Arob']
+        Brob = 1./palpha*stokesmatsc['Brob']
+    elif linear_system:
+        Brob is None
 
     invinds = femp['invinds']
     A, J = stokesmatsc['A'], stokesmatsc['J']
@@ -39,12 +72,21 @@ def comp_exp_nsmats(problemname='drivencavity',
     invinds = femp['invinds']
     NV = invinds.shape[0]
     data_prfx = problemname + '__N{0}Re{1}'.format(N, Re)
+    if bccontrol:
+        data_prfx = data_prfx + '_penarob'
 
     soldict = stokesmatsc  # containing A, J, JT
     soldict.update(femp)  # adding V, Q, invinds, diribcs
     soldict.update(rhsd_vfrc)  # adding fvc, fpr
     fv = rhsd_vfrc['fvc'] + rhsd_stbc['fv']
     fp = rhsd_vfrc['fpr'] + rhsd_stbc['fp']
+    # print 'get expmats: ||fv|| = {0}'.format(np.linalg.norm(fv))
+    # print 'get expmats: ||fp|| = {0}'.format(np.linalg.norm(fp))
+    # import scipy.sparse.linalg as spsla
+    # print 'get expmats: ||A|| = {0}'.format(spsla.norm(A))
+    # print 'get expmats: ||Arob|| = {0}'.format(spsla.norm(Arob))
+    # print 'get expmats: ||A|| = {0}'.format(spsla.norm(stokesmatsc['A']))
+    # raise Warning('TODO: debug')
 
     soldict.update(fv=fv, fp=fp,
                    N=N, nu=nu,
@@ -52,6 +94,8 @@ def comp_exp_nsmats(problemname='drivencavity',
                    data_prfx=ddir+data_prfx+'_stst',
                    paraviewoutput=False
                    )
+    if bccontrol and linear_system:
+        soldict.update(A=Arob)
 
     # compute the uncontrolled steady state Navier-Stokes solution
     vp_ss_nse, list_norm_nwtnupd = snu.solve_steadystate_nse(return_vp=True,
@@ -136,7 +180,7 @@ def comp_exp_nsmats(problemname='drivencavity',
      yinds, corfunvec) = dts.get_dof_coors(femp['V'], invinds=invinds)
 
     ctrl_visu_str = \
-        ' the control setup is as follows \n' +\
+        ' the (distributed) control setup is as follows \n' +\
         ' B maps into the domain of control -' +\
         velcondomstr +\
         ' the first half of the columns' +\
@@ -158,6 +202,14 @@ def comp_exp_nsmats(problemname='drivencavity',
         '(see https://github.com/highlando/dolfin_navier_scipy) at\n' +\
         datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y")
 
+    if bccontrol and problemname == 'cylinderwake' and linear_system:
+        ctrl_visu_str = \
+            ('the boundary control is realized via penalized robin \n' +
+             'boundary conditions, cf. e.g. [Hou/Ravindran `98], \n' +
+             'with predefined shape functions for the cylinder wake \n' +
+             'and the penalization parameter `palpha`={0}.').format(palpha) +\
+            ctrl_visu_str
+
     if linear_system:
         convc_mat, rhs_con, rhsv_conbc = \
             snu.get_v_conv_conts(prev_v=v_ss_nse, invinds=invinds,
@@ -175,16 +227,21 @@ def comp_exp_nsmats(problemname='drivencavity',
             ' the steadystate velocity solution `v_ss_nse` \n\n' +\
             ctrl_visu_str
 
-        scipy.io.savemat(mddir + problemname +
-                         '__mats_N{0}_Re{1}'.format(NV, Re),
+        matstr = (mddir + problemname + '__mats_N{0}_Re{1}').format(NV, Re)
+        if bccontrol:
+            matstr = matstr + '__penarob_palpha{0}'.format(palpha)
+
+        scipy.io.savemat(matstr,
                          dict(A=f_mat, M=stokesmatsc['M'],
                               nu=femp['nu'], Re=femp['Re'],
                               J=stokesmatsc['J'], B=b_mat, C=c_mat,
-                              Cp=pcmat,
+                              Cp=pcmat, Brob=Brob,
                               v_ss_nse=v_ss_nse, info=infostr,
                               contsetupstr=contsetupstr, datastr=cdatstr,
                               coors=coors, xinds=xinds, yinds=yinds,
                               corfunvec=corfunvec))
+
+        print('matrices saved to ' + matstr)
 
     elif refree:
         hstr = ddir + problemname + '_N{0}_hmat'.format(N)
