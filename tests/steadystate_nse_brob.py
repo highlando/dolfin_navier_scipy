@@ -54,5 +54,5 @@ if __name__ == '__main__':
     # testit(N=25, nu=3e-4)
     # testit(problem='cylinderwake', N=3, nu=2e-3)
     # testit(problem='drivencavity', N=25, Re=500)
-    testit(problem='cylinderwake', N=3, Re=1.e2,
+    testit(problem='cylinderwake', N=2, Re=1.e2,
            nnwtnstps=5, npcrdstps=15)
