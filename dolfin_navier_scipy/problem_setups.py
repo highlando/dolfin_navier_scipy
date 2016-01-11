@@ -500,7 +500,10 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
     if refinement_level > 9:
         raise RuntimeError("No mesh available for refinement level {0}".
                            format(refinement_level))
-    mesh = dolfin.Mesh("mesh/cylinder_%d.xml" % refinement_level)
+    try:
+        mesh = dolfin.Mesh("mesh/cylinder_%d.xml.gz" % refinement_level)
+    except RuntimeError:
+        mesh = dolfin.Mesh("mesh/cylinder_%d.xml" % refinement_level)
 
     # scheme = 'CR'
     if scheme == 'CR':

@@ -8,7 +8,7 @@ dolfin.parameters.linear_algebra_backend = 'uBLAS'
 
 
 def testit(problem='cylinderwake', N=2, nu=None, Re=1e2, Nts=1e3+1,
-           ParaviewOutput=False, tE=1.0, scheme=None):
+           ParaviewOutput=False, tE=1.0, scheme=None, zerocontrol=False):
 
     nnewtsteps = 9  # n nwtn stps for vel comp
     vel_nwtn_tol = 1e-14
@@ -24,7 +24,10 @@ def testit(problem='cylinderwake', N=2, nu=None, Re=1e2, Nts=1e3+1,
 
     palpha = 1e-8
     stokesmatsc['A'] = stokesmatsc['A'] + 1./palpha*stokesmatsc['Arob']
-    Brob = 1./palpha*stokesmatsc['Brob']
+    if zerocontrol:
+        Brob = 0.*1./palpha*stokesmatsc['Brob']
+    else:
+        Brob = 1./palpha*stokesmatsc['Brob']
 
     def fv_tmdp(time=0, v=None, **kw):
         return np.sin(time)*(Brob[:, :1] - Brob[:, 1:]), None
@@ -56,5 +59,5 @@ if __name__ == '__main__':
     # !!! bccontrol doesn't work for `scheme = 'CR'` !!!
     # testit(problem='cylinderwake', N=2, Re=60, Nts=2e3, tE=4.,
     #        ParaviewOutput=True, scheme='TH')
-    testit(problem='cylinderwake', N=4, Re=100, Nts=512, tE=1.,
-           ParaviewOutput=True, scheme='TH')
+    testit(problem='cylinderwake', N=2, Re=100, Nts=512, tE=2.,
+           ParaviewOutput=True, scheme='TH', zerocontrol=False)

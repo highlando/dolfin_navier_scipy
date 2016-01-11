@@ -24,6 +24,7 @@ def comp_exp_nsmats(problemname='drivencavity',
                     N=10, Re=1e2, nu=None,
                     linear_system=False, refree=False,
                     bccontrol=False, palpha=None,
+                    use_old_data=False,
                     mddir='pathtodatastorage'):
     """compute and export the system matrices for Navier-Stokes equations
 
@@ -63,7 +64,7 @@ def comp_exp_nsmats(problemname='drivencavity',
         Arob = stokesmatsc['A'] + 1./palpha*stokesmatsc['Arob']
         Brob = 1./palpha*stokesmatsc['Brob']
     elif linear_system:
-        Brob is None
+        Brob = 0
 
     invinds = femp['invinds']
     A, J = stokesmatsc['A'], stokesmatsc['J']
@@ -90,6 +91,7 @@ def comp_exp_nsmats(problemname='drivencavity',
 
     soldict.update(fv=fv, fp=fp,
                    N=N, nu=nu,
+                   clearprvdata=~use_old_data,
                    get_datastring=None,
                    data_prfx=ddir+data_prfx+'_stst',
                    paraviewoutput=False
@@ -214,7 +216,11 @@ def comp_exp_nsmats(problemname='drivencavity',
         convc_mat, rhs_con, rhsv_conbc = \
             snu.get_v_conv_conts(prev_v=v_ss_nse, invinds=invinds,
                                  V=femp['V'], diribcs=femp['diribcs'])
-        f_mat = - stokesmatsc['A'] - convc_mat
+        # TODO: omg
+        if bccontrol:
+            f_mat = - Arob - convc_mat
+        else:
+            f_mat = - stokesmatsc['A'] - convc_mat
 
         infostr = 'These are the coefficient matrices of the linearized ' +\
             'Navier-Stokes Equations \n for the ' +\
