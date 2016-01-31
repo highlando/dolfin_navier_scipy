@@ -507,7 +507,7 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
 
     # scheme = 'CR'
     if scheme == 'CR':
-        print 'we use Crouzieux-Raviart elements !'
+        # print 'we use Crouzieux-Raviart elements !'
         V = dolfin.VectorFunctionSpace(mesh, "CR", 1)
         Q = dolfin.FunctionSpace(mesh, "DG", 0)
     else:
