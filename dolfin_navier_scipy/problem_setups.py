@@ -216,11 +216,11 @@ def drivcav_fems(N, vdgree=2, pdgree=1, scheme=None, bccontrol=None):
 
     mesh = dolfin.UnitSquareMesh(N, N)
     if scheme == 'CR':
-        print 'we use Crouzieux-Raviart elements !'
+        # print 'we use Crouzieux-Raviart elements !'
         V = dolfin.VectorFunctionSpace(mesh, "CR", 1)
         Q = dolfin.FunctionSpace(mesh, "DG", 0)
     if scheme == 'TH':
-        print 'we use Taylor-Hood elements !'
+        # print 'we use Taylor-Hood elements !'
         V = dolfin.VectorFunctionSpace(mesh, "CG", 2)
         Q = dolfin.FunctionSpace(mesh, "CG", 1)
     else:

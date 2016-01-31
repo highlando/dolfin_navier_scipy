@@ -572,7 +572,9 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None, diribcs=None, vp=None,
 
     v = dolfin.Function(V)
 
-    if diribcs is None or len(vc) > len(invinds):
+    if vc.size > V.dim():
+        raise UserWarning('The dimension of the vector must no exceed V.dim')
+    elif diribcs is None or len(vc) == V.dim():
         # we assume that the boundary conditions are already contained in vc
         ve = vc
     else:
@@ -581,6 +583,7 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None, diribcs=None, vp=None,
         for bc in diribcs:
             bcdict = bc.get_boundary_values()
             ve[bcdict.keys(), 0] = bcdict.values()
+
         ve[invinds] = vc
 
     if pc is not None:
