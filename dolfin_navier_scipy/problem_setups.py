@@ -303,7 +303,7 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
          * `fp`: right hand side of the continuity equation
          * `charlen`: characteristic length of the setup
          * `odcoo`: dictionary with the coordinates of the \
-                 domain of observatio
+                 domain of observation
          * `cdcoo`: dictionary with the coordinates of the domain of control
          * `uspacedep`: int that specifies in what spatial direction Bu \
                 changes. The remaining is constant

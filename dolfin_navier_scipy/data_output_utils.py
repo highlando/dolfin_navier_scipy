@@ -187,7 +187,10 @@ def load_or_comp(filestr=None, comprtn=None, comprtnargs={},
 
     Parameters
     ----------
-    arraytype: {None, 'sparse', 'dense'}
+    filestr: {string, list of strings, `None`}
+        where to load/store the computed things, \
+        if `None` nothing is loaded or stored
+    arraytype: {`None`, 'sparse', 'dense'}
         if not None, then it sets the default routines to save/load dense or \
         sparse arrays
     itsadict: boolean, optional
@@ -200,6 +203,10 @@ def load_or_comp(filestr=None, comprtn=None, comprtnargs={},
         no saving or loading, defaults to `False`
 
     """
+    if filestr is None:
+        things = comprtn(**comprtnargs)
+        return things
+
     if not filestr.__class__ == list:
         filestr = [filestr]
 
