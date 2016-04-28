@@ -1,9 +1,7 @@
-import dolfin
-
 import dolfin_navier_scipy.stokes_navier_utils as snu
 import dolfin_navier_scipy.problem_setups as dnsps
 
-dolfin.parameters.linear_algebra_backend = 'uBLAS'
+# dolfin.parameters.linear_algebra_backend = 'uBLAS'
 
 # krylovdict = dict(krylov='Gmres', krpslvprms={'tol': 1e-2,
 #                                              'convstatsl': [],
@@ -53,7 +51,7 @@ if __name__ == '__main__':
     # schemel = ['CR', 'TH']
     # scheme = schemel[scme]
     # testit(N=40, Re=1e3, Nts=.5e2, tE=.5, ParaviewOutput=True, scheme=scheme)
-    testit(problem='cylinderwake', N=2, Re=120, Nts=512, tE=1.,
+    testit(problem='cylinderwake', N=2, Re=70, Nts=256, tE=.5,
            ParaviewOutput=True, scheme='TH')
     # testit(problem='cylinderwake', N=4, Re=80, Nts=1000, tE=1.,
     #        ParaviewOutput=True, scheme='CR')

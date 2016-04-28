@@ -215,20 +215,11 @@ def get_stokessysmats(V, Q, nu=None, bccontrol=False,
     MP = dolfin.assemble(mp)
 
     # Convert DOLFIN representation to scipy arrays
-    rows, cols, values = M.data()
-    Ma = sps.csr_matrix((values, cols, rows))
-
-    rows, cols, values = MP.data()
-    MPa = sps.csr_matrix((values, cols, rows))
-
-    rows, cols, values = A.data()
-    Aa = sps.csr_matrix((values, cols, rows))
-
-    rows, cols, values = Grad.data()
-    JTa = sps.csr_matrix((values, cols, rows))
-
-    rows, cols, values = Div.data()
-    Ja = sps.csr_matrix((values, cols, rows))
+    Ma = mat_dolfin2sparse(M)
+    MPa = mat_dolfin2sparse(MP)
+    Aa = mat_dolfin2sparse(A)
+    JTa = mat_dolfin2sparse(Grad)
+    Ja = mat_dolfin2sparse(Div)
 
     stokesmats = {'M': Ma,
                   'A': Aa,
@@ -310,12 +301,10 @@ def get_convmats(u0_dolfun=None, u0_vec=None, V=None, invinds=None,
     f3 = dolfin.assemble(f3)
 
     # Convert DOLFIN representation to scipy arrays
-    rows, cols, values = n1.data()
-    N1 = sps.csr_matrix((values, cols, rows))
+    N1 = mat_dolfin2sparse(n1)
     N1.eliminate_zeros()
 
-    rows, cols, values = n2.data()
-    N2 = sps.csr_matrix((values, cols, rows))
+    N2 = mat_dolfin2sparse(n2)
     N2.eliminate_zeros()
 
     fv = f3.array()
