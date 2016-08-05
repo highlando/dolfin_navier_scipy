@@ -203,7 +203,8 @@ def load_or_comp(filestr=None, comprtn=None, comprtnargs={},
         no saving or loading, defaults to `False`
 
     """
-    if filestr is None:
+    if filestr is None or debug:
+        print "no datastr specified or `debug` -- won't load/save any data"
         things = comprtn(**comprtnargs)
         return things
 

@@ -1,9 +1,7 @@
-import dolfin
-
 import dolfin_navier_scipy.stokes_navier_utils as snu
 import dolfin_navier_scipy.problem_setups as dnsps
 
-dolfin.parameters.linear_algebra_backend = 'uBLAS'
+# dolfin.parameters.linear_algebra_backend = 'uBLAS'
 
 
 def testit(problem='cylinderwake', N=None, nu=None, Re=None,

@@ -112,12 +112,10 @@ def ass_convmat_asmatquad(W=None, invindsw=None):
         nxi = dolfin.assemble(v * bi.dx(0) * vt * dx)
         nyi = dolfin.assemble(v * bi.dx(1) * vt * dx)
 
-        rows, cols, values = nxi.data()
-        nxim = sps.csr_matrix((values, cols, rows))
+        nxim = mat_dolfin2sparse(nxi)
         nxim.eliminate_zeros()
 
-        rows, cols, values = nyi.data()
-        nyim = sps.csr_matrix((values, cols, rows))
+        nyim = mat_dolfin2sparse(nyi)
         nyim.eliminate_zeros()
 
         # resorting of the arrays and inserting zero columns
@@ -670,7 +668,7 @@ def get_dof_coors(V, invinds=None):
 
     # unidofs, uniinds = np.unique(dofar, return_index=True)
 
-    coorfun = dolfin.Expression(('x[0]', 'x[1]'))
+    coorfun = dolfin.Expression(('x[0]', 'x[1]'), element=V.ufl_element())
     coorfun = dolfin.interpolate(coorfun, V)
 
     xinds = V.sub(0).dofmap().dofs()

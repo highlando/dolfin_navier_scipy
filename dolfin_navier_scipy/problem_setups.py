@@ -528,7 +528,7 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
 
     # Create inflow boundary condition
     g0 = dolfin.Expression(('4*(x[1]*(ymax-x[1]))/(ymax*ymax)', '0.0'),
-                           ymax=ymax)
+                           ymax=ymax, element=V.ufl_element())
     bc0 = dolfin.DirichletBC(V, g0, InflowBoundary())
 
     # Create no-slip boundary condition
