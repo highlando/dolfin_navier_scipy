@@ -237,11 +237,11 @@ def get_stokessysmats(V, Q, nu=None, bccontrol=False,
             Gamma.mark(bparts, 0)
 
             # Robin boundary form
-            arob = dolfin.inner(u, v) * dolfin.ds(0)
-            brob = dolfin.inner(v, bcfun) * dolfin.ds(0)
+            arob = dolfin.inner(u, v) * dolfin.ds(0, subdomain_data=bparts)
+            brob = dolfin.inner(v, bcfun) * dolfin.ds(0, subdomain_data=bparts)
 
-            amatrob = dolfin.assemble(arob, exterior_facet_domains=bparts)
-            bmatrob = dolfin.assemble(brob, exterior_facet_domains=bparts)
+            amatrob = dolfin.assemble(arob)  # , exterior_facet_domains=bparts)
+            bmatrob = dolfin.assemble(brob)  # , exterior_facet_domains=bparts)
 
             amatrob = mat_dolfin2sparse(amatrob)
             amatrob.eliminate_zeros()
