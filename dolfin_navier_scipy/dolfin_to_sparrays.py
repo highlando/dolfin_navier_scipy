@@ -46,7 +46,7 @@ def mat_dolfin2sparse(A):
     """
     # rows, cols, values = A.data()
     # return sps.csr_matrix((values, cols, rows))
-    # since `dolfin 1.5+` does not support `'uBLAS'` anymore
+    # this was  `dolfin <= 1.5+` with `'uBLAS'` support
     return dolfin.as_backend_type(A).sparray()
 
 
@@ -380,7 +380,10 @@ def get_convvec(u0_dolfun=None, V=None, u0_vec=None, femp=None,
     ConvForm = inner(grad(u0) * u0, v) * dx
 
     ConvForm = dolfin.assemble(ConvForm)
-    ConvVec = ConvForm.array()[invinds]
+    if invinds is not None:
+        ConvVec = ConvForm.array()[invinds]
+    else:
+        ConvVec = ConvForm.array()
     ConvVec = ConvVec.reshape(len(ConvVec), 1)
 
     return ConvVec
