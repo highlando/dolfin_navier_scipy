@@ -492,7 +492,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             if norm_nwtnupd < vel_nwtn_tol and not return_dictofvelstrs:
                 return
             elif norm_nwtnupd < vel_nwtn_tol:
-                dictofvelstrs = {'{0}'.format(trange[0]): cdatstr + '__vel'}
+                datastrdict.update(dict(time=trange[0]))
+                dictofvelstrs = {}
+                _atdct(dictofvelstrs, trange[0], cdatstr + '__vel')
                 if return_dictofpstrs:
                     try:
                         p_old = dou.load_npa(cdatstr + '__p')
@@ -761,7 +763,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 p_new = -1/cts*vp_new[NV:, ]
                 # p was flipped and scaled for symmetry
                 dou.save_npa(p_new, fstring=cdatstr + '__p')
-                dictofpstrs.update({'{0}'.format(t): cdatstr + '__p'})
+                _atdct(dictofpstrs, t, cdatstr + '__p')
 
             if return_as_list:
                 vellist.append(_append_bcs_ornot(v_old))
