@@ -242,9 +242,9 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
     # Newton iteration
     while (vel_newtk < vel_nwtn_stps
-            and norm_nwtnupd is None or
-            norm_nwtnupd > vel_nwtn_tol or
-            norm_nwtnupd == np.array(None)):
+            and (norm_nwtnupd is None or
+                 norm_nwtnupd > vel_nwtn_tol or
+                 norm_nwtnupd == np.array(None))):
 
         vel_newtk += 1
 

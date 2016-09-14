@@ -1,4 +1,4 @@
-import dolfin
+# import dolfin
 import numpy as np
 import datetime
 import scipy.io
@@ -13,8 +13,7 @@ import sadptprj_riclyap_adi.lin_alg_utils as lau
 
 import distr_control_fenics.cont_obs_utils as cou
 
-dolfin.parameters.linear_algebra_backend = 'uBLAS'
-
+# dolfin.parameters.linear_algebra_backend = 'uBLAS'
 
 NU, NY = 7, 3
 ddir = 'data/'
