@@ -4,7 +4,10 @@ import scipy.sparse as sps
 
 from dolfin import dx, grad, div, inner
 
-dolfin.parameters.linear_algebra_backend = "Eigen"
+try:
+    dolfin.parameters.linear_algebra_backend = "Eigen"
+except RuntimeError:
+    dolfin.parameters.linear_algebra_backend = "uBLAS"
 
 __all__ = ['ass_convmat_asmatquad',
            'get_stokessysmats',
@@ -44,10 +47,11 @@ def mat_dolfin2sparse(A):
     """get the csr matrix representing an assembled linear dolfin form
 
     """
-    # rows, cols, values = A.data()
-    # return sps.csr_matrix((values, cols, rows))
-    # this was  `dolfin <= 1.5+` with `'uBLAS'` support
-    return dolfin.as_backend_type(A).sparray()
+    try:
+        return dolfin.as_backend_type(A).sparray()
+    except RuntimeError:  # `dolfin <= 1.5+` with `'uBLAS'` support
+        rows, cols, values = A.data()
+        return sps.csr_matrix((values, cols, rows))
 
 
 def ass_convmat_asmatquad(W=None, invindsw=None):
