@@ -5,9 +5,7 @@ import dolfin_navier_scipy.problem_setups as dnsps
 
 
 def testit(problem='cylinderwake', N=None, nu=None, Re=None,
-           nnwtnstps=9, npcrdstps=5):
-
-    palpha = 1e-5
+           nnwtnstps=9, npcrdstps=5, palpha=1e-5):
 
     vel_nwtn_tol = 1e-14
     # prefix for data files
@@ -24,7 +22,9 @@ def testit(problem='cylinderwake', N=None, nu=None, Re=None,
     proutdir = 'results/'
     ddir = 'data/'
     import scipy.sparse.linalg as spsla
-    print 'get expmats: ||A|| = {0}'.format(spsla.norm(stokesmatsc['A']))
+    print 'Nv = {0}'.format(stokesmatsc['A'].shape[0])
+    print 'nu/Re/palpha = {0}/{1}/{2}'.format(femp['nu'], femp['Re'], palpha)
+    print 'get expmats: ||Astokes|| = {0}'.format(spsla.norm(stokesmatsc['A']))
     print 'get expmats: ||Arob|| = {0}'.format(spsla.norm(stokesmatsc['Arob']))
 
     stokesmatsc['A'] = stokesmatsc['A'] + 1./palpha*stokesmatsc['Arob']
@@ -38,6 +38,7 @@ def testit(problem='cylinderwake', N=None, nu=None, Re=None,
     print 'get expmats: ||fp|| = {0}'.format(np.linalg.norm(rhsd['fp']))
     print 'get expmats: ||A|| = {0}'.format(spsla.norm(stokesmatsc['A']))
     raise Warning('TODO: debug')
+    # raise Warning('TODO: debug')
     soldict.update(fv=rhsd['fv']+brhs, fp=rhsd['fp'],
                    N=N, nu=nu,
                    vel_nwtn_stps=nnwtnstps,
@@ -60,5 +61,5 @@ if __name__ == '__main__':
     # testit(N=25, nu=3e-4)
     # testit(problem='cylinderwake', N=3, nu=2e-3)
     # testit(problem='drivencavity', N=25, Re=500)
-    testit(problem='cylinderwake', N=2, Re=80,
-           nnwtnstps=5, npcrdstps=15)
+    testit(problem='cylinderwake', N=5, Re=75,
+           nnwtnstps=5, npcrdstps=15, palpha=1e-6)
