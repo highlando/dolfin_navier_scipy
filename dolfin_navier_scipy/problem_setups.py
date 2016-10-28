@@ -171,6 +171,15 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
     femp.update({'nu': nu})
     femp.update({'Re': Re})
 
+    arob = stokesmatsc['Arob']
+    print 'nu/Re = {0}/{1}'.format(femp['nu'], femp['Re'])
+    import scipy.sparse.linalg as spsla
+    print 'get expmats: ||Arob|| = {0}'.\
+        format(spsla.norm(stokesmatsc['Arob']))
+    print 'nnz: {0}'.format(arob.nnz)
+    print 'norm(data): {0}'.format(np.linalg.norm(arob.data))
+    raise Warning('TODO: debug')
+
     if mergerhs:
         rhsd = dict(fv=rhsd_vfrc['fvc']+rhsd_stbc['fv'],
                     fp=rhsd_vfrc['fpr']+rhsd_stbc['fp'])
@@ -273,7 +282,7 @@ def drivcav_fems(N, vdgree=2, pdgree=1, scheme=None, bccontrol=None):
 
 
 def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
-             bccontrol=False, verbose=False):
+             bccontrol=False, verbose=True):
     """
     dictionary for the fem items for the cylinder wake
 
