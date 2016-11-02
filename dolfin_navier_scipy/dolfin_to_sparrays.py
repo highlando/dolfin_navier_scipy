@@ -236,13 +236,20 @@ def get_stokessysmats(V, Q, nu=None, bccontrol=False,
             # get an instance of the subdomain class
             Gamma = bc()
 
-            bparts = dolfin.MeshFunction('size_t', mesh,
-                                         mesh.topology().dim() - 1)
-            Gamma.mark(bparts, 0)
+            # bparts = dolfin.MeshFunction('size_t', mesh,
+            #                              mesh.topology().dim() - 1)
+
+            boundaries = dolfin.FacetFunction("size_t", mesh)
+            boundaries.set_all(0)
+            Gamma.mark(boundaries, 1)
+
+            ds = dolfin.Measure('ds', domain=mesh, subdomain_data=boundaries)
+
+            # Gamma.mark(bparts, 0)
 
             # Robin boundary form
-            arob = dolfin.inner(u, v) * dolfin.ds(0, subdomain_data=bparts)
-            brob = dolfin.inner(v, bcfun) * dolfin.ds(0, subdomain_data=bparts)
+            arob = dolfin.inner(u, v) * ds(1)  # , subdomain_data=bparts)
+            brob = dolfin.inner(v, bcfun) * ds(1)  # , subdomain_data=bparts)
 
             amatrob = dolfin.assemble(arob)  # , exterior_facet_domains=bparts)
             bmatrob = dolfin.assemble(brob)  # , exterior_facet_domains=bparts)
