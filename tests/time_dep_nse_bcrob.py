@@ -22,6 +22,8 @@ def testit(problem='cylinderwake', N=2, nu=None, Re=1e2, Nts=1e3+1,
     data_prfx = problem + '_N{0}_Re{1}_Nts{2}_tE{3}'.\
         format(N, femp['Re'], Nts, tE)
 
+    dolfin.plot(femp['mesh'])
+
     palpha = 1e-8
     stokesmatsc['A'] = stokesmatsc['A'] + 1./palpha*stokesmatsc['Arob']
     if zerocontrol:
@@ -59,5 +61,5 @@ if __name__ == '__main__':
     # !!! bccontrol doesn't work for `scheme = 'CR'` !!!
     # testit(problem='cylinderwake', N=2, Re=60, Nts=2e3, tE=4.,
     #        ParaviewOutput=True, scheme='TH')
-    testit(problem='cylinderwake', N=2, Re=100, Nts=512, tE=1.,
+    testit(problem='cylinderwake', N=1, Re=100, Nts=512, tE=1.,
            ParaviewOutput=True, scheme='TH', zerocontrol=False)
