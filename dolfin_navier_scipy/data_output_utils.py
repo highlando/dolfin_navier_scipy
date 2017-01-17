@@ -68,7 +68,7 @@ def load_json_dicts(StrToJs):
 
 def plot_prs_outp(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
                   outsig=None, tmesh=None, fignum=222, reference=None,
-                  compress=5, tikzfile=None):
+                  compress=5, tikzfile=None, tikzonly=False):
     import matplotlib.pyplot as plt
 
     if str_to_json is not None:
@@ -94,7 +94,11 @@ def plot_prs_outp(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
                   figurewidth='\\figurewidth'
                   )
         print 'tikz saved to ' + tikzfile + '.tikz'
-    fig.show()
+    if tikzonly:
+        return
+    else:
+        fig.show()
+        return
 
 
 def plot_outp_sig(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
