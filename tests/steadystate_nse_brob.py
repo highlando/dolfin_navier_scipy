@@ -27,7 +27,7 @@ def testit(problem='cylinderwake', N=None, nu=None, Re=None,
     print 'get expmats: ||Arob|| = {0}'.format(spsla.norm(stokesmatsc['Arob']))
 
     stokesmatsc['A'] = stokesmatsc['A'] + 1./palpha*stokesmatsc['Arob']
-    b_mat = 0.*1./palpha*stokesmatsc['Brob']
+    b_mat = 1./palpha*stokesmatsc['Brob']
     brhs = 1.5*b_mat[:, :1] - 1.5*b_mat[:, 1:]
 
     soldict = stokesmatsc  # containing A, J, JT
@@ -55,5 +55,5 @@ if __name__ == '__main__':
     # testit(N=25, nu=3e-4)
     # testit(problem='cylinderwake', N=3, nu=2e-3)
     # testit(problem='drivencavity', N=25, Re=500)
-    testit(problem='cylinderwake', N=3, Re=80,
+    testit(problem='cylinderwake', N=3, Re=60,
            nnwtnstps=5, npcrdstps=5)
