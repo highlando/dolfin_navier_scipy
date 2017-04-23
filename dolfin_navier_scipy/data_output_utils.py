@@ -296,10 +296,11 @@ def logtofile(logstr):
 
 
 class Timer(object):
-    def __init__(self, name=None, logger=None, timerinfo={}):
+    def __init__(self, name=None, logger=None, timerinfo={}, verbose=True):
         self.name = name
         self.logger = logger
         self.timerinfo = timerinfo
+        self.verbose = verbose
 
     def __enter__(self):
         self.tstart = time.time()
@@ -310,6 +311,6 @@ class Timer(object):
         if self.logger is not None:
             self.logger.info('{0}: Elapsed time: {1}'.
                              format(self.name, elt))
-        else:
+        if self.verbose:
             print '[%s]' % self.name,
             print 'Elapsed: %s' % (elt)

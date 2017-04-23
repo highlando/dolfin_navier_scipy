@@ -61,5 +61,5 @@ if __name__ == '__main__':
     # !!! bccontrol doesn't work for `scheme = 'CR'` !!!
     # testit(problem='cylinderwake', N=2, Re=60, Nts=2e3, tE=4.,
     #        ParaviewOutput=True, scheme='TH')
-    testit(problem='cylinderwake', N=1, Re=100, Nts=512, tE=1.,
+    testit(problem='cylinderwake', N=2, Re=100, Nts=512, tE=1.,
            ParaviewOutput=True, scheme='TH', zerocontrol=False)
