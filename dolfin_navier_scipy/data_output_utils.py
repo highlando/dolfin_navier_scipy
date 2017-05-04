@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.io
 import json
-from dolfin_to_sparrays import expand_vp_dolfunc
+from .dolfin_to_sparrays import expand_vp_dolfunc
 import dolfin
 import sys
 import datetime
@@ -78,7 +78,7 @@ def plot_prs_outp(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
     else:
         str_to_json = 'notspecified'
 
-    redinds = range(1, len(tmesh), compress)
+    redinds = list(range(1, len(tmesh), compress))
 
     redina = np.array(redinds)
 
@@ -94,9 +94,9 @@ def plot_prs_outp(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
                       figureheight='\\figureheight',
                       figurewidth='\\figurewidth'
                       )
-            print 'tikz saved to ' + tikzfile + '.tikz'
+            print('tikz saved to ' + tikzfile + '.tikz')
         except ImportError:
-            print 'cannot save to tikz -- no matplotlib2tikz found'
+            print('cannot save to tikz -- no matplotlib2tikz found')
     if tikzonly:
         return
     else:
@@ -116,7 +116,7 @@ def plot_outp_sig(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
     else:
         str_to_json = 'notspecified'
 
-    redinds = range(1, len(tmesh), compress)
+    redinds = list(range(1, len(tmesh), compress))
     redina = np.array(redinds)
 
     NY = len(outsig[0])/2
@@ -134,11 +134,11 @@ def plot_outp_sig(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
                   figureheight='\\figureheight',
                   figurewidth='\\figurewidth'
                   )
-        print 'tikz saved to ' + str_to_json + '{0}'.format(fignum) + '.tikz'
+        print('tikz saved to ' + str_to_json + '{0}'.format(fignum) + '.tikz')
         haztikz = True
     except ImportError:
         haztikz = False
-        print 'cannot save to tikz -- no matplotlib2tikz found'
+        print('cannot save to tikz -- no matplotlib2tikz found')
 
     fig.show()
 
@@ -166,10 +166,10 @@ def save_output_json(datadict=None,
     jsfile = open(fstring, mode='w')
     jsfile.write(json.dumps(datadict))
 
-    print 'output saved to ' + fstring
-    print '\n to plot run the commands \n'
-    print 'from ' + module + ' import ' + plotroutine
-    print plotroutine + '("' + fstring + '")'
+    print('output saved to ' + fstring)
+    print('\n to plot run the commands \n')
+    print('from ' + module + ' import ' + plotroutine)
+    print(plotroutine + '("' + fstring + '")')
 
 
 def extract_output(dictofpaths=None, tmesh=None, c_mat=None, ystarvec=None):
@@ -219,7 +219,7 @@ def load_or_comp(filestr=None, comprtn=None, comprtnargs={},
 
     """
     if filestr is None or debug:
-        print "no datastr specified or `debug` -- won't load/save any data"
+        print("no datastr specified or `debug` -- won't load/save any data")
         things = comprtn(**comprtnargs)
         return things
 
@@ -263,36 +263,36 @@ def load_or_comp(filestr=None, comprtn=None, comprtnargs={},
         filestr = filestr[0]  # TODO: make this right (for multiple outputs)
         try:
             thing = loadrtn(filestr)
-            print loadmsg + filestr
+            print(loadmsg + filestr)
         except IOError:
-            print 'could not load ' + filestr + ' -- lets compute it'
+            print('could not load ' + filestr + ' -- lets compute it')
             thing = comprtn(**comprtnargs)
             if savertn is not None:
                 savertn(thing, filestr)
-                print savemsg + filestr
+                print(savemsg + filestr)
         return thing
     if numthings == 2:
         try:
             thing1 = loadrtn(filestr[0])
             thing2 = loadrtn(filestr[1])
-            print loadmsg + filestr[0] + '/' + filestr[1]
+            print(loadmsg + filestr[0] + '/' + filestr[1])
         except IOError:
-            print 'could not load ' + filestr[0] + ' -- lets compute it'
-            print 'could not load ' + filestr[1] + ' -- lets compute it'
+            print('could not load ' + filestr[0] + ' -- lets compute it')
+            print('could not load ' + filestr[1] + ' -- lets compute it')
             thing1, thing2 = comprtn(**comprtnargs)
             if savertn is not None:
                 savertn(thing1, filestr[0])
                 savertn(thing2, filestr[1])
-                print savemsg + filestr[0] + '/' + filestr[1]
+                print(savemsg + filestr[0] + '/' + filestr[1])
         return thing1, thing2
 
 
 def logtofile(logstr):
-    print 'log goes ' + logstr
-    print 'how about \ntail -f '+logstr
+    print('log goes ' + logstr)
+    print('how about \ntail -f '+logstr)
     sys.stdout = open(logstr, 'a', 0)
-    print('{0}'*10 + '\n log started at {1} \n' + '{0}'*10).\
-        format('X', str(datetime.datetime.now()))
+    print(('{0}'*10 + '\n log started at {1} \n' + '{0}'*10).\
+        format('X', str(datetime.datetime.now())))
 
 
 class Timer(object):
@@ -312,5 +312,5 @@ class Timer(object):
             self.logger.info('{0}: Elapsed time: {1}'.
                              format(self.name, elt))
         if self.verbose:
-            print '[%s]' % self.name,
-            print 'Elapsed: %s' % (elt)
+            print('[%s]' % self.name, end=' ')
+            print('Elapsed: %s' % (elt))

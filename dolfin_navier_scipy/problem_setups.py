@@ -129,16 +129,16 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
 
     # remove the freedom in the pressure if required
     if problem == 'cylinderwake':
-        print 'cylinderwake: pressure need not be pinned'
+        print('cylinderwake: pressure need not be pinned')
         if ppin is not None:
             raise UserWarning('pinning the p will give wrong results')
     elif ppin is None:
-        print 'pressure is not pinned - `J` may be singular for internal flow'
+        print('pressure is not pinned - `J` may be singular for internal flow')
     elif ppin == -1:
         stokesmats['J'] = stokesmats['J'][:-1, :][:, :]
         stokesmats['JT'] = stokesmats['JT'][:, :-1][:, :]
         rhsd_vf['fp'] = rhsd_vf['fp'][:-1, :]
-        print 'pressure pinned at last dof `-1`'
+        print('pressure pinned at last dof `-1`')
     else:
         raise NotImplementedError('Cannot pin `p` other than at `-1`')
 
@@ -364,23 +364,23 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
     b2normal = rotby90.dot(b2tang) / np.linalg.norm(b2tang)
 
     if verbose:
-        print 'centvec :', centvec.flatten(), ' b1base', b1base.flatten()
-        print b1xmin, b1xmax, b1ymin, b1ymax
-        print b2xmin, b2xmax, b2ymin, b2ymax
-        print b1base, np.linalg.norm(b1base)
-        print b1tang
-        print b1normal
-        print b2base, np.linalg.norm(b2base)
-        print b2tang
-        print b2normal
-        print 'diameter of the outlet', radius*2*np.sin(extensrad/2)
-        print 'midpoint of the outlet 1 secant: [{0}, {1}]'.\
+        print('centvec :', centvec.flatten(), ' b1base', b1base.flatten())
+        print(b1xmin, b1xmax, b1ymin, b1ymax)
+        print(b2xmin, b2xmax, b2ymin, b2ymax)
+        print(b1base, np.linalg.norm(b1base))
+        print(b1tang)
+        print(b1normal)
+        print(b2base, np.linalg.norm(b2base))
+        print(b2tang)
+        print(b2normal)
+        print('diameter of the outlet', radius*2*np.sin(extensrad/2))
+        print('midpoint of the outlet 1 secant: [{0}, {1}]'.\
             format(centvec[0]+radius*np.cos(centerrad),
-                   centvec[1]+radius*np.sin(centerrad))
-        print 'midpoint of the outlet 2 secant: [{0}, {1}]'.\
+                   centvec[1]+radius*np.sin(centerrad)))
+        print('midpoint of the outlet 2 secant: [{0}, {1}]'.\
             format(centvec[0]+radius*np.cos(centerrad),
-                   centvec[1]-radius*np.sin(centerrad))
-        print 'angle of midpoint vec 1 and x-axis', np.rad2deg(centerrad)
+                   centvec[1]-radius*np.sin(centerrad)))
+        print('angle of midpoint vec 1 and x-axis', np.rad2deg(centerrad))
 
     def insidebbox(x, whichbox=None):
         inbbone = (x[0] > b1xmin and x[0] < b1xmax
@@ -468,8 +468,8 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
                         dx = x[0] - xcenter
                         dy = x[1] - ycenter
                         r = dolfin.sqrt(dx*dx + dy*dy)
-                        print x - centvec.flatten(), ': s=', s, ': r=', r, \
-                            ':', np.linalg.norm(np.array(vls))
+                        print(x - centvec.flatten(), ': s=', s, ': r=', r, \
+                            ':', np.linalg.norm(np.array(vls)))
 
                 def value_shape(self):
                     return (2,)
@@ -499,8 +499,8 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
                         dx = x[0] - xcenter
                         dy = x[1] - ycenter
                         r = dolfin.sqrt(dx*dx + dy*dy)
-                        print x - centvec.flatten(), ': s=', s, ': r=', r, \
-                            ':', np.linalg.norm(np.array(vls))
+                        print(x - centvec.flatten(), ': s=', s, ': r=', r, \
+                            ':', np.linalg.norm(np.array(vls)))
 
                 def value_shape(self):
                     return (2,)

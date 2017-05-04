@@ -36,7 +36,7 @@ def append_bcs_vec(vvec, V=None, vdim=None,
     # fill in the boundary values
     for bc in diribcs:
         bcdict = bc.get_boundary_values()
-        vwbcs[bcdict.keys(), 0] = bcdict.values()
+        vwbcs[list(bcdict.keys()), 0] = list(bcdict.values())
 
     vwbcs[invinds] = vvec
 
@@ -201,7 +201,7 @@ def get_stokessysmats(V, Q, nu=None, bccontrol=False,
 
     if nu is None:
         nu = 1
-        print 'No viscosity provided -- we set `nu=1`'
+        print('No viscosity provided -- we set `nu=1`')
 
     ma = inner(u, v) * dx
     mp = inner(p, q) * dx
@@ -444,15 +444,15 @@ def condense_sysmatsbybcs(stms, velbcs):
     bcinds = []
     for bc in velbcs:
         bcdict = bc.get_boundary_values()
-        auxu[bcdict.keys(), 0] = bcdict.values()
-        bcinds.extend(bcdict.keys())
+        auxu[list(bcdict.keys()), 0] = list(bcdict.values())
+        bcinds.extend(list(bcdict.keys()))
 
     # putting the bcs into the right hand sides
     fvbc = - stms['A'] * auxu    # '*' is np.dot for csr matrices
     fpbc = - stms['J'] * auxu
 
     # indices of the innernodes
-    invinds = np.setdiff1d(range(nv), bcinds).astype(np.int32)
+    invinds = np.setdiff1d(list(range(nv)), bcinds).astype(np.int32)
 
     # extract the inner nodes equation coefficients
     Mc = stms['M'][invinds, :][:, invinds]
@@ -510,14 +510,14 @@ def condense_velmatsbybcs(A, velbcs, return_bcinfo=False):
     bcinds = []
     for bc in velbcs:
         bcdict = bc.get_boundary_values()
-        auxu[bcdict.keys(), 0] = bcdict.values()
-        bcinds.extend(bcdict.keys())
+        auxu[list(bcdict.keys()), 0] = list(bcdict.values())
+        bcinds.extend(list(bcdict.keys()))
 
     # putting the bcs into the right hand sides
     fvbc = - A * auxu    # '*' is np.dot for csr matrices
 
     # indices of the innernodes
-    ininds = np.setdiff1d(range(nv), bcinds).astype(np.int32)
+    ininds = np.setdiff1d(list(range(nv)), bcinds).astype(np.int32)
 
     # extract the inner nodes equation coefficients
     Ac = A[ininds, :][:, ininds]
@@ -585,7 +585,7 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None, diribcs=None, vp=None,
         # fill in the boundary values
         for bc in diribcs:
             bcdict = bc.get_boundary_values()
-            ve[bcdict.keys(), 0] = bcdict.values()
+            ve[list(bcdict.keys()), 0] = list(bcdict.values())
 
         ve[invinds] = vc
 
@@ -650,7 +650,7 @@ def expand_vecnbc_dolfunc(V=None, vec=None,
             raise Warning('length of lists of bcs and facs not matching')
         for k, bc in enumerate(diribcs):
             bcdict = bc.get_boundary_values()
-            ve[bcdict.keys(), 0] += bcsfaclist[k]*np.array(bcdict.values())
+            ve[list(bcdict.keys()), 0] += bcsfaclist[k]*np.array(list(bcdict.values()))
     else:
         if not len(bcsfaclist) == len(bcvalsl):
             raise Warning('length of lists of bcs and facs not matching')

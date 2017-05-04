@@ -172,8 +172,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         vel_k = dou.load_npa(cdatstr + '__vel')
         norm_nwtnupd_list.append(norm_nwtnupd)
 
-        print 'found vel files'
-        print 'norm of last Nwtn update: {0}'.format(norm_nwtnupd)
+        print('found vel files')
+        print('norm of last Nwtn update: {0}'.format(norm_nwtnupd))
         if norm_nwtnupd < vel_nwtn_tol:
             if not return_vp:
                 return vel_k, norm_nwtnupd_list
@@ -183,7 +183,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                 return (np.vstack([vel_k, pfv]), norm_nwtnupd_list)
 
     except IOError:
-        print 'no old velocity data found'
+        print('no old velocity data found')
         norm_nwtnupd = None
 
     if paraviewoutput:
@@ -230,8 +230,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                                     rhsp=fp)
         normpicupd = np.sqrt(m_innerproduct(M, vel_k-vp_k[:NV, :]))[0]
 
-        print 'Picard iteration: {0} -- norm of update: {1}'\
-            .format(k+1, normpicupd)
+        print('Picard iteration: {0} -- norm of update: {1}'.
+              format(k+1, normpicupd))
 
         vel_k = vp_k[:NV, ]
         vp_k[NV:] = -vp_k[NV:]
@@ -262,8 +262,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         vel_k = vp_k[:NV, ]
         vp_k[NV:] = -vp_k[NV:]
         # pressure was flipped for symmetry
-        print 'Steady State NSE: Newton iteration: {0} -- norm of update: {1}'\
-            .format(vel_newtk, norm_nwtnupd)
+        print('Steady State NSE: Newton iteration: {0} -- norm of update: {1}'
+              .format(vel_newtk, norm_nwtnupd))
 
         dou.save_npa(vel_k, fstring=cdatstr + '__vel')
 
@@ -465,12 +465,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if stokes_flow:
         vel_nwtn_stps = 1
         vel_pcrd_stps = 0
-        print 'Stokes Flow!'
+        print('Stokes Flow!')
     elif lin_vel_point is None:
         comp_nonl_semexp_inig = True
         if not comp_nonl_semexp:
-            print('No linearization point given - explicit' +
-                  ' treatment of the nonlinearity in the first Iteration')
+            print(('No linearization point given - explicit' +
+                  ' treatment of the nonlinearity in the first Iteration'))
     else:
         cur_linvel_point = lin_vel_point
         comp_nonl_semexp_inig = False
@@ -484,11 +484,13 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             cdatstr = get_datastring(**datastrdict)
 
             norm_nwtnupd = dou.load_npa(cdatstr + '__norm_nwtnupd')
+            if norm_nwtnupd[0] is None:
+                norm_nwtnupd = 1.
             v_old = dou.load_npa(cdatstr + '__vel')
 
             norm_nwtnupd_list.append(norm_nwtnupd)
-            print 'found vel files'
-            print 'norm of last Nwtn update: {0}'.format(norm_nwtnupd)
+            print('found vel files')
+            print('norm of last Nwtn update: {0}'.format(norm_nwtnupd))
             if norm_nwtnupd < vel_nwtn_tol and not return_dictofvelstrs:
                 return
             elif norm_nwtnupd < vel_nwtn_tol:
@@ -529,7 +531,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
         except IOError:
             norm_nwtnupd = 2
-            print 'no old velocity data found'
+            print('no old velocity data found')
 
     def _append_bcs_ornot(vvec):
         if output_includes_bcs:  # make the switch here for better readibility
@@ -584,20 +586,20 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             newtk = vel_nwtn_stps
         elif comp_nonl_semexp_inig and not comp_nonl_semexp:
             pcrd_anyone = False
-            print 'explicit treatment of nonl. for initial guess'
+            print('explicit treatment of nonl. for initial guess')
         elif vel_pcrd_stps > 0 and not comp_nonl_semexp:
             vel_pcrd_stps -= 1
             pcrd_anyone = True
-            print 'Picard iterations for initial value -- {0} left'.\
-                format(vel_pcrd_stps)
+            print('Picard iterations for initial value -- {0} left'.
+                  format(vel_pcrd_stps))
         elif comp_nonl_semexp:
             pcrd_anyone = False
             newtk = vel_nwtn_stps
-            print 'No Newton iterations - explicit treatment of the nonlin.'
+            print('No Newton iterations - explicit treatment of the nonlin.')
         else:
             pcrd_anyone = False
             newtk += 1
-            print 'Computing Newton Iteration {0}'.format(newtk)
+            print('Computing Newton Iteration {0}'.format(newtk))
 
         v_old = iniv  # start vector for time integration in every Newtonit
         try:
@@ -665,7 +667,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             umat_c = None
 
         norm_nwtnupd = 0
-        print 'time to go',
+        print('time to go')
         for tk, t in enumerate(trange[1:]):
             cts = t - trange[tk]
             datastrdict.update(dict(time=t))
@@ -781,7 +783,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
         dou.save_npa(norm_nwtnupd, cdatstr + '__norm_nwtnupd')
         norm_nwtnupd_list.append(norm_nwtnupd[0])
-        print '\nnorm of current Newton update: {}'.format(norm_nwtnupd)
+        print('\nnorm of current Newton update: {}'.format(norm_nwtnupd))
         comp_nonl_semexp = False
         comp_nonl_semexp_inig = False
 
