@@ -106,7 +106,7 @@ def plot_prs_outp(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
 
 def plot_outp_sig(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
                   outsig=None, tmesh=None, fignum=222, reference=None,
-                  compress=5):
+                  tikzstr=None, compress=5):
     import matplotlib.pyplot as plt
 
     if str_to_json is not None:
@@ -130,11 +130,13 @@ def plot_outp_sig(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
 
     try:
         from matplotlib2tikz import save as tikz_save
-        tikz_save(str_to_json + '{0}'.format(fignum) + '.tikz',
+        if tikzstr is None:
+            tikzstr = str_to_json + '{0}'.format(fignum)
+        tikz_save(tikzstr + '.tikz',
                   figureheight='\\figureheight',
                   figurewidth='\\figurewidth'
                   )
-        print('tikz saved to ' + str_to_json + '{0}'.format(fignum) + '.tikz')
+        print('tikz saved to ' + tikzstr + '.tikz')
         haztikz = True
     except ImportError:
         haztikz = False

@@ -174,7 +174,11 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
         print('found vel files')
         print('norm of last Nwtn update: {0}'.format(norm_nwtnupd))
-        if norm_nwtnupd < vel_nwtn_tol:
+        if np.atleast_1d(norm_nwtnupd)[0] is None:
+            norm_nwtnupd = None
+            pass  # nothing useful found
+
+        elif norm_nwtnupd < vel_nwtn_tol:
             if not return_vp:
                 return vel_k, norm_nwtnupd_list
             else:
@@ -313,6 +317,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               dictkeysstr=False,
               comp_nonl_semexp=False,
               return_as_list=False,
+              verbose=True,
               start_ssstokes=False,
               **kw):
     """
@@ -667,13 +672,16 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             umat_c = None
 
         norm_nwtnupd = 0
-        print('time to go')
+        if verbose:
+            print('time to go')
         for tk, t in enumerate(trange[1:]):
             cts = t - trange[tk]
             datastrdict.update(dict(time=t))
             cdatstr = get_datastring(**datastrdict)
-            sys.stdout.write("\rEnd: {1} -- now: {0:f}".format(t, trange[-1]))
-            sys.stdout.flush()
+            if verbose:
+                sys.stdout.write("\rEnd: {1} -- now: {0:f}".
+                                 format(t, trange[-1]))
+                sys.stdout.flush()
             # prv_datastrdict = copy.deepcopy(datastrdict)
 
             # coeffs and rhs at next time instance
