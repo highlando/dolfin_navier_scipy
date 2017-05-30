@@ -119,7 +119,7 @@ def plot_outp_sig(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
     redinds = list(range(1, len(tmesh), compress))
     redina = np.array(redinds)
 
-    NY = len(outsig[0])/2
+    NY = np.int(len(outsig[0])/2)
 
     fig = plt.figure(fignum)
     ax1 = fig.add_subplot(111)
