@@ -293,8 +293,8 @@ def logtofile(logstr):
     print('log goes ' + logstr)
     print('how about \ntail -f '+logstr)
     sys.stdout = open(logstr, 'a', 0)
-    print(('{0}'*10 + '\n log started at {1} \n' + '{0}'*10).\
-        format('X', str(datetime.datetime.now())))
+    print(('{0}'*10 + '\n log started at {1} \n' + '{0}'*10).
+          format('X', str(datetime.datetime.now())))
 
 
 class Timer(object):
@@ -314,5 +314,4 @@ class Timer(object):
             self.logger.info('{0}: Elapsed time: {1}'.
                              format(self.name, elt))
         if self.verbose:
-            print('[%s]' % self.name, end=' ')
-            print('Elapsed: %s' % (elt))
+            print('{0}: Elapsed time: {1}'.format(self.name, elt))
