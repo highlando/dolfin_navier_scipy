@@ -489,8 +489,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             cdatstr = get_datastring(**datastrdict)
 
             norm_nwtnupd = dou.load_npa(cdatstr + '__norm_nwtnupd')
-            if norm_nwtnupd[0] is None:
+            try:
+                if norm_nwtnupd[0] is None:
+                    norm_nwtnupd = 1.
+            except IndexError:
                 norm_nwtnupd = 1.
+
             v_old = dou.load_npa(cdatstr + '__vel')
 
             norm_nwtnupd_list.append(norm_nwtnupd)
@@ -782,15 +786,19 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             dou.output_paraview(**prvoutdict)
 
             # integrate the Newton error
-            if stokes_flow or comp_nonl_semexp or comp_nonl_semexp_inig:
-                norm_nwtnupd = [None]
+            if stokes_flow or comp_nonl_semexp:
+                norm_nwtnupd = None
+            elif comp_nonl_semexp_inig:
+                norm_nwtnupd = 1.
+
             else:
                 if len(prev_v) > len(invinds):
                     prev_v = prev_v[invinds, :]
                 norm_nwtnupd += cts * m_innerproduct(M, v_old - prev_v)
+                norm_nwtnupd += np.float(norm_nwtnupd.flatten()[0])
 
         dou.save_npa(norm_nwtnupd, cdatstr + '__norm_nwtnupd')
-        norm_nwtnupd_list.append(norm_nwtnupd[0])
+        norm_nwtnupd_list.append(norm_nwtnupd)
         print('\nnorm of current Newton update: {}'.format(norm_nwtnupd))
         comp_nonl_semexp = False
         comp_nonl_semexp_inig = False

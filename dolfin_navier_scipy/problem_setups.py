@@ -43,7 +43,7 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
         defaults to `False`
     mergerhs : boolean, optional
         whether to merge the actual rhs and the contribution from the \
-        boundary conditions into one rhs
+        boundary conditions into one rhs, defaults to `False`
     onlymesh : boolean, optional
         whether to only return `femp`, containing the mesh and FEM spaces, \
         defaults to `False`
@@ -73,6 +73,7 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
     stokesmatsc : dict
         a dictionary of the condensed matrices:
          * `M`: the mass matrix of the velocity space,
+         * `MP`: the mass matrix of the pressure space,
          * `A`: the stiffness matrix,
          * `JT`: the gradient matrix, and
          * `J`: the divergence matrix
