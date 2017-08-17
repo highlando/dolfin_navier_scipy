@@ -10,7 +10,8 @@ krylovdict = {}
 
 
 def testit(problem='drivencavity', N=None, nu=None, Re=None, Nts=1e3,
-           ParaviewOutput=False, tE=1.0, scheme=None):
+           ParaviewOutput=False, nsects=1, addfullsweep=False,
+           tE=1.0, scheme=None):
 
     nnewtsteps = 9  # n nwtn stps for vel comp
     vel_nwtn_tol = 1e-14
@@ -31,6 +32,7 @@ def testit(problem='drivencavity', N=None, nu=None, Re=None, Nts=1e3,
     soldict.update(N=N, nu=nu,
                    vel_nwtn_stps=nnewtsteps,
                    vel_nwtn_tol=vel_nwtn_tol,
+                   nsects=nsects, addfullsweep=addfullsweep,
                    start_ssstokes=True,
                    get_datastring=None,
                    data_prfx=ddir+data_prfx,
@@ -51,9 +53,10 @@ if __name__ == '__main__':
     # schemel = ['CR', 'TH']
     # scheme = schemel[scme]
     # testit(N=40, Re=1e3, Nts=.5e2, tE=.5, ParaviewOutput=True, scheme=scheme)
-    testit(problem='cylinderwake', N=2, Re=70, Nts=256, tE=1.,
-           ParaviewOutput=True, scheme='TH')
-    # testit(problem='cylinderwake', N=2, Re=100, t0=0.0, tE=2., Nts=512,
-    #        scheme='TH', ParaviewOutput=True)
+    # testit(problem='cylinderwake', N=2, Re=70, Nts=256, tE=1.,
+    # testit(problem='cylinderwake', N=2, Re=70, Nts=56, tE=.2, nsects=5,
+    #        ParaviewOutput=True, scheme='TH')
+    testit(problem='cylinderwake', N=2, Re=100, tE=2., Nts=512,
+           scheme='TH', nsects=10, addfullsweep=True, ParaviewOutput=True)
     # testit(problem='cylinderwake', N=4, Re=80, Nts=1000, tE=1.,
     #        ParaviewOutput=True, scheme='CR')
