@@ -529,8 +529,9 @@ def condense_velmatsbybcs(A, velbcs, return_bcinfo=False):
         return Ac, fvbc
 
 
-def expand_vp_dolfunc(V=None, Q=None, invinds=None, diribcs=None, vp=None,
-                      vc=None, pc=None, ppin=-1, **kwargs):
+def expand_vp_dolfunc(V=None, Q=None, invinds=None,
+                      diribcs=None, zerodiribcs=False,
+                      vp=None, vc=None, pc=None, ppin=-1, **kwargs):
     """expand v [and p] to the dolfin function representation
 
     Parameters
@@ -545,6 +546,9 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None, diribcs=None, vp=None,
         of the (Dirichlet) velocity boundary conditions, \
         if `None` it is assumed that `vc` already contains the bc, \
         defaults to `None`
+    zerodiribcs : boolean, optional
+        whether to simply apply zero boundary conditions,
+        defaults to `False`
     vp : (N+M,1) array, optional
         solution vector of velocity and pressure
     vc : (N,1) array, optional
@@ -583,9 +587,10 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None, diribcs=None, vp=None,
     else:
         ve = np.zeros((V.dim(), 1))
         # fill in the boundary values
-        for bc in diribcs:
-            bcdict = bc.get_boundary_values()
-            ve[list(bcdict.keys()), 0] = list(bcdict.values())
+        if not zerodiribcs:
+            for bc in diribcs:
+                bcdict = bc.get_boundary_values()
+                ve[list(bcdict.keys()), 0] = list(bcdict.values())
 
         ve[invinds] = vc
 

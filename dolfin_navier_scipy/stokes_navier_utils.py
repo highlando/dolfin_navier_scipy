@@ -822,9 +822,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 dou.save_npa(_append_bcs_ornot(v_old),
                              fstring=cdatstr + '__vel')
                 _atdct(dictofvelstrs, t, cdatstr + '__vel')
+                p_new = -1/cts*vp_new[NV:, ]
+                # p was flipped and scaled for symmetry
                 if return_dictofpstrs:
-                    p_new = -1/cts*vp_new[NV:, ]
-                    # p was flipped and scaled for symmetry
                     dou.save_npa(p_new, fstring=cdatstr + '__p')
                     _atdct(dictofpstrs, t, cdatstr + '__p')
 
