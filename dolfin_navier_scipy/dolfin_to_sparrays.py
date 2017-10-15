@@ -592,7 +592,8 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None,
                 bcdict = bc.get_boundary_values()
                 ve[list(bcdict.keys()), 0] = list(bcdict.values())
 
-        ve[invinds] = vc
+        ve = ve.flatten()
+        ve[invinds] = vc.flatten()
 
     if pc is not None:
         if ppin is None:
@@ -655,7 +656,8 @@ def expand_vecnbc_dolfunc(V=None, vec=None,
             raise Warning('length of lists of bcs and facs not matching')
         for k, bc in enumerate(diribcs):
             bcdict = bc.get_boundary_values()
-            ve[list(bcdict.keys()), 0] += bcsfaclist[k]*np.array(list(bcdict.values()))
+            ve[list(bcdict.keys()), 0] +=\
+                bcsfaclist[k]*np.array(list(bcdict.values()))
     else:
         if not len(bcsfaclist) == len(bcvalsl):
             raise Warning('length of lists of bcs and facs not matching')
