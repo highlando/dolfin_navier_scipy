@@ -51,6 +51,13 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None,
 
     soldict.update(krylovdict)  # if we wanna use an iterative solver
 
+    from sksparse.cholmod import cholesky
+    M, A = stokesmatsc['M'], stokesmatsc['A']
+
+    cmfac = cholesky(M + 0.001*A)
+
+    import ipdb; ipdb.set_trace()
+
 #
 # compute the uncontrolled steady state Navier-Stokes solution
 #
@@ -62,5 +69,7 @@ if __name__ == '__main__':
     # testit(N=15, nu=1e-3)
     # testit(problem='cylinderwake', N=2, nu=2e-3, t0=0.0, tE=5., Nts=2.5*512,
     #        scheme='CR', ParaviewOutput=True)
-    testit(problem='cylinderwake', N=2, Re=100, t0=0.0, tE=2., Nts=512,
-           scheme='TH', ParaviewOutput=True)
+    # testit(problem='cylinderwake', N=2, Re=100, t0=0.0, tE=2., Nts=512,
+    #        scheme='TH', ParaviewOutput=True)
+    testit(problem='cylinderwake3D', N=2, Re=50, t0=0.0, tE=2., Nts=512,
+           scheme='CR', ParaviewOutput=True)
