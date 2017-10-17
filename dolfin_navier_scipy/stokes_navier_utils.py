@@ -880,6 +880,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
 
 def get_pfromv(v=None, V=None, M=None, A=None, J=None, fv=None, fp=None,
+               decouplevp=False, solve_M=None, symmetric=False,
+               cgtol=1e-8,
                diribcs=None, invinds=None, **kwargs):
     """ for a velocity `v`, get the corresponding `p`
 
@@ -893,7 +895,15 @@ def get_pfromv(v=None, V=None, M=None, A=None, J=None, fv=None, fp=None,
     _, rhs_con, _ = get_v_conv_conts(prev_v=v, V=V, invinds=invinds,
                                      diribcs=diribcs)
 
-    vp = lau.solve_sadpnt_smw(amat=M, jmat=J, jmatT=-J.T,
-                              rhsv=-A*v-rhs_con+fv)
-
-    return vp[J.shape[1]:, :]
+    if decouplevp and symmetric:
+        vp = lau.solve_sadpnt_smw(jmat=J, jmatT=J.T,
+                                  decouplevp=decouplevp, solve_A=solve_M,
+                                  symmetric=symmetric, cgtol=1e-8,
+                                  rhsv=-A*v-rhs_con+fv)
+        return -vp[J.shape[1]:, :]
+    else:
+        vp = lau.solve_sadpnt_smw(amat=M, jmat=J, jmatT=J.T,
+                                  decouplevp=decouplevp, solve_A=solve_M,
+                                  symmetric=symmetric, cgtol=1e-8,
+                                  rhsv=-A*v-rhs_con+fv)
+        return -vp[J.shape[1]:, :]
