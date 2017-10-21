@@ -3,8 +3,6 @@ import scipy.io
 import json
 from .dolfin_to_sparrays import expand_vp_dolfunc
 import dolfin
-import sys
-import datetime
 import time
 
 __all__ = ['output_paraview',
@@ -13,31 +11,44 @@ __all__ = ['output_paraview',
            'load_or_comp']
 
 
-def output_paraview(V=None, Q=None, fstring='nn',
-                    invinds=None, diribcs=None, vp=None, vc=None, pc=None,
+def output_paraview(V=None, Q=None, VS=None, fstring='nn',
+                    invinds=None, diribcs=None,
+                    vp=None, vc=None, pc=None, sc=None,
+                    sname='nn',
                     ppin=-1, t=None, writeoutput=True,
-                    vfile=None, pfile=None):
-    """write the paraview output for a solution vector vp
+                    vfile=None, pfile=None, sfile=None):
+    """write the paraview output for a solution `(v,p)` or a scalar `s`
 
+    given as coefficients
     """
 
     if not writeoutput:
         return
 
-    v, p = expand_vp_dolfunc(V=V, Q=Q, vp=vp,
-                             vc=vc, pc=pc,
-                             invinds=invinds, ppin=ppin,
-                             diribcs=diribcs)
+    if vc is not None or pc is not None or vp is not None:
+        v, p = expand_vp_dolfunc(V=V, Q=Q, vp=vp,
+                                 vc=vc, pc=pc,
+                                 invinds=invinds, ppin=ppin,
+                                 diribcs=diribcs)
 
-    v.rename('v', 'velocity')
-    if vfile is None:
-        vfile = dolfin.File(fstring+'_vel.pvd')
-    vfile << v, t
-    if p is not None:
-        p.rename('p', 'pressure')
-        if pfile is None:
-            pfile = dolfin.File(fstring+'_p.pvd')
-        pfile << p, t
+        v.rename('v', 'velocity')
+        if vfile is None:
+            vfile = dolfin.File(fstring+'_vel.pvd')
+        vfile << v, t
+        if p is not None:
+            p.rename('p', 'pressure')
+            if pfile is None:
+                pfile = dolfin.File(fstring+'_p.pvd')
+            pfile << p, t
+
+    if sc is not None:
+        sfun, _ = expand_vp_dolfunc(V=VS, vc=sc,
+                                    invinds=invinds, diribcs=diribcs)
+        sfun.rename('s', sname)
+
+        if sfile is None:
+            sfile = dolfin.File(fstring + '_' + sname + '.pvd')
+        sfile << sfun, t
 
 
 def save_npa(v, fstring='notspecified'):
@@ -290,11 +301,19 @@ def load_or_comp(filestr=None, comprtn=None, comprtnargs={},
 
 
 def logtofile(logstr):
-    print('log goes ' + logstr)
+    import datetime
+    import sys
+
+    print('log gogoes ' + logstr)
     print('how about \ntail -f '+logstr)
-    sys.stdout = open(logstr, 'a', 0)
+    sys.stdout = open(logstr, 'a', 1)
     print(('{0}'*10 + '\n log started at {1} \n' + '{0}'*10).
           format('X', str(datetime.datetime.now())))
+    # from contextlib import redirect_stdout
+    # with open(logstr, 'w') as f:
+    #     with redirect_stdout(f):
+    #         print(('{0}'*10 + '\n log started at {1} \n' + '{0}'*10).
+    #               format('X', str(datetime.datetime.now())))
 
 
 class Timer(object):
