@@ -1,8 +1,6 @@
 import numpy as np
 import scipy.io
 import json
-from .dolfin_to_sparrays import expand_vp_dolfunc
-import dolfin
 import time
 
 __all__ = ['output_paraview',
@@ -21,9 +19,12 @@ def output_paraview(V=None, Q=None, VS=None, fstring='nn',
 
     given as coefficients
     """
-
     if not writeoutput:
         return
+    else:
+        # hiding this calls as much as possible
+        from .dolfin_to_sparrays import expand_vp_dolfunc
+        import dolfin
 
     if vc is not None or pc is not None or vp is not None:
         v, p = expand_vp_dolfunc(V=V, Q=Q, vp=vp,

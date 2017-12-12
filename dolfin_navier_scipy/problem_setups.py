@@ -626,7 +626,7 @@ def cyl3D_fems(refinement_level=2, scheme='TH',
     # xmin = 0.0
     # xmax = 8.0
     # ymin = 0.0
-    ymax = 1.0
+    ymax = 1.5
     # zmin = 0.0
     # zmax = 1.0
     # xcenter = 2.0
