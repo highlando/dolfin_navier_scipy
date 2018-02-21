@@ -2,7 +2,8 @@ import numpy as np
 import scipy.sparse as sps
 import os
 import glob
-import sys
+import time
+# import sys
 # import copy
 import dolfin
 
@@ -18,9 +19,12 @@ __all__ = ['get_datastr_snu',
 
 
 def get_datastr_snu(time=None, meshp=None, nu=None, Nts=None, data_prfx=''):
-
-    return (data_prfx +
-            'time{0}_nu{1}_mesh{2}_Nts{3}').format(time, nu, meshp, Nts)
+    if time is None or isinstance(time, str):
+        return (data_prfx + 'time{0}_nu{1:.3e}_mesh{2}_Nts{3}'.
+                format(time, nu, meshp, Nts))
+    else:
+        return (data_prfx + 'time{0:.5e}_nu{1:.3e}_mesh{2}_Nts{3}'.
+                format(time, nu, meshp, Nts))
 
 
 def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
@@ -723,16 +727,23 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
             norm_nwtnupd = 0
             if verbose:
-                print('time to go')
+                # define at which points of time the progress is reported
+                nouts = 10  # number of output points
+                locnts = loctrng.size
+                filtert = np.arange(0, locnts,
+                                    np.int(np.floor(locnts/nouts)))
+                loctinstances = loctrng[filtert]
+                loctinstances[0] = loctrng[1]
+                loctinstances = loctinstances.tolist()
+                print('doing the time integration...')
             for tk, t in enumerate(loctrng[1:]):
                 cts = t - loctrng[tk]
                 datastrdict.update(dict(time=t))
                 cdatstr = get_datastring(**datastrdict)
-                if verbose:
-                    sys.stdout.write("\rEnd: {1} -- now: {0:f}".
-                                     format(t, loctrng[-1]))
-                    sys.stdout.flush()
-                # prv_datastrdict = copy.deepcopy(datastrdict)
+                if verbose and t == loctinstances[0]:
+                    curtinst = loctinstances.pop(0)
+                    print("runtime: {0} -- t: {1} -- tE: {2:f}".
+                          format(time.clock(), curtinst, loctrng[-1]))
 
                 # coeffs and rhs at next time instance
                 if stokes_flow:
