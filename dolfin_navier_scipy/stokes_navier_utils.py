@@ -709,7 +709,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 if static_feedback:
                     mtxtb_c = dou.load_npa(feedbackthroughdict[None]['mtxtb'])
                     w_c = dou.load_npa(feedbackthroughdict[None]['w'])
-                    # print '\nnorm of feedback: ', np.linalg.norm(mtxtb_c)
                 else:
                     mtxtb_c = dou.load_npa(feedbackthroughdict[0]['mtxtb'])
                     w_c = dou.load_npa(feedbackthroughdict[0]['w'])
@@ -729,7 +728,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             if verbose:
                 # define at which points of time the progress is reported
                 nouts = 10  # number of output points
-                locnts = loctrng.size
+                locnts = loctrng.size  # TODO: trange may be a list...
                 filtert = np.arange(0, locnts,
                                     np.int(np.floor(locnts/nouts)))
                 loctinstances = loctrng[filtert]
@@ -740,10 +739,13 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 cts = t - loctrng[tk]
                 datastrdict.update(dict(time=t))
                 cdatstr = get_datastring(**datastrdict)
-                if verbose and t == loctinstances[0]:
-                    curtinst = loctinstances.pop(0)
-                    print("runtime: {0} -- t: {1} -- tE: {2:f}".
-                          format(time.clock(), curtinst, loctrng[-1]))
+                try:
+                    if verbose and t == loctinstances[0]:
+                        curtinst = loctinstances.pop(0)
+                        print("runtime: {0} -- t: {1} -- tE: {2:f}".
+                              format(time.clock(), curtinst, loctrng[-1]))
+                except IndexError:
+                    pass  # if something goes wrong, don't stop
 
                 # coeffs and rhs at next time instance
                 if stokes_flow:
