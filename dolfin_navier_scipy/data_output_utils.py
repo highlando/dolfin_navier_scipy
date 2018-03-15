@@ -8,6 +8,7 @@ import time
 __all__ = ['output_paraview',
            'save_npa', 'save_spa',
            'load_npa', 'load_spa',
+           'plot_outp_sig',
            'load_or_comp']
 
 
@@ -52,22 +53,34 @@ def output_paraview(V=None, Q=None, VS=None, fstring='nn',
 
 
 def save_npa(v, fstring='notspecified'):
+    if fstring is None:
+        print("No `fstring`, won't save anything")
+        return
     np.save(fstring, v)
     return
 
 
 def load_npa(fstring):
+    if fstring is None:
+        print("No `fstring`, won't load anything")
+        return
     if not fstring[-4:] == '.npy':
         return np.load(fstring+'.npy')
     else:
         return np.load(fstring)
 
 
-def save_spa(sparray, fstring='notspecified'):
+def save_spa(sparray, fstring):
+    if fstring is None:
+        print("No `fstring`, won't save anything")
+        return
     scipy.io.mmwrite(fstring, sparray)
 
 
 def load_spa(fstring):
+    if fstring is None:
+        print("No `fstring`, won't load anything")
+        return
     return scipy.io.mmread(fstring).tocsc()
 
 

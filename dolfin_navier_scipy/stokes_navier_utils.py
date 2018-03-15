@@ -18,17 +18,19 @@ __all__ = ['get_datastr_snu',
            'get_pfromv']
 
 
-def get_datastr_snu(time=None, meshp=None, nu=None, Nts=None, data_prfx=''):
+def get_datastr_snu(time=None, meshp=None, nu=None, Nts=None, data_prfx='',
+                    semiexpl=False):
+    sestr = '_semiexpl' if semiexpl else ''
     if time is None or isinstance(time, str):
         return (data_prfx + 'time{0}_nu{1:.3e}_mesh{2}_Nts{3}'.
-                format(time, nu, meshp, Nts))
+                format(time, nu, meshp, Nts) + sestr)
     else:
         return (data_prfx + 'time{0:.5e}_nu{1:.3e}_mesh{2}_Nts{3}'.
-                format(time, nu, meshp, Nts))
+                format(time, nu, meshp, Nts) + sestr)
 
 
 def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
-                     Picard=False):
+                     Picard=False, retparts=False):
     """ get and condense the linearized convection
 
     to be used in a Newton scheme
@@ -54,8 +56,12 @@ def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
         indices of the inner nodes
     diribcs : list
         of dolfin Dirichlet boundary conditons
-    Picard : boolean
+    Picard : Boolean
         whether Picard linearization is applied, defaults to `False`
+    retparts : Boolean, optional
+        whether to return both components of the matrices
+        and contributions to the rhs through the boundary conditions,
+        defaults to `False`
 
     Returns
     -------
@@ -68,14 +74,21 @@ def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
 
     """
 
-    N1, N2, rhs_con = dts.get_convmats(u0_vec=prev_v,
-                                       V=V,
-                                       invinds=invinds,
-                                       diribcs=diribcs)
+    N1, N2, rhs_con = dts.get_convmats(u0_vec=prev_v, V=V,
+                                       invinds=invinds, diribcs=diribcs)
     if Picard:
         convc_mat, rhsv_conbc = \
             dts.condense_velmatsbybcs(N1, diribcs)
-        return convc_mat, 0*rhs_con[invinds, ], rhsv_conbc
+        return convc_mat, rhs_con[invinds, ], rhsv_conbc
+
+    elif retparts:
+        picrd_convc_mat, picrd_rhsv_conbc = \
+            dts.condense_velmatsbybcs(N1, diribcs)
+        anti_picrd_convc_mat, anti_picrd_rhsv_conbc = \
+            dts.condense_velmatsbybcs(N2, diribcs)
+        return ((picrd_convc_mat, anti_picrd_rhsv_conbc),
+                rhs_con[invinds, ],
+                (picrd_rhsv_conbc, anti_picrd_rhsv_conbc))
 
     else:
         convc_mat, rhsv_conbc = \
@@ -464,7 +477,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             raise ValueError('No initial value given')
 
     datastrdict = dict(time=None, meshp=N, nu=nu,
-                       Nts=trange.size-1, data_prfx=data_prfx)
+                       Nts=trange.size-1, data_prfx=data_prfx,
+                       semiexpl=comp_nonl_semexp)
 
     if return_as_list:
         clearprvdata = True  # we want the results at hand
@@ -524,7 +538,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
             if norm_nwtnupd < vel_nwtn_tol and not return_dictofvelstrs:
                 return
-            elif norm_nwtnupd < vel_nwtn_tol:
+            elif norm_nwtnupd < vel_nwtn_tol or comp_nonl_semexp:
                 # looks like converged -- check if all values are there
                 # t0:
                 datastrdict.update(dict(time=trange[0]))
@@ -533,15 +547,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 _atdct(dictofvelstrs, trange[0], cdatstr + '__vel')
                 if return_dictofpstrs:
                     dictofpstrs = {}
-
-                #     try:
-                #         p_old = dou.load_npa(cdatstr + '__p')
-                #         dictofpstrs = {}
-                #         _atdct(dictofpstrs, trange[0], cdatstr+'__p')
-                #     except:
-                #         p_old = get_pfromv(v=v_old, **gpfvd)
-                #         dou.save_npa(p_old, fstring=cdatstr + '__p')
-                #         _atdct(dictofpstrs, trange[0], cdatstr+'__p')
 
                 for t in trange:
                     datastrdict.update(dict(time=t))
@@ -563,7 +568,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 else:
                     return dictofvelstrs
 
-            comp_nonl_semexp = False
+            # comp_nonl_semexp = False
 
         except IOError:
             norm_nwtnupd = 2
@@ -742,8 +747,11 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 try:
                     if verbose and t == loctinstances[0]:
                         curtinst = loctinstances.pop(0)
-                        print("runtime: {0} -- t: {1} -- tE: {2:f}".
-                              format(time.clock(), curtinst, loctrng[-1]))
+                        # print("runtime: {0} -- t: {1} -- tE: {2:f}".
+                        #       format(time.clock(), curtinst, loctrng[-1]))
+                        print("runtime: {0:.1f} - t/tE: {1:.2f} - t: {2:.4f}".
+                              format(time.clock(), curtinst/loctrng[-1],
+                                     curtinst))
                 except IndexError:
                     pass  # if something goes wrong, don't stop
 
