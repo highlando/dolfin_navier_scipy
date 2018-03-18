@@ -30,7 +30,7 @@ def get_datastr_snu(time=None, meshp=None, nu=None, Nts=None, data_prfx='',
 
 
 def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
-                     Picard=False, retparts=False):
+                     Picard=False, retparts=False, zerodiribcs=False):
     """ get and condense the linearized convection
 
     to be used in a Newton scheme
@@ -74,25 +74,29 @@ def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
 
     """
 
-    N1, N2, rhs_con = dts.get_convmats(u0_vec=prev_v, V=V,
-                                       invinds=invinds, diribcs=diribcs)
+    N1, N2, rhs_con = dts.get_convmats(u0_vec=prev_v, V=V, invinds=invinds,
+                                       diribcs=diribcs)
+
+    if zerodiribcs:
+        def _cndnsmts(mat, diribcs, **kw):
+            return mat[invinds, :][:, invinds], np.zeros((invinds.size, 1))
+    else:
+        _cndnsmts = dts.condense_velmatsbybcs
+
     if Picard:
-        convc_mat, rhsv_conbc = \
-            dts.condense_velmatsbybcs(N1, diribcs)
+        convc_mat, rhsv_conbc = _cndnsmts(N1, diribcs)
         return convc_mat, rhs_con[invinds, ], rhsv_conbc
 
     elif retparts:
-        picrd_convc_mat, picrd_rhsv_conbc = \
-            dts.condense_velmatsbybcs(N1, diribcs)
+        picrd_convc_mat, picrd_rhsv_conbc = _cndnsmts(N1, diribcs)
         anti_picrd_convc_mat, anti_picrd_rhsv_conbc = \
-            dts.condense_velmatsbybcs(N2, diribcs)
-        return ((picrd_convc_mat, anti_picrd_rhsv_conbc),
+            _cndnsmts(N2, diribcs)
+        return ((picrd_convc_mat, anti_picrd_convc_mat),
                 rhs_con[invinds, ],
                 (picrd_rhsv_conbc, anti_picrd_rhsv_conbc))
 
     else:
-        convc_mat, rhsv_conbc = \
-            dts.condense_velmatsbybcs(N1 + N2, diribcs)
+        convc_mat, rhsv_conbc = _cndnsmts(N1+N2, diribcs)
         return convc_mat, rhs_con[invinds, ], rhsv_conbc
 
 
