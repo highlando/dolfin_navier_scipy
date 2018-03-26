@@ -20,7 +20,8 @@ import numpy as np
 
 __all__ = ['get_sysmats',
            'drivcav_fems',
-           'cyl_fems']
+           'cyl_fems',
+           'cyl3D_fems']
 
 
 def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
@@ -102,7 +103,8 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
     """
 
     problemdict = dict(drivencavity=drivcav_fems,
-                       cylinderwake=cyl_fems)
+                       cylinderwake=cyl_fems,
+                       cylinderwake3D=cyl3D_fems)
     problemfem = problemdict[problem]
     femp = problemfem(N, scheme=scheme, bccontrol=bccontrol)
     if onlymesh:
@@ -280,7 +282,6 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
 
     Parameters
     ----------
-    N : mesh parameter for the unitsquare (N gives 2*N*N triangles)
     vdgree : polynomial degree of the velocity basis functions,
         defaults to 2
     pdgree : polynomial degree of the pressure basis functions,
@@ -375,12 +376,12 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
         print(b2tang)
         print(b2normal)
         print('diameter of the outlet', radius*2*np.sin(extensrad/2))
-        print('midpoint of the outlet 1 secant: [{0}, {1}]'.\
-            format(centvec[0]+radius*np.cos(centerrad),
-                   centvec[1]+radius*np.sin(centerrad)))
-        print('midpoint of the outlet 2 secant: [{0}, {1}]'.\
-            format(centvec[0]+radius*np.cos(centerrad),
-                   centvec[1]-radius*np.sin(centerrad)))
+        print('midpoint of the outlet 1 secant: [{0}, {1}]'.
+              format(centvec[0]+radius*np.cos(centerrad),
+                     centvec[1]+radius*np.sin(centerrad)))
+        print('midpoint of the outlet 2 secant: [{0}, {1}]'.
+              format(centvec[0]+radius*np.cos(centerrad),
+                     centvec[1]-radius*np.sin(centerrad)))
         print('angle of midpoint vec 1 and x-axis', np.rad2deg(centerrad))
 
     def insidebbox(x, whichbox=None):
@@ -469,8 +470,8 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
                         dx = x[0] - xcenter
                         dy = x[1] - ycenter
                         r = dolfin.sqrt(dx*dx + dy*dy)
-                        print(x - centvec.flatten(), ': s=', s, ': r=', r, \
-                            ':', np.linalg.norm(np.array(vls)))
+                        print(x - centvec.flatten(), ': s=', s, ': r=', r,
+                              ':', np.linalg.norm(np.array(vls)))
 
                 def value_shape(self):
                     return (2,)
@@ -500,8 +501,8 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
                         dx = x[0] - xcenter
                         dy = x[1] - ycenter
                         r = dolfin.sqrt(dx*dx + dy*dy)
-                        print(x - centvec.flatten(), ': s=', s, ': r=', r, \
-                            ':', np.linalg.norm(np.array(vls)))
+                        print(x - centvec.flatten(), ': s=', s, ': r=', r,
+                              ':', np.linalg.norm(np.array(vls)))
 
                 def value_shape(self):
                     return (2,)
@@ -569,5 +570,139 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
                  ymax=0.25)
 
     cylfems.update(dict(cdcoo=cdcoo, odcoo=odcoo))
+
+    return cylfems
+
+
+def cyl3D_fems(refinement_level=2, scheme='TH',
+               bccontrol=False, verbose=False):
+    """
+    dictionary for the fem items for the 3D cylinder wake
+
+    which is
+     * the 2D setup extruded in z-direction
+     * with symmetry BCs at the z-walls
+
+    Parameters
+    ----------
+    scheme : {None, 'CR', 'TH'}
+        the finite element scheme to be applied, 'CR' for Crouzieux-Raviart,\
+        'TH' for Taylor-Hood, overrides `pdgree`, `vdgree`, defaults to `None`
+    bccontrol : boolean, optional
+        whether to consider boundary control via penalized Robin \
+        defaults to `False`
+
+    Returns
+    -------
+    femp : a dictionary with the keys:
+         * `V`: FEM space of the velocity
+         * `Q`: FEM space of the pressure
+         * `diribcs`: list of the (Dirichlet) boundary conditions
+         * `dirip`: list of the (Dirichlet) boundary conditions \
+                 for the pressure
+         * `fv`: right hand side of the momentum equation
+         * `fp`: right hand side of the continuity equation
+         * `charlen`: characteristic length of the setup
+         * `odcoo`: dictionary with the coordinates of the \
+                 domain of observation
+         * `cdcoo`: dictionary with the coordinates of the domain of control
+         * `uspacedep`: int that specifies in what spatial direction Bu \
+                changes. The remaining is constant
+         * `bcsubdoms`: list of subdomains that define the segments where \
+                 the boundary control is applied
+
+    Notes
+    -----
+    parts of the code were taken from the NSbench collection
+    https://launchpad.net/nsbench
+
+    |  __author__ = "Kristian Valen-Sendstad <kvs@simula.no>"
+    |  __date__ = "2009-10-01"
+    |  __copyright__ = "Copyright (C) 2009-2010 " + __author__
+    |  __license__ = "GNU GPL version 3 or any later version"
+    """
+
+    # Constants related to the geometry
+    # xmin = 0.0
+    # xmax = 8.0
+    # ymin = 0.0
+    ymax = 1.5
+    # zmin = 0.0
+    # zmax = 1.0
+    # xcenter = 2.0
+    # ycenter = ymax/2
+    # radius = 0.15
+
+    # Load mesh
+    mesh = dolfin.Mesh("mesh/3d-cyl/karman3D.xml.gz")
+
+    # scheme = 'CR'
+    if scheme == 'CR':
+        # print 'we use Crouzieux-Raviart elements !'
+        V = dolfin.VectorFunctionSpace(mesh, "CR", 1)
+        Q = dolfin.FunctionSpace(mesh, "DG", 0)
+    elif scheme == 'TH':
+        V = dolfin.VectorFunctionSpace(mesh, "CG", 2)
+        Q = dolfin.FunctionSpace(mesh, "CG", 1)
+
+    # get the boundaries from the gmesh file
+    boundaries = dolfin.\
+        MeshFunction('size_t', mesh, 'mesh/3d-cyl/karman3D_facet_region.xml')
+
+    # # Create inflow boundary condition
+    # if no-slip at front and back
+    # gin = dolfin.Expression(('6*(x[1]*(ymax-x[1]))/(ymax*ymax) * ' +
+    #                          '6*(x[2]*(zmax-x[2]))/(zmax*zmax)',
+    #                          '0.0', '0.0'),
+    #                         ymax=ymax, zmax=zmax, element=V.ufl_element())
+    gin = dolfin.Expression(('6*(x[1]*(ymax-x[1]))/(ymax*ymax)', '0.0', '0.0'),
+                            ymax=ymax, element=V.ufl_element())
+    bcin = dolfin.DirichletBC(V, gin, boundaries, 1)
+
+    # ## Create no-slip boundary condition
+    gzero = dolfin.Constant((0, 0, 0))
+
+    # channel walls
+    bcbt = dolfin.DirichletBC(V, gzero, boundaries, 2)  # bottom
+    bctp = dolfin.DirichletBC(V, gzero, boundaries, 6)  # top
+
+    # yes-slip at front and back -- only z-component set to zero
+    gscalzero = dolfin.Constant(0)
+    bcbc = dolfin.DirichletBC(V.sub(2), gscalzero, boundaries, 5)  # back
+    bcfr = dolfin.DirichletBC(V.sub(2), gscalzero, boundaries, 4)  # front
+
+    # Create no-slip at cylinder surface
+    bccuc = dolfin.DirichletBC(V, gzero, boundaries, 9)  # uncontrolled
+    bccco = dolfin.DirichletBC(V, gzero, boundaries, 7)  # ctrl upper
+    bccct = dolfin.DirichletBC(V, gzero, boundaries, 8)  # ctrl lower
+
+    # Create outflow boundary condition for pressure
+    g2 = dolfin.Constant(0)
+    bc2 = dolfin.DirichletBC(Q, g2, boundaries, 3)
+
+    # Collect boundary conditions
+    bcu = [bcin, bcbt, bcfr, bcbc, bctp, bccuc, bccco, bccct]
+    bcp = [bc2]
+
+    # Create right-hand side function
+    fv = dolfin.Constant((0, 0, 0))
+    fp = dolfin.Constant(0)
+
+    def initial_conditions(self, V, Q):
+        u0 = dolfin.Constant((0, 0, 0))
+        p0 = dolfin.Constant(0)
+        return u0, p0
+
+    cylfems = dict(V=V,
+                   Q=Q,
+                   diribcs=bcu,
+                   dirip=bcp,
+                   # contrbcssubdomains=bcsubdoms,
+                   # contrbcsshapefuns=bcshapefuns,
+                   fv=fv,
+                   fp=fp,
+                   uspacedep=0,
+                   charlen=0.3,
+                   mesh=mesh)
 
     return cylfems
