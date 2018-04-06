@@ -21,12 +21,20 @@ __all__ = ['get_datastr_snu',
 def get_datastr_snu(time=None, meshp=None, nu=None, Nts=None, data_prfx='',
                     semiexpl=False):
     sestr = '_semiexpl' if semiexpl else ''
-    if time is None or isinstance(time, str):
-        return (data_prfx + 'time{0}_nu{1:.3e}_mesh{2}_Nts{3}'.
-                format(time, nu, meshp, Nts) + sestr)
-    else:
-        return (data_prfx + 'time{0:.5e}_nu{1:.3e}_mesh{2}_Nts{3}'.
-                format(time, nu, meshp, Nts) + sestr)
+    nustr = '_nuNone' if nu is None else '_nu{0:.3e}'.format(nu)
+    ntsstr = '_NtsNone' if Nts is None else '_Nts{0}'.format(Nts)
+    timstr = 'timeNone' if time is None or isinstance(time, str) else \
+        'time{0:.5e}'.format(time)
+    mshstr = '_mesh{0}'.format(meshp)
+
+    return data_prfx + timstr + nustr + mshstr + ntsstr + sestr
+
+    # if time is None or isinstance(time, str):
+    #     return (data_prfx + 'time{0}_nu{1:.3e}_mesh{2}_Nts{3}'.
+    #             format(time, nu, meshp, Nts) + sestr)
+    # else:
+    #     return (data_prfx + 'time{0:.5e}_nu{1:.3e}_mesh{2}_Nts{3}'.
+    #             format(time, nu, meshp, Nts) + sestr)
 
 
 def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
@@ -252,7 +260,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                                                  Picard=True)
 
         vp_k = lau.solve_sadpnt_smw(amat=A+convc_mat, jmat=J, jmatT=JT,
-                                    rhsv=fv+rhs_con+rhsv_conbc,
+                                    rhsv=fv+0*rhs_con+rhsv_conbc,
                                     rhsp=fp)
         normpicupd = np.sqrt(m_innerproduct(M, vel_k-vp_k[:NV, :]))[0]
 
@@ -461,6 +469,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                      diribcs=diribcs, invinds=invinds)
 
     NV, NP = A.shape[0], J.shape[0]
+    fv = np.zeros((NV, 1)) if fv is None else fv
+    fp = np.zeros((NP, 1)) if fp is None else fp
 
     if fv_tmdp is None:
         def fv_tmdp(time=None, curvel=None, **kw):
