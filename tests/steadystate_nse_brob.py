@@ -7,7 +7,6 @@ import dolfin_navier_scipy.problem_setups as dnsps
 def testit(problem='cylinderwake', N=None, nu=None, Re=None,
            nnwtnstps=9, npcrdstps=5, palpha=1e-5):
 
-
     vel_nwtn_tol = 1e-14
     # prefix for data files
     data_prfx = problem
@@ -23,8 +22,8 @@ def testit(problem='cylinderwake', N=None, nu=None, Re=None,
     proutdir = 'results/'
     ddir = 'data/'
     import scipy.sparse.linalg as spsla
-    print 'get expmats: ||A|| = {0}'.format(spsla.norm(stokesmatsc['A']))
-    print 'get expmats: ||Arob|| = {0}'.format(spsla.norm(stokesmatsc['Arob']))
+    print('get expmats: |A| = {0}'.format(spsla.norm(stokesmatsc['A'])))
+    print('get expmats: |Arob| = {0}'.format(spsla.norm(stokesmatsc['Arob'])))
 
     stokesmatsc['A'] = stokesmatsc['A'] + 1./palpha*stokesmatsc['Arob']
     b_mat = 1./palpha*stokesmatsc['Brob']
