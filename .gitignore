@@ -2,3 +2,4 @@ data/
 results/
 mesh/
 *.npy
+*.pyc
