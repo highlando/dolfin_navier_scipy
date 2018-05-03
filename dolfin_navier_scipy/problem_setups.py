@@ -634,7 +634,7 @@ def cyl3D_fems(refinement_level=2, scheme='TH',
     # radius = 0.15
 
     # Load mesh
-    mesh = dolfin.Mesh("mesh/3d-cyl/karman3D.xml.gz")
+    mesh = dolfin.Mesh("mesh/3d-cyl/karman3D_lvl%d.xml.gz" % refinement_level)
 
     # scheme = 'CR'
     if scheme == 'CR':
@@ -647,7 +647,7 @@ def cyl3D_fems(refinement_level=2, scheme='TH',
 
     # get the boundaries from the gmesh file
     boundaries = dolfin.\
-        MeshFunction('size_t', mesh, 'mesh/3d-cyl/karman3D_facet_region.xml')
+        MeshFunction('size_t', mesh, 'mesh/3d-cyl/karman3D_lvl%d_facet_region.xml.gz' % refinement_level)
 
     # # Create inflow boundary condition
     # if no-slip at front and back
