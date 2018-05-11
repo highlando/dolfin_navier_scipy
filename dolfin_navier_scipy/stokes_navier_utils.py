@@ -93,6 +93,7 @@ def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
 
     if Picard:
         convc_mat, rhsv_conbc = _cndnsmts(N1, diribcs)
+        # return convc_mat, rhs_con[invinds, ], rhsv_conbc
         return convc_mat, rhs_con[invinds, ], rhsv_conbc
 
     elif retparts:
@@ -260,7 +261,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                                                  Picard=True)
 
         vp_k = lau.solve_sadpnt_smw(amat=A+convc_mat, jmat=J, jmatT=JT,
-                                    rhsv=fv+0*rhs_con+rhsv_conbc,
+                                    rhsv=fv+rhsv_conbc,
                                     rhsp=fp)
         normpicupd = np.sqrt(m_innerproduct(M, vel_k-vp_k[:NV, :]))[0]
 
@@ -569,13 +570,14 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     v_old = dou.load_npa(cdatstr + '__vel')
                     # update the dict
                     _atdct(dictofvelstrs, t, cdatstr + '__vel')
-                    try:
-                        p_old = dou.load_npa(cdatstr + '__p')
-                        _atdct(dictofpstrs, t, cdatstr + '__p')
-                    except:
-                        p_old = get_pfromv(v=v_old, **gpfvd)
-                        dou.save_npa(p_old, fstring=cdatstr + '__p')
-                        _atdct(dictofpstrs, t, cdatstr + '__p')
+                    if return_dictofpstrs:
+                        try:
+                            p_old = dou.load_npa(cdatstr + '__p')
+                            _atdct(dictofpstrs, t, cdatstr + '__p')
+                        except:
+                            p_old = get_pfromv(v=v_old, **gpfvd)
+                            dou.save_npa(p_old, fstring=cdatstr + '__p')
+                            _atdct(dictofpstrs, t, cdatstr + '__p')
 
                 if return_dictofpstrs:
                     return dictofvelstrs, dictofpstrs
@@ -722,7 +724,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                        memory=fv_tmdp_memory,
                                        **fv_tmdp_params)
 
-            fvn_c = fv + rhsv_conbc_c + rhs_con_c + fv_tmdp_cont
+            _rhsconvc = 0*rhs_con_c if pcrd_anyone else rhs_con_c
+            fvn_c = fv + rhsv_conbc_c + _rhsconvc + fv_tmdp_cont
 
             if closed_loop:
                 if static_feedback:
@@ -796,7 +799,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                            memory=fv_tmdp_memory,
                                            **fv_tmdp_params)
 
-                fvn_n = fv + rhsv_conbc_n + rhs_con_n + fv_tmdp_cont
+                _rhsconvn = 0*rhs_con_n if pcrd_anyone else rhs_con_n
+                fvn_n = fv + rhsv_conbc_n + _rhsconvn + fv_tmdp_cont
 
                 if closed_loop:
                     if static_feedback:
