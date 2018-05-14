@@ -660,6 +660,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             print('solve the NSE on the interval [{0}, {1}]'.
                   format(loctrng[0], loctrng[-1]))
             if stokes_flow:
+                pcrd_anyone = False
                 newtk = vel_nwtn_stps
             elif comp_nonl_semexp_inig and not comp_nonl_semexp:
                 pcrd_anyone = False
