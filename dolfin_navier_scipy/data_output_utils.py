@@ -6,6 +6,7 @@ import time
 __all__ = ['output_paraview',
            'save_npa', 'save_spa',
            'load_npa', 'load_spa',
+           'save_output_json',
            'plot_outp_sig',
            'load_or_comp']
 
@@ -131,7 +132,7 @@ def plot_prs_outp(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
 
 def plot_outp_sig(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
                   outsig=None, tmesh=None, fignum=222, reference=None,
-                  tikzstr=None, compress=5):
+                  tikzstr=None, compress=5, notikz=False):
     import matplotlib.pyplot as plt
 
     if str_to_json is not None:
@@ -152,6 +153,8 @@ def plot_outp_sig(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
              color='b', linewidth=2.0)
     ax1.plot(np.array(tmesh)[redina], np.array(outsig)[redina, NY:],
              color='r', linewidth=2.0)
+    if notikz:
+        plt.show()
 
     try:
         from matplotlib2tikz import save as tikz_save
@@ -197,6 +200,11 @@ def save_output_json(datadict=None,
     print('\n to plot run the commands \n')
     print('from ' + module + ' import ' + plotroutine)
     print(plotroutine + '("' + fstring + '")')
+
+    if plotroutine == 'plot_outp_sig':
+        print('\n to plot w/o tikz: \n')
+        print('from ' + module + ' import ' + plotroutine)
+        print(plotroutine + '("' + fstring + '", notikz=True)')
 
 
 def extract_output(dictofpaths=None, tmesh=None, c_mat=None, ystarvec=None):
