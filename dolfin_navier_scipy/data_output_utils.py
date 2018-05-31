@@ -155,6 +155,7 @@ def plot_outp_sig(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
              color='r', linewidth=2.0)
     if notikz:
         plt.show()
+        return
 
     try:
         from matplotlib2tikz import save as tikz_save
