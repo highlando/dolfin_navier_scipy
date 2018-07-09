@@ -11,7 +11,7 @@ femp, stokesmatsc, rhsd_vfrc, \
 
 Mc, Ac = stokesmatsc['M'], stokesmatsc['A']
 BTc, Bc = stokesmatsc['JT'], stokesmatsc['J']
-print Bc.shape
+print(Bc.shape)
 
 invinds = femp['invinds']
 
@@ -25,9 +25,9 @@ NV = Bc.shape[1]
 
 pfv = snu.get_pfromv(v=vp_init[:NV, :], V=femp['V'], M=Mc, A=Ac, J=Bc, fv=fv,
                      invinds=femp['invinds'], diribcs=femp['diribcs'])
-print invinds.shape
-print Bc.shape
-print pfv.shape
-print vp_init.shape
+print(invinds.shape)
+print(Bc.shape)
+print(pfv.shape)
+print(vp_init.shape)
 
-print np.linalg.norm(pfv - vp_init[NV:, :])
+print(np.linalg.norm(pfv - vp_init[NV:, :]))
