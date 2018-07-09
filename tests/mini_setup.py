@@ -4,10 +4,9 @@ import numpy as np
 
 N, Re, scheme, ppin = 2, 50, 'TH', None
 
-femp, stokesmatsc, rhsd_vfrc, \
-    rhsd_stbc, data_prfx, ddir, proutdir \
-    = dnsps.get_sysmats(problem='cylinderwake', N=N, Re=Re,
-                        scheme=scheme)
+femp, stokesmatsc, rhsd = \
+    dnsps.get_sysmats(problem='cylinderwake', N=N, Re=Re,
+                      scheme=scheme, mergerhs=True)
 
 Mc, Ac = stokesmatsc['M'], stokesmatsc['A']
 BTc, Bc = stokesmatsc['JT'], stokesmatsc['J']
@@ -15,7 +14,7 @@ print(Bc.shape)
 
 invinds = femp['invinds']
 
-fv, fp = rhsd_stbc['fv'], rhsd_stbc['fp']
+fv, fp = rhsd['fv'], rhsd['fp']
 inivdict = dict(A=Ac, J=Bc, JT=BTc, M=Mc, ppin=ppin, fv=fv, fp=fp,
                 return_vp=True, V=femp['V'],
                 invinds=invinds, diribcs=femp['diribcs'])
