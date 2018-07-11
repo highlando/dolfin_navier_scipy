@@ -94,7 +94,7 @@ def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
     if Picard:
         convc_mat, rhsv_conbc = _cndnsmts(N1, diribcs)
         # return convc_mat, rhs_con[invinds, ], rhsv_conbc
-        return convc_mat, rhs_con[invinds, ], rhsv_conbc
+        return convc_mat, None, rhsv_conbc
 
     elif retparts:
         picrd_convc_mat, picrd_rhsv_conbc = _cndnsmts(N1, diribcs)
