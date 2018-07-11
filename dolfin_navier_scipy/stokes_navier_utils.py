@@ -127,12 +127,14 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           vel_pcrd_stps=10, vel_pcrd_tol=1e-4,
                           vel_nwtn_stps=20, vel_nwtn_tol=5e-15,
                           clearprvdata=False,
+                          useolddata=False,
                           vel_start_nwtn=None,
                           get_datastring=None,
                           data_prfx='',
                           paraviewoutput=False,
                           save_intermediate_steps=False,
                           vfileprfx='', pfileprfx='',
+                          verbose=True,
                           **kw):
 
     """
@@ -185,7 +187,6 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 #
 
     norm_nwtnupd_list = []
-    vel_newtk, norm_nwtnupd = 0, 1
     # a dict to be passed to the get_datastring function
     datastrdict = dict(time=None, meshp=N, nu=nu,
                        Nts=None, data_prfx=data_prfx)
@@ -195,30 +196,38 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         for fname in glob.glob(cdatstr + '*__vel*'):
             os.remove(fname)
 
-    try:
-        cdatstr = get_datastring(**datastrdict)
+    if useolddata:
+        try:
+            cdatstr = get_datastring(**datastrdict)
 
-        norm_nwtnupd = dou.load_npa(cdatstr + '__norm_nwtnupd')
-        vel_k = dou.load_npa(cdatstr + '__vel')
-        norm_nwtnupd_list.append(norm_nwtnupd)
+            norm_nwtnupd = dou.load_npa(cdatstr + '__norm_nwtnupd')
+            vel_k = dou.load_npa(cdatstr + '__vel')
+            norm_nwtnupd_list.append(norm_nwtnupd)
 
-        print('found vel files')
-        print('norm of last Nwtn update: {0}'.format(norm_nwtnupd))
-        print('... loaded from ' + cdatstr)
-        if np.atleast_1d(norm_nwtnupd)[0] is None:
+            if verbose:
+                print('found vel files')
+                print('norm of last Nwtn update: {0}'.format(norm_nwtnupd))
+                print('... loaded from ' + cdatstr)
+            if np.atleast_1d(norm_nwtnupd)[0] is None:
+                norm_nwtnupd = None
+                pass  # nothing useful found
+
+            elif norm_nwtnupd < vel_nwtn_tol:
+                if not return_vp:
+                    return vel_k, norm_nwtnupd_list
+                else:
+                    pfv = get_pfromv(v=vel_k[:NV, :], V=V,
+                                     M=M, A=A, J=J, fv=fv,
+                                     invinds=invinds, diribcs=diribcs)
+                    return (np.vstack([vel_k, pfv]), norm_nwtnupd_list)
+
+        except IOError:
+            if verbose:
+                print('no old velocity data found')
             norm_nwtnupd = None
-            pass  # nothing useful found
 
-        elif norm_nwtnupd < vel_nwtn_tol:
-            if not return_vp:
-                return vel_k, norm_nwtnupd_list
-            else:
-                pfv = get_pfromv(v=vel_k[:NV, :], V=V, M=M, A=A, J=J, fv=fv,
-                                 invinds=invinds, diribcs=diribcs)
-                return (np.vstack([vel_k, pfv]), norm_nwtnupd_list)
-
-    except IOError:
-        print('no old velocity data found')
+    else:
+        # we start from scratch
         norm_nwtnupd = None
 
     if paraviewoutput:
@@ -265,8 +274,9 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                                     rhsp=fp)
         normpicupd = np.sqrt(m_innerproduct(M, vel_k-vp_k[:NV, :]))[0]
 
-        print('Picard iteration: {0} -- norm of update: {1}'.
-              format(k+1, normpicupd))
+        if verbose:
+            print('Picard iteration: {0} -- norm of update: {1}'.
+                  format(k+1, normpicupd))
 
         vel_k = vp_k[:NV, ]
         vp_k[NV:] = -vp_k[NV:]
@@ -276,12 +286,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
             break
 
     # Newton iteration
-    while (vel_newtk < vel_nwtn_stps
-            and (norm_nwtnupd is None or
-                 norm_nwtnupd > vel_nwtn_tol or
-                 norm_nwtnupd == np.array(None))):
 
-        vel_newtk += 1
+    for vel_newtk, k in enumerate(range(vel_nwtn_stps)):
 
         cdatstr = get_datastring(**datastrdict)
 
@@ -297,13 +303,20 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         vel_k = vp_k[:NV, ]
         vp_k[NV:] = -vp_k[NV:]
         # pressure was flipped for symmetry
-        print('Steady State NSE: Newton iteration: {0} -- norm of update: {1}'
-              .format(vel_newtk, norm_nwtnupd))
+        if verbose:
+            print('Steady State NSE: Newton iteration: {0}'.format(vel_newtk) +
+                  '-- norm of update: {0}'.format(norm_nwtnupd))
 
         dou.save_npa(vel_k, fstring=cdatstr + '__vel')
 
         prvoutdict.update(dict(vp=vp_k))
         dou.output_paraview(**prvoutdict)
+
+        if norm_nwtnupd < vel_nwtn_tol:
+            break
+
+    else:
+        raise UserWarning('Steady State NSE: Newton has not converged')
 
     dou.save_npa(norm_nwtnupd, cdatstr + '__norm_nwtnupd')
 
@@ -341,9 +354,11 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               vel_pcrd_stps=4,
               krylov=None, krpslvprms={}, krplsprms={},
               clearprvdata=False,
+              useolddata=False,
               get_datastring=None,
               data_prfx='',
               paraviewoutput=False,
+              plttrange=None,
               vfileprfx='', pfileprfx='',
               return_dictofvelstrs=False,
               return_dictofpstrs=False,
@@ -450,8 +465,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         get_datastring = get_datastr_snu
 
     if paraviewoutput:
-        prvoutdict = dict(V=V, Q=Q, invinds=invinds, diribcs=diribcs,
-                          vp=None, t=None, writeoutput=True, ppin=ppin)
+        prvoutdict = dict(V=V, Q=Q,
+                          invinds=invinds, diribcs=diribcs, ppin=ppin,
+                          vp=None, t=None,
+                          tfilter=plttrange, writeoutput=True)
     else:
         prvoutdict = dict(writeoutput=False)  # save 'if statements' here
 
@@ -533,7 +550,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     newtk, norm_nwtnupd = 0, 1
 
     # check for previously computed velocities
-    if lin_vel_point is None and not stokes_flow:
+    if useolddata and lin_vel_point is None and not stokes_flow:
         try:
             datastrdict.update(dict(time=trange[-1]))
             cdatstr = get_datastring(**datastrdict)

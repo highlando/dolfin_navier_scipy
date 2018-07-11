@@ -15,7 +15,7 @@ def output_paraview(V=None, Q=None, VS=None, fstring='nn',
                     invinds=None, diribcs=None,
                     vp=None, vc=None, pc=None, sc=None,
                     sname='nn',
-                    ppin=-1, t=None, writeoutput=True,
+                    ppin=-1, t=None, tfilter=None, writeoutput=True,
                     vfile=None, pfile=None, sfile=None):
     """write the paraview output for a solution `(v,p)` or a scalar `s`
 
@@ -24,7 +24,15 @@ def output_paraview(V=None, Q=None, VS=None, fstring='nn',
     if not writeoutput:
         return
     else:
-        # hiding this calls as much as possible
+        if tfilter is not None:
+            if tfilter == []:
+                return
+            if not t == tfilter[0]:
+                return
+            else:
+                tfilter.pop(0)
+
+        # hiding this calls to dolfin as much as possible
         from .dolfin_to_sparrays import expand_vp_dolfunc
         import dolfin
 
