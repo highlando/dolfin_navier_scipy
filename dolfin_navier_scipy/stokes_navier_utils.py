@@ -316,7 +316,10 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
             break
 
     else:
-        raise UserWarning('Steady State NSE: Newton has not converged')
+        if vel_nwtn_stps == 0:
+            print('No Newton steps = steady state probably not well converged')
+        else:
+            raise UserWarning('Steady State NSE: Newton has not converged')
 
     dou.save_npa(norm_nwtnupd, cdatstr + '__norm_nwtnupd')
 
