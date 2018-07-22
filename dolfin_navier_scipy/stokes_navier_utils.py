@@ -500,11 +500,11 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if iniv is None:
         if start_ssstokes:
             # Stokes solution as starting value
-            (fv_tmdp_cont,
-             fv_tmdp_memory) = fv_tmdp(time=0, **fv_tmdp_params)
+            # (fv_tmdp_cont,
+            #  fv_tmdp_memory) = fv_tmdp(time=0, **fv_tmdp_params)
             vp_stokes =\
                 lau.solve_sadpnt_smw(amat=A, jmat=J, jmatT=JT,
-                                     rhsv=fv + fv_tmdp_cont,
+                                     rhsv=fv,  # + fv_tmdp_cont,
                                      krylov=krylov, krpslvprms=krpslvprms,
                                      krplsprms=krplsprms, rhsp=fp)
             iniv = vp_stokes[:NV]
