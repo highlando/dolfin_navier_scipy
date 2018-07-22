@@ -257,7 +257,7 @@ def get_stokessysmats(V, Q, nu=None, bccontrol=False,
             amatrob = mat_dolfin2sparse(amatrob)
             amatrob.eliminate_zeros()
             amatrobl.append(amatrob)
-            bmatrobl.append(bmatrob.array().reshape((V.dim(), 1)))  # [ININDS]
+            bmatrobl.append(bmatrob.get_local().reshape((V.dim(), 1)))
 
         amatrob = amatrobl[0]
         for amatadd in amatrobl[1:]:
@@ -316,7 +316,7 @@ def get_convmats(u0_dolfun=None, u0_vec=None, V=None, invinds=None,
     N2 = mat_dolfin2sparse(n2)
     N2.eliminate_zeros()
 
-    fv = f3.array()
+    fv = f3.get_local()
     fv = fv.reshape(len(fv), 1)
 
     return N1, N2, fv
@@ -339,10 +339,10 @@ def setget_rhs(V, Q, fv, fp, t=None):
     fv = dolfin.assemble(fv)
     fp = dolfin.assemble(fp)
 
-    fv = fv.array()
+    fv = fv.get_local()
     fv = fv.reshape(len(fv), 1)
 
-    fp = fp.array()
+    fp = fp.get_local()
     fp = fp.reshape(len(fp), 1)
 
     rhsvecs = {'fv': fv,
@@ -364,7 +364,7 @@ def get_curfv(V, fv, invinds, tcur):
 
     fv = dolfin.assemble(fv)
 
-    fv = fv.array()
+    fv = fv.get_local()
     fv = fv.reshape(len(fv), 1)
 
     return fv[invinds, :]
@@ -392,9 +392,9 @@ def get_convvec(u0_dolfun=None, V=None, u0_vec=None, femp=None,
 
     ConvForm = dolfin.assemble(ConvForm)
     if invinds is not None:
-        ConvVec = ConvForm.array()[invinds]
+        ConvVec = ConvForm.get_local()[invinds]
     else:
-        ConvVec = ConvForm.array()
+        ConvVec = ConvForm.get_local()
     ConvVec = ConvVec.reshape(len(ConvVec), 1)
 
     return ConvVec
@@ -695,9 +695,9 @@ def get_dof_coors(V, invinds=None):
     xinds = V.sub(0).dofmap().dofs()
     yinds = V.sub(1).dofmap().dofs()
 
-    xcoors = coorfun.vector().array()[xinds]
-    ycoors = coorfun.vector().array()[yinds]
-    coorfunvec = coorfun.vector().array()
+    xcoors = coorfun.vector().get_local()[xinds]
+    ycoors = coorfun.vector().get_local()[yinds]
+    coorfunvec = coorfun.vector().get_local()
 
     if invinds is not None:
         # check which innerinds are xinds
