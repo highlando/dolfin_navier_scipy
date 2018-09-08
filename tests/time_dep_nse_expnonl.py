@@ -5,7 +5,7 @@ import dolfin_navier_scipy.stokes_navier_utils as snu
 import dolfin_navier_scipy.problem_setups as dnsps
 
 # dolfin.parameters.linear_algebra_backend = 'uBLAS'
-dolfin.parameters.linear_algebra_backend = 'Eigen'
+# dolfin.parameters.linear_algebra_backend = 'Eigen'
 
 # krylovdict = dict(krylov='Gmres', krpslvprms={'tol': 1e-2})
 krylovdict = {}
