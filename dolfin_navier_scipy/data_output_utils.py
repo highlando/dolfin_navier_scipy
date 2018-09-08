@@ -236,6 +236,38 @@ def extract_output(dictofpaths=None, tmesh=None, c_mat=None, ystarvec=None):
         return yscomplist
 
 
+def meas_output_diff(dictofpaths=None, ylist=None, tmesh=None,
+                     c_mat=None, ystar=None):
+    if ystar is None:
+        zeroy = np.zeros((c_mat.shape[0], ))
+
+        def ystarfunc(t):
+            return zeroy
+    else:
+        try:
+            ystarfunc = ystar(0)
+            ystarfunc = ystar
+        except TypeError:
+            def ystarfunc(t):
+                return ystar.flatten()
+
+    if ylist is None:
+        ylist, ystlist = extract_output(dictofpaths=dictofpaths, tmesh=tmesh,
+                                        c_mat=c_mat, ystarvec=ystarfunc)
+    else:
+        ystlist = [ystarfunc(t) for t in tmesh]
+
+    diffy = np.array(ylist) - np.array(ystlist)
+    ndiffy = []
+    for row in range(diffy.shape[0]):
+        crow = diffy[row, :]
+        ndiffy.append(np.dot(crow.T, crow))
+    ndiffy = np.array(ndiffy)
+    dtvec = tmesh[1:] - tmesh[:-1]
+    trapv = 0.5*(ndiffy[:-1] + ndiffy[1:])
+    return (dtvec*trapv).sum()
+
+
 def load_or_comp(filestr=None, comprtn=None, comprtnargs={},
                  arraytype=None, debug=False,
                  loadrtn=None, loadmsg='loaded ',

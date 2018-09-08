@@ -27,7 +27,8 @@ def testit(problem='cylinderwake', N=None, nu=None, Re=None,
 
     stokesmatsc['A'] = stokesmatsc['A'] + 1./palpha*stokesmatsc['Arob']
     b_mat = 1./palpha*stokesmatsc['Brob']
-    brhs = 1.5*b_mat[:, :1] - 1.5*b_mat[:, 1:]
+    import ipdb; ipdb.set_trace()
+    brhs = 0.01*(1.5*b_mat[:, :1] - 1.5*b_mat[:, 1:])
 
     soldict = stokesmatsc  # containing A, J, JT
     soldict.update(femp)  # adding V, Q, invinds, diribcs
@@ -54,5 +55,5 @@ if __name__ == '__main__':
     # testit(N=25, nu=3e-4)
     # testit(problem='cylinderwake', N=3, nu=2e-3)
     # testit(problem='drivencavity', N=25, Re=500)
-    testit(problem='cylinderwake', N=3, Re=60,
+    testit(problem='cylinderwake', N=2, Re=40,
            nnwtnstps=5, npcrdstps=5)
