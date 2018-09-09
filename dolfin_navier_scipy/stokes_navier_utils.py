@@ -745,7 +745,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                        memory=fv_tmdp_memory,
                                        **fv_tmdp_params)
 
-            _rhsconvc = 0*rhs_con_c if pcrd_anyone else rhs_con_c
+            _rhsconvc = 0. if pcrd_anyone else rhs_con_c
             fvn_c = fv + rhsv_conbc_c + _rhsconvc + fv_tmdp_cont
 
             if closed_loop:
@@ -820,7 +820,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                            memory=fv_tmdp_memory,
                                            **fv_tmdp_params)
 
-                _rhsconvn = 0*rhs_con_n if pcrd_anyone else rhs_con_n
+                _rhsconvn = 0. if pcrd_anyone else rhs_con_n
                 fvn_n = fv + rhsv_conbc_n + _rhsconvn + fv_tmdp_cont
 
                 if closed_loop:
