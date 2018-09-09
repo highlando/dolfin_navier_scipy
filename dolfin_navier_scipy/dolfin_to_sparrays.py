@@ -239,7 +239,8 @@ def get_stokessysmats(V, Q, nu=None, bccontrol=False,
             # bparts = dolfin.MeshFunction('size_t', mesh,
             #                              mesh.topology().dim() - 1)
 
-            boundaries = dolfin.FacetFunction("size_t", mesh)
+            boundaries = dolfin.MeshFunction("size_t", mesh,
+                                             mesh.topology().dim()-1)
             boundaries.set_all(0)
             Gamma.mark(boundaries, 1)
 

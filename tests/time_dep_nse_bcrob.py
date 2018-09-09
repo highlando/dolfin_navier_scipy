@@ -4,8 +4,6 @@ import numpy as np
 import dolfin_navier_scipy.stokes_navier_utils as snu
 import dolfin_navier_scipy.problem_setups as dnsps
 
-dolfin.parameters.linear_algebra_backend = 'Eigen'
-
 
 def testit(problem='cylinderwake', N=2, nu=None, Re=1e2, Nts=1e3+1,
            ParaviewOutput=False, tE=1.0, scheme=None, zerocontrol=False):
@@ -61,5 +59,5 @@ if __name__ == '__main__':
     # !!! bccontrol doesn't work for `scheme = 'CR'` !!!
     # testit(problem='cylinderwake', N=2, Re=60, Nts=2e3, tE=4.,
     #        ParaviewOutput=True, scheme='TH')
-    testit(problem='cylinderwake', N=2, Re=100, Nts=512, tE=1.,
+    testit(problem='cylinderwake', N=3, Re=100, Nts=512, tE=1.,
            ParaviewOutput=True, scheme='TH', zerocontrol=False)

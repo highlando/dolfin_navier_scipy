@@ -455,7 +455,7 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
                 return on_boundary and r < radius + bmarg and inbbx
 
         def cont_shape_one(element=None):
-            class ContShapeOne(dolfin.Expression):
+            class ContShapeOne(dolfin.UserExpression):
 
                 def eval(self, value, x):
                     xvec = x - centvec.flatten()
@@ -487,7 +487,7 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
                 return on_boundary and r < radius + bmarg and inbbx
 
         def cont_shape_two(element=None):
-            class ContShapeTwo(dolfin.Expression):
+            class ContShapeTwo(dolfin.UserExpression):
                 def eval(self, value, x):
                     xvec = x - centvec.flatten()
                     aang = np.arccos(np.dot(xvec, b2base)
@@ -646,8 +646,10 @@ def cyl3D_fems(refinement_level=2, scheme='TH',
         Q = dolfin.FunctionSpace(mesh, "CG", 1)
 
     # get the boundaries from the gmesh file
+    meshfile = 'mesh/3d-cyl/karman3D_lvl{0}d_facet_region.xml.gz'.\
+        format(refinement_level)
     boundaries = dolfin.\
-        MeshFunction('size_t', mesh, 'mesh/3d-cyl/karman3D_lvl%d_facet_region.xml.gz' % refinement_level)
+        MeshFunction('size_t', mesh, meshfile)
 
     # # Create inflow boundary condition
     # if no-slip at front and back
