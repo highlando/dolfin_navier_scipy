@@ -59,11 +59,12 @@ class OptConPyFunctions(unittest.TestCase):
         # adv_x = smp.simplify(u_x * smp.diff(u_x, x) + u_y * smp.diff(u_x, y))
         # adv_y = smp.simplify(u_x * smp.diff(u_y, x) + u_y * smp.diff(u_y, y))
 
-        self.F = dolfin.Expression(('0', '0'))
+        self.F = dolfin.Expression(('0', '0'), element=self.V.ufl_element())
         a = sympy2expression(u_x)
         b = sympy2expression(u_y)
 
-        self.fenics_sol_u = dolfin.Expression((a, b), t=0.0, om=1.0)
+        self.fenics_sol_u = dolfin.Expression((a, b), t=0.0, om=1.0,
+                                              element=self.V.ufl_element())
 
     def test_linearized_mat_NSE_form(self):
         """check the conversion: dolfin form <-> numpy arrays
@@ -75,7 +76,7 @@ class OptConPyFunctions(unittest.TestCase):
         u = self.fenics_sol_u
         u.t = 1.0
         ufun = dolfin.project(u, self.V)
-        uvec = ufun.vector().array().reshape(len(ufun.vector()), 1)
+        uvec = ufun.vector().get_local().reshape(len(ufun.vector()), 1)
 
         N1, N2, fv = dts.get_convmats(u0_dolfun=ufun, V=self.V)
         conv = dts.get_convvec(u0_dolfun=ufun, V=self.V)
@@ -89,9 +90,9 @@ class OptConPyFunctions(unittest.TestCase):
         """
         from dolfin_navier_scipy.dolfin_to_sparrays import expand_vp_dolfunc
 
-        u = dolfin.Expression(('x[1]', '0'))
+        u = dolfin.Expression(('x[1]', '0'), element=self.V.ufl_element())
         ufun = dolfin.project(u, self.V, solver_type='lu')
-        uvec = ufun.vector().array().reshape(len(ufun.vector()), 1)
+        uvec = ufun.vector().get_local().reshape(len(ufun.vector()), 1)
 
         # Boundaries
         def top(x, on_boundary):
@@ -125,19 +126,18 @@ class OptConPyFunctions(unittest.TestCase):
         v, p = expand_vp_dolfunc(V=self.V, vc=uvec_condensed,
                                  invinds=innerinds, diribcs=diribcs)
 
-        vvec = v.vector().array().reshape(len(v.vector()), 1)
+        vvec = v.vector().get_local().reshape(len(v.vector()), 1)
 
         self.assertTrue(np.allclose(uvec, vvec))
 
     def test_conv_asquad(self):
         import dolfin_navier_scipy as dns
         from dolfin import dx, grad, inner
-        import scipy.sparse as sps
+        import dolfin_navier_scipy.dolfin_to_sparrays as dts
 
-        femp, stokesmatsc, rhsd_vfrc, rhsd_stbc, \
-            data_prfx, ddir, proutdir = \
+        femp, stokesmatsc, rhsd = \
             dns.problem_setups.get_sysmats(problem='drivencavity',
-                                           N=15, nu=1e-2)
+                                           N=15, nu=1e-2, mergerhs=True)
 
         invinds = femp['invinds']
         V = femp['V']
@@ -149,10 +149,10 @@ class OptConPyFunctions(unittest.TestCase):
         yexp = '(1-x[0])*x[0]*(1-x[1])*x[1]*x[1]+1'
         # yexp = 'x[0]*x[0]*x[1]*x[1]'
 
-        f = dolfin.Expression((xexp, yexp))
+        f = dolfin.Expression((xexp, yexp), element=self.V.ufl_element())
 
         u = dolfin.interpolate(f, V)
-        uvec = np.atleast_2d(u.vector().array()).T
+        uvec = np.atleast_2d(u.vector().get_local()).T
 
         uvec_gamma = uvec.copy()
         uvec_gamma[invinds] = 0
@@ -168,8 +168,8 @@ class OptConPyFunctions(unittest.TestCase):
         w = dolfin.TrialFunction(V)
         wt = dolfin.TestFunction(V)
         nform = dolfin.assemble(inner(grad(w) * u, wt) * dx)
-        rows, cols, values = nform.data()
-        nmat = sps.csr_matrix((values, cols, rows))
+        # rows, cols, values = nform.data()
+        nmat = dts.mat_dolfin2sparse(nform)
         # consider only the 'inner' equations
         nmatrc = nmat[invinds, :][:, :]
 

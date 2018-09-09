@@ -18,10 +18,9 @@ class StokNavUtsFunctions(unittest.TestCase):
 
         """
 
-        femp, stokesmatsc, rhsd_vfrc, \
-            rhsd_stbc, data_prfx, ddir, proutdir \
-            = dnsps.get_sysmats(problem='cylinderwake', N=self.N,
-                                Re=self.Re, scheme=self.scheme)
+        femp, stokesmatsc, rhsd = \
+            dnsps.get_sysmats(problem='cylinderwake', N=self.N,
+                              Re=self.Re, scheme=self.scheme, mergerhs=True)
 
         Mc, Ac = stokesmatsc['M'], stokesmatsc['A']
         BTc, Bc = stokesmatsc['JT'], stokesmatsc['J']
@@ -29,7 +28,7 @@ class StokNavUtsFunctions(unittest.TestCase):
 
         invinds = femp['invinds']
 
-        fv, fp = rhsd_stbc['fv'], rhsd_stbc['fp']
+        fv, fp = rhsd['fv'], rhsd['fp']
         print(np.linalg.norm(fv), np.linalg.norm(fp))
         inivdict = dict(A=Ac, J=Bc, JT=BTc, M=Mc, ppin=self.ppin, fv=fv, fp=fp,
                         return_vp=True, V=femp['V'], clearprvdata=True,

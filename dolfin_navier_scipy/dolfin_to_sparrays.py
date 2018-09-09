@@ -109,7 +109,7 @@ def ass_convmat_asmatquad(W=None, invindsw=None):
         # get the i-th basis function
         bi = dolfin.Function(V)
         bvec = np.zeros((V.dim(), ))
-        bvec[i] = 1
+        bvec[np.int(i)] = 1
         bi.vector()[:] = bvec
 
         # assemble for the i-th basis function
