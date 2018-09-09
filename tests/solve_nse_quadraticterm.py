@@ -23,14 +23,14 @@ compevs = True
 
 
 def linearzd_quadterm(H, linv, hlstr=None):
-    print 'TODO: this function will be deprecated soon'
-    print 'see ~/work/code/nse-quad-refree/python/conv_tensor_utils.py'
-    print 'for a maintained version'
+    print('TODO: this function will be deprecated soon')
+    print('see ~/work/code/nse-quad-refree/python/conv_tensor_utils.py')
+    print('for a maintained version')
     try:
         HLm = dou.load_spa(hlstr + '.mtx')
-        print 'loaded `hlmat`'
+        print('loaded `hlmat`')
     except IOError:
-        print 'assembling hlmat ...'
+        print('assembling hlmat ...')
         nv = linv.size
         # HLm = np.array(H * (sps.kron(sps.eye(nv), linv) +
         #                     sps.kron(linv, sps.eye(nv))))
@@ -69,9 +69,9 @@ def test_qbdae_ass(problemname='cylinderwake', N=1, Re=None, nu=3e-2,
         hstr = ddir + problemname + '_N{0}_hmat'.format(N)
         try:
             hmat = dou.load_spa(hstr)
-            print 'loaded `hmat`'
+            print('loaded `hmat`')
         except IOError:
-            print 'assembling hmat ...'
+            print('assembling hmat ...')
             hmat = dnsts.ass_convmat_asmatquad(W=femp['V'], invindsw=invinds)
             dou.save_spa(hmat, hstr)
 
@@ -134,7 +134,7 @@ def test_qbdae_ass(problemname='cylinderwake', N=1, Re=None, nu=3e-2,
         hlstr = ddir + problemname + '_N{0}_Re{1}Nse{2}_hlmat'.\
             format(N, Re, linnsesol)
         HL = linearzd_quadterm(hmat, old_v, hlstr=hlstr)
-        print HL.shape
+        print(HL.shape)
         asysmat = sps.vstack([sps.hstack([-(A-L+HL), J.T]),
                               sps.hstack([J, sps.csc_matrix((NP, NP))])])
         msysmat = sps.vstack([sps.hstack([M, sps.csc_matrix((NV, NP))]),
@@ -146,9 +146,9 @@ def test_qbdae_ass(problemname='cylinderwake', N=1, Re=None, nu=3e-2,
             levs = dou.load_npa(levstr)
             if debug:
                 raise IOError()
-            print 'loaded the eigenvalues of the linearized system'
+            print('loaded the eigenvalues of the linearized system')
         except IOError:
-            print 'computing the eigenvalues of the linearized system'
+            print('computing the eigenvalues of the linearized system')
             A = asysmat.todense()
             M = msysmat.todense()
             levs = spla.eigvals(A, M, overwrite_a=True, check_finite=False)
@@ -161,7 +161,7 @@ def test_qbdae_ass(problemname='cylinderwake', N=1, Re=None, nu=3e-2,
         plt.show(block=False)
 
     if timeint:
-        print 'computing LU once...'
+        print('computing LU once...')
         sysmati = spsla.factorized(sysmat)
 
         vfile = dolfin.File(rdir + problemname + 'qdae__vel.pvd')
@@ -171,7 +171,7 @@ def test_qbdae_ass(problemname='cylinderwake', N=1, Re=None, nu=3e-2,
                           invinds=invinds, diribcs=femp['diribcs'],
                           vp=None, t=None, writeoutput=True)
 
-        print 'doing the time loop...'
+        print('doing the time loop...')
         for t in trange:
             crhsv = M*old_v + DT*(fv - hmat*np.kron(old_v, old_v))
             crhs = np.vstack([crhsv, fp])
@@ -181,7 +181,7 @@ def test_qbdae_ass(problemname='cylinderwake', N=1, Re=None, nu=3e-2,
             dou.output_paraview(**prvoutdict)
 
             old_v = vp_new[:NV]
-            print t, np.linalg.norm(old_v)
+            print(t, np.linalg.norm(old_v))
 
 if __name__ == '__main__':
     # test_qbdae_ass(problemname='cylinderwake', N=1, Re=1e2, tE=2.0, Nts=800)
