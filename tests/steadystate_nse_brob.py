@@ -19,16 +19,13 @@ def testit(problem='cylinderwake', N=None, nu=None, Re=None,
     femp, stokesmatsc, rhsd = dnsps.get_sysmats(problem=problem, N=N, Re=Re,
                                                 nu=nu, scheme='TH',
                                                 mergerhs=True, bccontrol=True)
-    proutdir = 'results/'
-    ddir = 'data/'
     import scipy.sparse.linalg as spsla
     print('get expmats: |A| = {0}'.format(spsla.norm(stokesmatsc['A'])))
     print('get expmats: |Arob| = {0}'.format(spsla.norm(stokesmatsc['Arob'])))
 
     stokesmatsc['A'] = stokesmatsc['A'] + 1./palpha*stokesmatsc['Arob']
     b_mat = 1./palpha*stokesmatsc['Brob']
-    import ipdb; ipdb.set_trace()
-    brhs = 0.01*(1.5*b_mat[:, :1] - 1.5*b_mat[:, 1:])
+    brhs = 1*(1.5*b_mat[:, :1] - 1.5*b_mat[:, 1:])
 
     soldict = stokesmatsc  # containing A, J, JT
     soldict.update(femp)  # adding V, Q, invinds, diribcs
@@ -40,7 +37,7 @@ def testit(problem='cylinderwake', N=None, nu=None, Re=None,
                    vel_nwtn_tol=vel_nwtn_tol,
                    ddir=ddir, get_datastring=None,
                    clearprvdata=True,
-                   data_prfx=data_prfx,
+                   data_prfx=ddir+data_prfx,
                    paraviewoutput=ParaviewOutput,
                    vfileprfx=proutdir+'vel_',
                    pfileprfx=proutdir+'p_')
@@ -55,5 +52,4 @@ if __name__ == '__main__':
     # testit(N=25, nu=3e-4)
     # testit(problem='cylinderwake', N=3, nu=2e-3)
     # testit(problem='drivencavity', N=25, Re=500)
-    testit(problem='cylinderwake', N=2, Re=40,
-           nnwtnstps=5, npcrdstps=5)
+    testit(problem='cylinderwake', N=2, Re=40, nnwtnstps=10, npcrdstps=5)

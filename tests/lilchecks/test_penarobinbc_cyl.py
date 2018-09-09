@@ -25,7 +25,7 @@ def check_penaro(problemname='cylinderwake', N=2,
         plt.figure(2)
         plt.spy(stokesmats['amatrob'])
 
-    print 'Number of nonzeros in amatrob:', stokesmats['amatrob'].nnz
+    print('Number of nonzeros in amatrob:', stokesmats['amatrob'].nnz)
     plt.show()
 
 
@@ -51,7 +51,7 @@ def check_ass_penaro(bcsd=None, bcssfuns=None, V=None, plot=False):
 
     amatrob = dts.mat_dolfin2sparse(amatrob)
     amatrob.eliminate_zeros()
-    print 'Number of nonzeros in amatrob:', amatrob.nnz
+    print('Number of nonzeros in amatrob:', amatrob.nnz)
     bmatrob = bmatrob.array()  # [ININDS]
 
     if plot:
@@ -71,9 +71,9 @@ def checktheboundarycoordinates(bcsd, femp, plot=False):
     for bc in bcsd:
         bcrl = dolfin.DirichletBC(femp['V'], g1, bc())
         bcdict = bcrl.get_boundary_values()
-        print bcdict.keys()
+        print(list(bcdict.keys()))
 
-    bcinds = bcdict.keys()
+    bcinds = list(bcdict.keys())
 
     V = femp['V']
 
@@ -97,7 +97,7 @@ def checktheboundarycoordinates(bcsd, femp, plot=False):
         dx = dofx[0] - xcenter
         dy = dofx[1] - ycenter
         r = dolfin.sqrt(dx*dx + dy*dy)
-        print bcind, ':', dofx, r
+        print(bcind, ':', dofx, r)
 
 if __name__ == '__main__':
     check_penaro(plot=True, N=2)
