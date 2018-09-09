@@ -1,12 +1,8 @@
-import dolfin
-
 import dolfin_navier_scipy.stokes_navier_utils as snu
 import dolfin_navier_scipy.problem_setups as dnsps
 
-dolfin.parameters.linear_algebra_backend = 'uBLAS'
-
 krylovdict = dict(krylov='Gmres', krpslvprms={'tol': 1e-6,
-                                              'convstatsl': [],
+                                              # 'convstatsl': [],
                                               'krylovini': 'upd',
                                               'maxiter': 800})
 # krylovdict = {}
@@ -48,10 +44,10 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, Nts=1e3,
     soldict.update(krylovdict)  # if we wanna use an iterative solver
 
     snu.solve_nse(**soldict)
-    print len(krylovdict['krpslvprms']['convstatsl'])
+    print(len(krylovdict['krpslvprms']['convstatsl']))
 
 
 if __name__ == '__main__':
     # testit(N=15, nu=1e-2)
-    testit(problem='cylinderwake', N=0, Re=100, Nts=1024, tE=2.,
+    testit(problem='cylinderwake', N=1, Re=40, Nts=1024, tE=2.,
            ParaviewOutput=True)

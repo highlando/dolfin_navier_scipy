@@ -1,9 +1,5 @@
-import dolfin
-
 import dolfin_navier_scipy.stokes_navier_utils as snu
 import dolfin_navier_scipy.problem_setups as dnsps
-
-dolfin.parameters.linear_algebra_backend = 'uBLAS'
 
 # krylovdict = dict(krylov='Gmres', krpslvprms={'tol': 1e-2})
 krylovdict = {}
@@ -47,7 +43,7 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, Nts=1e3,
                    return_dictofvelstrs=True)
     csd = snu.solve_nse(**soldict)
 
-    print '1, 2, check, check'
+    print('1, 2, check, check')
 
     nnewtsteps = 7  # n nwtn stps for vel comp
     csd = soldict.update(fv_stbc=rhsd_stbc['fv'],
