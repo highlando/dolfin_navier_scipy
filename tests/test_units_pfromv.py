@@ -25,12 +25,12 @@ class StokNavUtsFunctions(unittest.TestCase):
 
         Mc, Ac = stokesmatsc['M'], stokesmatsc['A']
         BTc, Bc = stokesmatsc['JT'], stokesmatsc['J']
-        print Bc.shape
+        print(Bc.shape)
 
         invinds = femp['invinds']
 
         fv, fp = rhsd_stbc['fv'], rhsd_stbc['fp']
-        print np.linalg.norm(fv), np.linalg.norm(fp)
+        print(np.linalg.norm(fv), np.linalg.norm(fp))
         inivdict = dict(A=Ac, J=Bc, JT=BTc, M=Mc, ppin=self.ppin, fv=fv, fp=fp,
                         return_vp=True, V=femp['V'], clearprvdata=True,
                         invinds=invinds, diribcs=femp['diribcs'])
