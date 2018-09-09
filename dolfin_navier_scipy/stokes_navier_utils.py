@@ -172,7 +172,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         tolerance for the size of the Newton update, defaults to `5e-15`
     """
 
-    import sadptprj_riclyap_adi.lin_alg_utils as lau
+    import dolfin_navier_scipy.lin_alg_utils as lau
 
     if get_datastring is None:
         get_datastring = get_datastr_snu
@@ -459,7 +459,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         list of the velocity solutions
 
     """
-    import sadptprj_riclyap_adi.lin_alg_utils as lau
+    import dolfin_navier_scipy.lin_alg_utils as lau
 
     if fvc is not None or fpc is not None:  # TODO: this is for catching calls
         raise UserWarning('deprecated use of `rhsd_vfrc`, use only `fv`, `fp`')
@@ -950,7 +950,7 @@ def get_pfromv(v=None, V=None, M=None, A=None, J=None, fv=None, fp=None,
     Formula is only valid for constant rhs in the continuity equation
     """
 
-    import sadptprj_riclyap_adi.lin_alg_utils as lau
+    import dolfin_navier_scipy.lin_alg_utils as lau
 
     _, rhs_con, _ = get_v_conv_conts(prev_v=v, V=V, invinds=invinds,
                                      diribcs=diribcs)
