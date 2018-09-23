@@ -14,3 +14,4 @@ setup(name='dolfin_navier_scipy',
       packages=['dolfin_navier_scipy'],  # same as name
       install_requires=['numpy', 'scipy']  # external packages as dependencies
       )
+
