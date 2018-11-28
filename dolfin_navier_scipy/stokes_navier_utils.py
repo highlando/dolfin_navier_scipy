@@ -123,6 +123,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           fv=None, fp=None,
                           V=None, Q=None, invinds=None, diribcs=None,
                           return_vp=False, ppin=-1,
+                          return_nwtnupd_norms=False,
                           N=None, nu=None,
                           vel_pcrd_stps=10, vel_pcrd_tol=1e-4,
                           vel_nwtn_stps=20, vel_nwtn_tol=5e-15,
@@ -328,10 +329,16 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
     # savetomatlab = True
     # if savetomatlab:
     #     export_mats_to_matlab(E=None, A=None, matfname='matexport')
-    if return_vp:
-        return vp_k, norm_nwtnupd_list
+    if return_nwtnupd_norms:
+        if return_vp:
+            return vp_k, norm_nwtnupd_list
+        else:
+            return vel_k, norm_nwtnupd_list
     else:
-        return vel_k, norm_nwtnupd_list
+        if return_vp:
+            return vp_k
+        else:
+            return vel_k
 
 
 def solve_nse(A=None, M=None, J=None, JT=None,
@@ -350,7 +357,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               closed_loop=False, static_feedback=False,
               feedbackthroughdict=None,
               return_vp=False,
-              tb_mat=None, c_mat=None,
+              tb_mat=None, cv_mat=None,
               vel_nwtn_stps=20, vel_nwtn_tol=5e-15,
               nsects=1, loc_nwtn_tol=5e-15, loc_pcrd_stps=True,
               addfullsweep=False,
@@ -446,6 +453,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     addfullsweep: boolean, optional
         whether to compute the newton iteration on the full `trange`,
         useful to check and for the plots, defaults to `False`
+    cv_mat: (Ny, Nv) sparse array, optional
+        output matrix for velocity outputs, needed, e.g., for output dependent
+        feedback control, defaults to `None`
 
     Returns
     -------
@@ -500,8 +510,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if iniv is None:
         if start_ssstokes:
             # Stokes solution as starting value
-            # (fv_tmdp_cont,
-            #  fv_tmdp_memory) = fv_tmdp(time=0, **fv_tmdp_params)
             vp_stokes =\
                 lau.solve_sadpnt_smw(amat=A, jmat=J, jmatT=JT,
                                      rhsv=fv,  # + fv_tmdp_cont,
@@ -739,9 +747,11 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     get_v_conv_conts(prev_v=iniv, invinds=invinds,
                                      V=V, diribcs=diribcs, Picard=pcrd_anyone)
 
+            cury = None if cv_mat is None else cv_mat.dot(v_old)
             (fv_tmdp_cont,
              fv_tmdp_memory) = fv_tmdp(time=0,
                                        curvel=v_old,
+                                       cury=cury,
                                        memory=fv_tmdp_memory,
                                        **fv_tmdp_params)
 
@@ -814,9 +824,11 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                         get_v_conv_conts(prev_v=prev_v, invinds=invinds, V=V,
                                          diribcs=diribcs, Picard=pcrd_anyone)
 
+                cury = None if cv_mat is None else cv_mat.dot(v_old)
                 (fv_tmdp_cont,
                  fv_tmdp_memory) = fv_tmdp(time=t,
                                            curvel=v_old,
+                                           cury=cury,
                                            memory=fv_tmdp_memory,
                                            **fv_tmdp_params)
 
