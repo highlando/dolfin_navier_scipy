@@ -123,6 +123,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           fv=None, fp=None,
                           V=None, Q=None, invinds=None, diribcs=None,
                           return_vp=False, ppin=-1,
+                          return_nwtnupd_norms=False,
                           N=None, nu=None,
                           vel_pcrd_stps=10, vel_pcrd_tol=1e-4,
                           vel_nwtn_stps=20, vel_nwtn_tol=5e-15,
@@ -328,10 +329,16 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
     # savetomatlab = True
     # if savetomatlab:
     #     export_mats_to_matlab(E=None, A=None, matfname='matexport')
-    if return_vp:
-        return vp_k, norm_nwtnupd_list
+    if return_nwtnupd_norms:
+        if return_vp:
+            return vp_k, norm_nwtnupd_list
+        else:
+            return vel_k, norm_nwtnupd_list
     else:
-        return vel_k, norm_nwtnupd_list
+        if return_vp:
+            return vp_k
+        else:
+            return vel_k
 
 
 def solve_nse(A=None, M=None, J=None, JT=None,
