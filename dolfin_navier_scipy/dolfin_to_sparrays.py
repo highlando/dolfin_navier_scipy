@@ -444,6 +444,7 @@ def condense_sysmatsbybcs(stms, velbcs):
     auxu = np.zeros((nv, 1))
     bcinds = []
     for bc in velbcs:
+        # print('hello')
         bcdict = bc.get_boundary_values()
         auxu[list(bcdict.keys()), 0] = list(bcdict.values())
         bcinds.extend(list(bcdict.keys()))

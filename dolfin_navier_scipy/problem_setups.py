@@ -22,18 +22,18 @@ import json
 __all__ = ['get_sysmats',
            'drivcav_fems',
            'cyl_fems',
-           'any_fems',
+           'gen_bccont_fems',
            'cyl3D_fems']
 
 
-def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
+def get_sysmats(problem='gen_bccont', N=10, scheme=None, ppin=None,
                 Re=None, nu=None, bccontrol=False, mergerhs=False,
-                onlymesh=False):
+                onlymesh=False, meshparams={}):
     """ retrieve the system matrices for stokes flow
 
     Parameters
     ----------
-    problem : {'drivencavity', 'cylinderwake'}
+    problem : {'drivencavity', 'cylinderwake', 'gen_bccont'}
         problem class
     N : int
         mesh parameter
@@ -106,9 +106,11 @@ def get_sysmats(problem='drivencavity', N=10, scheme=None, ppin=None,
 
     problemdict = dict(drivencavity=drivcav_fems,
                        cylinderwake=cyl_fems,
-                       cylinderwake3D=cyl3D_fems)
+                       cylinderwake3D=cyl3D_fems,
+                       gen_bccont=gen_bccont_fems)
+
     problemfem = problemdict[problem]
-    femp = problemfem(N, scheme=scheme, bccontrol=bccontrol)
+    femp = problemfem(scheme=scheme, bccontrol=bccontrol, **meshparams)
     if onlymesh:
         return femp
 
@@ -712,8 +714,9 @@ def cyl3D_fems(refinement_level=2, scheme='TH',
     return cylfems
 
 
-def gen_bccont_setup(scheme='TH', bccontrol=True, verbose=False,
-                     strtomeshfile='', strtophysicalregions='', strtobcsobs=''):
+def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
+                    strtomeshfile='', strtophysicalregions='',
+                    strtobcsobs=''):
     """
     dictionary for the fem items for a general 2D flow setup
 
@@ -736,6 +739,8 @@ def gen_bccont_setup(scheme='TH', bccontrol=True, verbose=False,
          * `V`: FEM space of the velocity
          * `Q`: FEM space of the pressure
          * `diribcs`: list of the (Dirichlet) boundary conditions
+         * `dbcsinds`: list vortex indices with (Dirichlet) boundary conditions
+         * `dbcsvals`: list of values of the (Dirichlet) boundary conditions
          * `dirip`: list of the (Dirichlet) boundary conditions \
                  for the pressure
          * `fv`: right hand side of the momentum equation
@@ -758,12 +763,12 @@ def gen_bccont_setup(scheme='TH', bccontrol=True, verbose=False,
 
     boundaries = dolfin.MeshFunction('size_t', mesh, strtophysicalregions)
 
-    with open("karman2D_geo_cntrlbc.json") as f:
+    with open(strtobcsobs) as f:
         cntbcsdata = json.load(f)
 
     inflowgeodata = cntbcsdata['inflow']
     inflwpe = inflowgeodata['physical entity']
-    inflwin = inflowgeodata['inward normal']
+    inflwin = np.array(inflowgeodata['inward normal'])
     inflwxi = np.array(inflowgeodata['xone'])
     inflwxii = np.array(inflowgeodata['xtwo'])
 
@@ -777,23 +782,34 @@ def gen_bccont_setup(scheme='TH', bccontrol=True, verbose=False,
         if on [s0,s1]: `g(s) = ((s-s0)/(s1-s0))*(1-(s-s0)/(s1-s0))*6`
         since then `g((s0+s1)/2)=3/2` and  `g(s0)=0=g(s1)`'''
 
+        def __init__(self, degree=2, lenb=None, xone=None, normalvec=None):
+            self.degree = degree
+            self.lenb = lenb
+            self.xone = xone
+            self.normalvec = normalvec
+            super().__init__()
+
         def eval(self, value, x):
-            curs = np.linalg.norm(x - inflwxi)/leninflwb
-            curvel = 6*curs*(1-curs)*inflwin
+            curs = np.linalg.norm(x - self.xone)/self.lenb
+            # print(x, curs)
+            curvel = 6*curs*(1-curs)*self.normalvec
             value[0], value[1] = curvel[0], curvel[1]
 
         def value_shape(self):
             return (2,)
 
-    inflowpara = InflowParabola(degree=2)
+    inflowpara = InflowParabola(degree=2, lenb=leninflwb, xone=inflwxi,
+                                normalvec=inflwin)
     bcin = dolfin.DirichletBC(V, inflowpara, boundaries, inflwpe)
     diribcu = [bcin]
+    bcdict = bcin.get_boundary_values()
 
     # ## THE WALLS
     wallspel = cntbcsdata['walls']['physical entity']
     gzero = dolfin.Constant((0, 0))
     for wpe in wallspel:
         diribcu.append(dolfin.DirichletBC(V, gzero, boundaries, wpe))
+        bcdict = diribcu[-1].get_boundary_values()
 
     if not bccontrol:  # treat the control boundaries as walls
         for cntbc in cntbcsdata['controlbcs']:
@@ -818,9 +834,26 @@ def gen_bccont_setup(scheme='TH', bccontrol=True, verbose=False,
         p0 = dolfin.Constant(0)
         return u0, p0
 
+    dbcinds, dbcvals = [], []
+    for bc in diribcu:
+        bcdict = bc.get_boundary_values()
+        dbcvals.extend(list(bcdict.values()))
+        dbcinds.extend(list(bcdict.keys()))
+
+    # npbcv = np.array(dbcvals)
+    # npbci = np.array(dbcinds)
+    # print(npbci[npbcv>0])
+    # print(npbcv[npbcv>0])
+    # import matplotlib.pyplot as plt
+    # dolfin.plot(mesh)
+    # plt.show()
+    # import ipdb; ipdb.set_trace()
+
     cylfems = dict(V=V,
                    Q=Q,
-                   diribcs=diribcu,
+                   # diribcs=diribcu,
+                   dbcinds=dbcinds,
+                   dbcvals=dbcvals,
                    dirip=bcp,
                    # contrbcssubdomains=bcsubdoms,
                    # contrbcsshapefuns=bcshapefuns,

@@ -5,8 +5,9 @@ import numpy as np
 N, Re, scheme, ppin = 2, 50, 'TH', None
 
 femp, stokesmatsc, rhsd = \
-    dnsps.get_sysmats(problem='cylinderwake', N=N, Re=Re,
-                      scheme=scheme, mergerhs=True)
+    dnsps.get_sysmats(problem='cylinderwake', Re=Re,
+                      scheme=scheme, mergerhs=True,
+                      meshparams=dict(refinement_level=N))
 
 Mc, Ac = stokesmatsc['M'], stokesmatsc['A']
 BTc, Bc = stokesmatsc['JT'], stokesmatsc['J']
@@ -18,7 +19,7 @@ fv, fp = rhsd['fv'], rhsd['fp']
 inivdict = dict(A=Ac, J=Bc, JT=BTc, M=Mc, ppin=ppin, fv=fv, fp=fp,
                 return_vp=True, V=femp['V'],
                 invinds=invinds, diribcs=femp['diribcs'])
-vp_init = snu.solve_steadystate_nse(**inivdict)[0]
+vp_init = snu.solve_steadystate_nse(**inivdict)
 
 NV = Bc.shape[1]
 
