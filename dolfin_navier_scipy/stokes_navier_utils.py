@@ -122,6 +122,7 @@ def m_innerproduct(M, v1, v2=None):
 def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           fv=None, fp=None,
                           V=None, Q=None, invinds=None, diribcs=None,
+                          dbcvals=None, dbcinds=None,
                           return_vp=False, ppin=-1,
                           return_nwtnupd_norms=False,
                           N=None, nu=None,
@@ -159,6 +160,10 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         momentum and the pressure freedom in the continuity equation
     ppin : {int, None}, optional
         which dof of `p` is used to pin the pressure, defaults to `-1`
+    dbcinds: list, optional
+        indices of the Dirichlet boundary conditions
+    dbcvals: list, optional
+        values of the Dirichlet boundary conditions (as listed in `dbcinds`)
     return_vp : boolean, optional
         whether to return also the pressure, defaults to `False`
     vel_pcrd_stps : int, optional
@@ -171,6 +176,13 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         Number of Newton iterations, defaults to `20`
     vel_nwtn_tol : real, optional
         tolerance for the size of the Newton update, defaults to `5e-15`
+
+    Returns:
+    ---
+    vel_[p]k : (N, 1) ndarray
+        the velocity/[pressure] vector. Pressure only if `return_vp`
+    norm_nwtnupd_list : list, on demand
+        list of the newton upd errors
     """
 
     import sadptprj_riclyap_adi.lin_alg_utils as lau

@@ -401,7 +401,7 @@ def get_convvec(u0_dolfun=None, V=None, u0_vec=None, femp=None,
     return ConvVec
 
 
-def condense_sysmatsbybcs(stms, velbcs):
+def condense_sysmatsbybcs(stms, velbcs=None, dbcinds=None, dbcvals=None):
     """resolve the Dirichlet BCs and condense the system matrices
 
     to the inner nodes
@@ -415,8 +415,12 @@ def condense_sysmatsbybcs(stms, velbcs):
          * ``JT``: the gradient matrix,
          * ``J``: the divergence matrix, and
          * ``MP``: the mass matrix of the pressure space
-    velbcs : list
+    velbcs : list, optional
         of dolfin Dirichlet boundary conditions for the velocity
+    dbcinds: list, optional
+        indices of the Dirichlet boundary conditions
+    dbcvals: list, optional
+        values of the Dirichlet boundary conditions (as listed in `dbcinds`)
 
     Returns
     -------
@@ -442,13 +446,17 @@ def condense_sysmatsbybcs(stms, velbcs):
     nv = stms['A'].shape[0]
 
     auxu = np.zeros((nv, 1))
-    bcinds = []
-    for bc in velbcs:
-        # print('hello')
-        bcdict = bc.get_boundary_values()
-        auxu[list(bcdict.keys()), 0] = list(bcdict.values())
-        bcinds.extend(list(bcdict.keys()))
 
+    if velbcs is not None:
+        bcinds, bcvals = [], []
+        for bc in velbcs:
+            bcdict = bc.get_boundary_values()
+            bcvals.extend(list(bcdict.values()))
+            bcinds.extend(list(bcdict.keys()))
+    else:
+        bcinds, bcvals = dbcinds, dbcvals
+
+    auxu[bcinds, 0] = bcvals
     # putting the bcs into the right hand sides
     fvbc = - stms['A'] * auxu    # '*' is np.dot for csr matrices
     fpbc = - stms['J'] * auxu

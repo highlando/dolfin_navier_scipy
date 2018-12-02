@@ -150,12 +150,14 @@ def get_sysmats(problem='gen_bccont', N=10, scheme=None, ppin=None,
         raise NotImplementedError('Cannot pin `p` other than at `-1`')
 
     # reduce the matrices by resolving the BCs
-    (stokesmatsc,
-     rhsd_stbc,
-     invinds,
-     bcinds,
-     bcvals) = dts.condense_sysmatsbybcs(stokesmats,
-                                         femp['diribcs'])
+    try:
+        (stokesmatsc, rhsd_stbc, invinds, bcinds,
+         bcvals) = dts.condense_sysmatsbybcs(stokesmats, femp['diribcs'])
+    except KeyError:  # can also just provide indices and values
+        (stokesmatsc, rhsd_stbc, invinds, bcinds,
+         bcvals) = dts.condense_sysmatsbybcs(stokesmats,
+                                             dbcinds=femp['dbcinds'],
+                                             dbcvals=femp['dbcvals'])
     stokesmatsc.update({'Jfull': stokesmats['J']})
 
     # pressure freedom and dirichlet reduced rhs
