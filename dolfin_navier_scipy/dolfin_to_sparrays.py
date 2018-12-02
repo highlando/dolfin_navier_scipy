@@ -443,10 +443,6 @@ def condense_sysmatsbybcs(stms, velbcs=None, dbcinds=None, dbcvals=None):
         vector of the values of the boundary nodes
     """
 
-    nv = stms['A'].shape[0]
-
-    auxu = np.zeros((nv, 1))
-
     if velbcs is not None:
         bcinds, bcvals = [], []
         for bc in velbcs:
@@ -456,7 +452,10 @@ def condense_sysmatsbybcs(stms, velbcs=None, dbcinds=None, dbcvals=None):
     else:
         bcinds, bcvals = dbcinds, dbcvals
 
+    nv = stms['A'].shape[0]
+    auxu = np.zeros((nv, 1))
     auxu[bcinds, 0] = bcvals
+
     # putting the bcs into the right hand sides
     fvbc = - stms['A'] * auxu    # '*' is np.dot for csr matrices
     fpbc = - stms['J'] * auxu
@@ -485,7 +484,8 @@ def condense_sysmatsbybcs(stms, velbcs=None, dbcinds=None, dbcvals=None):
     return stokesmatsc, rhsvecsbc, invinds, bcinds, bcvals
 
 
-def condense_velmatsbybcs(A, velbcs, return_bcinfo=False):
+def condense_velmatsbybcs(A, velbcs=None, return_bcinfo=False,
+                          dbcinds=None, dbcvals=None):
     """resolve the Dirichlet BCs, condense velocity related matrices
 
     to the inner nodes, and compute the rhs contribution
@@ -514,14 +514,18 @@ def condense_velmatsbybcs(A, velbcs, return_bcinfo=False):
 
     """
 
-    nv = A.shape[0]
+    if velbcs is not None:
+        bcinds, bcvals = [], []
+        for bc in velbcs:
+            bcdict = bc.get_boundary_values()
+            bcvals.extend(list(bcdict.values()))
+            bcinds.extend(list(bcdict.keys()))
+    else:
+        bcinds, bcvals = dbcinds, dbcvals
 
+    nv = A.shape[0]
     auxu = np.zeros((nv, 1))
-    bcinds = []
-    for bc in velbcs:
-        bcdict = bc.get_boundary_values()
-        auxu[list(bcdict.keys()), 0] = list(bcdict.values())
-        bcinds.extend(list(bcdict.keys()))
+    auxu[bcinds, 0] = bcvals
 
     # putting the bcs into the right hand sides
     fvbc = - A * auxu    # '*' is np.dot for csr matrices
