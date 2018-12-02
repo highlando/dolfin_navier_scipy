@@ -45,7 +45,8 @@ def testit(problem='cylinderwake', N=None, nu=None, Re=None,
 #
 # compute the uncontrolled steady state Navier-Stokes solution
 #
-    v_ss_nse, list_norm_nwtnupd = snu.solve_steadystate_nse(**soldict)
+    snu.solve_steadystate_nse(**soldict)
+    print('plots go to : ' + proutdir + 'vel___steadystates.pvd')
 
 
 if __name__ == '__main__':
