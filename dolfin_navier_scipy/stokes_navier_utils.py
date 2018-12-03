@@ -38,6 +38,7 @@ def get_datastr_snu(time=None, meshp=None, nu=None, Nts=None, data_prfx='',
 
 
 def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
+                     dbcvals=None, dbcinds=None,
                      Picard=False, retparts=False, zerodiribcs=False):
     """ get and condense the linearized convection
 
@@ -83,6 +84,7 @@ def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
     """
 
     N1, N2, rhs_con = dts.get_convmats(u0_vec=prev_v, V=V, invinds=invinds,
+                                       dbcinds=dbcinds, dbcvals=dbcvals,
                                        diribcs=diribcs)
 
     if zerodiribcs:
@@ -92,20 +94,24 @@ def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
         _cndnsmts = dts.condense_velmatsbybcs
 
     if Picard:
-        convc_mat, rhsv_conbc = _cndnsmts(N1, diribcs)
+        convc_mat, rhsv_conbc = _cndnsmts(N1, velbcs=diribcs,
+                                          dbcinds=dbcinds, dbcvals=dbcvals)
         # return convc_mat, rhs_con[invinds, ], rhsv_conbc
         return convc_mat, None, rhsv_conbc
 
     elif retparts:
-        picrd_convc_mat, picrd_rhsv_conbc = _cndnsmts(N1, diribcs)
+        picrd_convc_mat, picrd_rhsv_conbc = _cndnsmts(N1, velbcs=diribcs,
+                                                      dbcinds=dbcinds,
+                                                      dbcvals=dbcvals)
         anti_picrd_convc_mat, anti_picrd_rhsv_conbc = \
-            _cndnsmts(N2, diribcs)
+            _cndnsmts(N2, velbcs=diribcs, dbcinds=dbcinds, dbcvals=dbcvals)
         return ((picrd_convc_mat, anti_picrd_convc_mat),
                 rhs_con[invinds, ],
                 (picrd_rhsv_conbc, anti_picrd_rhsv_conbc))
 
     else:
-        convc_mat, rhsv_conbc = _cndnsmts(N1+N2, diribcs)
+        convc_mat, rhsv_conbc = _cndnsmts(N1+N2, velbcs=diribcs,
+                                          dbcinds=dbcinds, dbcvals=dbcvals)
         return convc_mat, rhs_con[invinds, ], rhsv_conbc
 
 
@@ -231,6 +237,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                 else:
                     pfv = get_pfromv(v=vel_k[:NV, :], V=V,
                                      M=M, A=A, J=J, fv=fv,
+                                     dbcinds=dbcinds, dbcvals=dbcvals,
                                      invinds=invinds, diribcs=diribcs)
                     return (np.vstack([vel_k, pfv]), norm_nwtnupd_list)
 
@@ -249,6 +256,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         pfile = dolfin.File(pfileprfx+'__steadystates.pvd')
         prvoutdict = dict(V=V, Q=Q, vfile=vfile, pfile=pfile,
                           invinds=invinds, diribcs=diribcs, ppin=ppin,
+                          dbcinds=dbcinds, dbcvals=dbcvals,
                           vp=None, t=None, writeoutput=True)
     else:
         prvoutdict = dict(writeoutput=False)  # save 'if statements' here
@@ -278,8 +286,11 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
     # Picard iterations for a good starting value for Newton
     for k in range(vel_pcrd_stps):
         (convc_mat,
-         rhs_con, rhsv_conbc) = get_v_conv_conts(prev_v=vel_k, invinds=invinds,
-                                                 V=V, diribcs=diribcs,
+         rhs_con, rhsv_conbc) = get_v_conv_conts(prev_v=vel_k, V=V,
+                                                 diribcs=diribcs,
+                                                 invinds=invinds,
+                                                 dbcinds=dbcinds,
+                                                 dbcvals=dbcvals,
                                                  Picard=True)
 
         vp_k = lau.solve_sadpnt_smw(amat=A+convc_mat, jmat=J, jmatT=JT,
@@ -306,6 +317,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
         (convc_mat,
          rhs_con, rhsv_conbc) = get_v_conv_conts(vel_k, invinds=invinds,
+                                                 dbcinds=dbcinds,
+                                                 dbcvals=dbcvals,
                                                  V=V, diribcs=diribcs)
 
         vp_k = lau.solve_sadpnt_smw(amat=A+convc_mat, jmat=J, jmatT=JT,
@@ -363,6 +376,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               trange=None,
               t0=None, tE=None, Nts=None,
               V=None, Q=None, invinds=None, diribcs=None,
+              dbcinds=None, dbcvals=None,
               output_includes_bcs=False,
               N=None, nu=None,
               ppin=-1,
@@ -509,6 +523,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if return_dictofpstrs:
         gpfvd = dict(V=V, M=M, A=A, J=J,
                      fv=fv, fp=fp,
+                     dbcinds=dbcinds, dbcvals=dbcvals,
                      diribcs=diribcs, invinds=invinds)
 
     NV, NP = A.shape[0], J.shape[0]
@@ -757,6 +772,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
                 convc_mat_c, rhs_con_c, rhsv_conbc_c = \
                     get_v_conv_conts(prev_v=iniv, invinds=invinds,
+                                     # dbcinds=dbcinds, dbcvals=dbcvals,
                                      V=V, diribcs=diribcs, Picard=pcrd_anyone)
 
             cury = None if cv_mat is None else cv_mat.dot(v_old)
@@ -966,7 +982,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 def get_pfromv(v=None, V=None, M=None, A=None, J=None, fv=None, fp=None,
                decouplevp=False, solve_M=None, symmetric=False,
                cgtol=1e-8,
-               diribcs=None, invinds=None, **kwargs):
+               diribcs=None, dbcinds=None, dbcvals=None, invinds=None,
+               **kwargs):
     """ for a velocity `v`, get the corresponding `p`
 
     Notes
@@ -977,6 +994,7 @@ def get_pfromv(v=None, V=None, M=None, A=None, J=None, fv=None, fp=None,
     import sadptprj_riclyap_adi.lin_alg_utils as lau
 
     _, rhs_con, _ = get_v_conv_conts(prev_v=v, V=V, invinds=invinds,
+                                     dbcinds=dbcinds, dbcvals=dbcvals,
                                      diribcs=diribcs)
 
     if decouplevp and symmetric:
