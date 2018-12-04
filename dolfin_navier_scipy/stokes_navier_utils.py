@@ -749,6 +749,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             vfile = dolfin.File(vfileprfx+'__timestep.pvd')
             pfile = dolfin.File(pfileprfx+'__timestep.pvd')
             prvoutdict.update(dict(vp=None, vc=iniv, pc=p_old, t=loctrng[0],
+                                   dbcinds=dbcinds, dbcvals=dbcvals,
                                    pfile=pfile, vfile=vfile))
             dou.output_paraview(**prvoutdict)
 
@@ -772,7 +773,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
                 convc_mat_c, rhs_con_c, rhsv_conbc_c = \
                     get_v_conv_conts(prev_v=iniv, invinds=invinds,
-                                     # dbcinds=dbcinds, dbcvals=dbcvals,
+                                     dbcinds=dbcinds, dbcvals=dbcvals,
                                      V=V, diribcs=diribcs, Picard=pcrd_anyone)
 
             cury = None if cv_mat is None else cv_mat.dot(v_old)
@@ -850,6 +851,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                 prev_v = cur_linvel_point[None]
                     convc_mat_n, rhs_con_n, rhsv_conbc_n = \
                         get_v_conv_conts(prev_v=prev_v, invinds=invinds, V=V,
+                                         dbcinds=dbcinds, dbcvals=dbcvals,
                                          diribcs=diribcs, Picard=pcrd_anyone)
 
                 cury = None if cv_mat is None else cv_mat.dot(v_old)
