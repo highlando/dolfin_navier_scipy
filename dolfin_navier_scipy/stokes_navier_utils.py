@@ -140,6 +140,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           get_datastring=None,
                           data_prfx='',
                           paraviewoutput=False,
+                          save_data=True,
                           save_intermediate_steps=False,
                           vfileprfx='', pfileprfx='',
                           verbose=True,
@@ -271,7 +272,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         # save the data
         cdatstr = get_datastring(**datastrdict)
 
-        dou.save_npa(vp_stokes[:NV, ], fstring=cdatstr + '__vel')
+        if save_data:
+            dou.save_npa(vp_stokes[:NV, ], fstring=cdatstr + '__vel')
 
         prvoutdict.update(dict(vp=vp_stokes))
         dou.output_paraview(**prvoutdict)
@@ -333,7 +335,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
             print('Steady State NSE: Newton iteration: {0}'.format(vel_newtk) +
                   '-- norm of update: {0}'.format(norm_nwtnupd))
 
-        dou.save_npa(vel_k, fstring=cdatstr + '__vel')
+        if save_data:
+            dou.save_npa(vel_k, fstring=cdatstr + '__vel')
 
         prvoutdict.update(dict(vp=vp_k))
         dou.output_paraview(**prvoutdict)
@@ -347,7 +350,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         else:
             raise UserWarning('Steady State NSE: Newton has not converged')
 
-    dou.save_npa(norm_nwtnupd, cdatstr + '__norm_nwtnupd')
+    if save_data:
+        dou.save_npa(norm_nwtnupd, cdatstr + '__norm_nwtnupd')
 
     dou.output_paraview(**prvoutdict)
 

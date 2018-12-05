@@ -804,7 +804,6 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
                                 normalvec=inflwin)
     bcin = dolfin.DirichletBC(V, inflowpara, boundaries, inflwpe)
     diribcu = [bcin]
-    bcdict = bcin.get_boundary_values()
 
     # ## THE WALLS
     wallspel = cntbcsdata['walls']['physical entity']
@@ -841,15 +840,6 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
         bcdict = bc.get_boundary_values()
         dbcvals.extend(list(bcdict.values()))
         dbcinds.extend(list(bcdict.keys()))
-
-    # npbcv = np.array(dbcvals)
-    # npbci = np.array(dbcinds)
-    # print(npbci[npbcv>0])
-    # print(npbcv[npbcv>0])
-    # import matplotlib.pyplot as plt
-    # dolfin.plot(mesh)
-    # plt.show()
-    # import ipdb; ipdb.set_trace()
 
     cylfems = dict(V=V,
                    Q=Q,
