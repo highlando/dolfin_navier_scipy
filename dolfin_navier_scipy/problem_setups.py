@@ -121,8 +121,8 @@ def get_sysmats(problem='gen_bccont', N=10, scheme=None, ppin=None,
         Re = femp['charlen']/nu
 
     if bccontrol:
-        cbclist = femp['contrbcssubdomains']
         cbshapefuns = femp['contrbcsshapefuns']
+        cbclist = femp['contrbcssubdomains']
     else:
         cbclist, cbshapefuns = None, None
 
@@ -841,6 +841,18 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
         dbcvals.extend(list(bcdict.values()))
         dbcinds.extend(list(bcdict.keys()))
 
+    # ## Control boundaries
+
+    if bccontrol:
+        bcpes, bcshapefuns = [], []
+        for cbc in cntbcsdata['controlbcs']:
+            cpe = cbc['physical entity']
+            cxi, cxii = np.array(cbc['xone']), np.array(cbc['xone'])
+            csf = _get_cont_shape_fun2D(xi=cxi, xii=cxii,
+                                        element=V.ufl_element())
+            bcshapefuns.append(csf)
+            bcpes.append(cpe)
+
     cylfems = dict(V=V,
                    Q=Q,
                    # diribcs=diribcu,
@@ -848,10 +860,35 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
                    dbcvals=dbcvals,
                    dirip=bcp,
                    # contrbcssubdomains=bcsubdoms,
-                   # contrbcsshapefuns=bcshapefuns,
+                   contrbcmeshfunc=boundaries,
+                   contrbcspes=bcpes,
+                   contrbcsshapefuns=bcshapefuns,
                    fv=fv,
                    fp=fp,
                    charlen=cntbcsdata['characteristic length'],
                    mesh=mesh)
 
     return cylfems
+
+
+def _get_cont_shape_fun2D(xi=None, xii=None, element=None, shape='parabola'):
+    lencb = np.linalg.norm(xi-xii)
+    cbt = 1./lencb*(xii-xi)  # the normalized vector pointing x1 -> x2
+    cbn = np.array([cbt[1], -cbt[0]]).reshape((2, 1))  # rotate by pi/2
+
+    class GenContShape(dolfin.UserExpression):
+
+        def __init__(self, degree=2):
+            self.degree = degree
+            super().__init__()
+
+        def eval(self, value, x):
+            curs = np.linalg.norm(x - xi)/lencb
+            # print(x, curs)
+            curvel = 6*curs*(1-curs)*cbn
+            value[0], value[1] = curvel[0], curvel[1]
+
+        def value_shape(self):
+            return (2,)
+
+    return GenContShape(element=element)
