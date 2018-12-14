@@ -27,13 +27,14 @@ __all__ = ['get_sysmats',
 
 
 def get_sysmats(problem='gen_bccont', N=10, scheme=None, ppin=None,
-                Re=None, nu=None, bccontrol=False, mergerhs=False,
+                Re=None, nu=None, charvel=1.,
+                bccontrol=False, mergerhs=False,
                 onlymesh=False, meshparams={}):
     """ retrieve the system matrices for stokes flow
 
     Parameters
     ----------
-    problem : {'drivencavity', 'cylinderwake', 'gen_bccont'}
+    problem : {'drivencavity', 'cylinderwake', 'gen_bccont', 'cylinder_rot'}
         problem class
     N : int
         mesh parameter
@@ -110,15 +111,22 @@ def get_sysmats(problem='gen_bccont', N=10, scheme=None, ppin=None,
                        gen_bccont=gen_bccont_fems)
 
     problemfem = problemdict[problem]
+    if problem == 'cylinder_rot':
+        problemfem = gen_bccont_fems
+        meshparams.update(dict(movingwallcntrl=True))
+        meshparams.update(dict(inflowvel=charvel))
+
+    if problem == 'cylinderwake' or problem == 'gen_bccont':
+        meshparams.update(dict(inflowvel=charvel))
     femp = problemfem(scheme=scheme, bccontrol=bccontrol, **meshparams)
     if onlymesh:
         return femp
 
     # setting some parameters
     if Re is not None:
-        nu = femp['charlen']/Re
+        nu = charvel*femp['charlen']/Re
     else:
-        Re = femp['charlen']/nu
+        Re = charvel*femp['charlen']/nu
 
     if bccontrol:
         cbshapefuns = femp['contrbcsshapefuns']
@@ -718,6 +726,7 @@ def cyl3D_fems(refinement_level=2, scheme='TH',
 
 def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
                     strtomeshfile='', strtophysicalregions='',
+                    inflowvel=1., movingwallcntrl=False,
                     strtobcsobs=''):
     """
     dictionary for the fem items for a general 2D flow setup
@@ -734,6 +743,8 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
     bccontrol : boolean, optional
         whether to consider boundary control via penalized Robin \
         defaults to `True`
+    movingwallcntrl : boolean, optional
+        whether control is via moving boundaries
 
     Returns
     -------
@@ -784,24 +795,26 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
         if on [s0,s1]: `g(s) = ((s-s0)/(s1-s0))*(1-(s-s0)/(s1-s0))*6`
         since then `g((s0+s1)/2)=3/2` and  `g(s0)=0=g(s1)`'''
 
-        def __init__(self, degree=2, lenb=None, xone=None, normalvec=None):
+        def __init__(self, degree=2, lenb=None, xone=None,
+                     inflowvel=1., normalvec=None):
             self.degree = degree
             self.lenb = lenb
             self.xone = xone
             self.normalvec = normalvec
+            self.inflowvel = inflowvel
             super().__init__()
 
         def eval(self, value, x):
             curs = np.linalg.norm(x - self.xone)/self.lenb
             # print(x, curs)
-            curvel = 6*curs*(1-curs)*self.normalvec
+            curvel = self.inflowvel*6*curs*(1-curs)*self.normalvec
             value[0], value[1] = curvel[0], curvel[1]
 
         def value_shape(self):
             return (2,)
 
     inflowpara = InflowParabola(degree=2, lenb=leninflwb, xone=inflwxi,
-                                normalvec=inflwin)
+                                normalvec=inflwin, inflowvel=inflowvel)
     bcin = dolfin.DirichletBC(V, inflowpara, boundaries, inflwpe)
     diribcu = [bcin]
 
@@ -813,9 +826,17 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
         bcdict = diribcu[-1].get_boundary_values()
 
     if not bccontrol:  # treat the control boundaries as walls
-        for cntbc in cntbcsdata['controlbcs']:
-            diribcu.append(dolfin.DirichletBC(V, gzero, boundaries,
-                                              cntbc['physical entity']))
+        try:
+            for cntbc in cntbcsdata['controlbcs']:
+                diribcu.append(dolfin.DirichletBC(V, gzero, boundaries,
+                                                  cntbc['physical entity']))
+        except KeyError:
+            pass  # no control boundaries
+
+    # if movingwallcntrl:
+    #     for cntbc in cntbcsdata['moving walls']:
+    #         diribcu.append(dolfin.DirichletBC(V, gzero, boundaries,
+    #                                           cntbc['physical entity']))
 
     # Create outflow boundary condition for pressure
     # TODO XXX why zero pressure?? is this do-nothing???
@@ -843,8 +864,8 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
 
     # ## Control boundaries
 
+    bcpes, bcshapefuns = [], []
     if bccontrol:
-        bcpes, bcshapefuns = [], []
         for cbc in cntbcsdata['controlbcs']:
             cpe = cbc['physical entity']
             cxi, cxii = np.array(cbc['xone']), np.array(cbc['xone'])
