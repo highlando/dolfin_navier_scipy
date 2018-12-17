@@ -110,15 +110,18 @@ def get_sysmats(problem='gen_bccont', N=10, scheme=None, ppin=None,
                        cylinderwake3D=cyl3D_fems,
                        gen_bccont=gen_bccont_fems)
 
-    problemfem = problemdict[problem]
+    if problem == 'cylinderwake' or problem == 'gen_bccont':
+        meshparams.update(dict(inflowvel=charvel))
+
     if problem == 'cylinder_rot':
         problemfem = gen_bccont_fems
         meshparams.update(dict(movingwallcntrl=True))
         meshparams.update(dict(inflowvel=charvel))
+    else:
+        problemfem = problemdict[problem]
 
-    if problem == 'cylinderwake' or problem == 'gen_bccont':
-        meshparams.update(dict(inflowvel=charvel))
     femp = problemfem(scheme=scheme, bccontrol=bccontrol, **meshparams)
+
     if onlymesh:
         return femp
 
@@ -787,32 +790,6 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
 
     leninflwb = np.linalg.norm(inflwxi-inflwxii)
 
-    class InflowParabola(dolfin.UserExpression):
-        '''Create inflow boundary condition
-
-        a parabola g with `int g(s)ds = s1-s0 == int 1 ds`
-        if on [0,1]: `g(s) = s*(1-s)*4*3/2`
-        if on [s0,s1]: `g(s) = ((s-s0)/(s1-s0))*(1-(s-s0)/(s1-s0))*6`
-        since then `g((s0+s1)/2)=3/2` and  `g(s0)=0=g(s1)`'''
-
-        def __init__(self, degree=2, lenb=None, xone=None,
-                     inflowvel=1., normalvec=None):
-            self.degree = degree
-            self.lenb = lenb
-            self.xone = xone
-            self.normalvec = normalvec
-            self.inflowvel = inflowvel
-            super().__init__()
-
-        def eval(self, value, x):
-            curs = np.linalg.norm(x - self.xone)/self.lenb
-            # print(x, curs)
-            curvel = self.inflowvel*6*curs*(1-curs)*self.normalvec
-            value[0], value[1] = curvel[0], curvel[1]
-
-        def value_shape(self):
-            return (2,)
-
     inflowpara = InflowParabola(degree=2, lenb=leninflwb, xone=inflwxi,
                                 normalvec=inflwin, inflowvel=inflowvel)
     bcin = dolfin.DirichletBC(V, inflowpara, boundaries, inflwpe)
@@ -833,10 +810,15 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
         except KeyError:
             pass  # no control boundaries
 
-    # if movingwallcntrl:
-    #     for cntbc in cntbcsdata['moving walls']:
-    #         diribcu.append(dolfin.DirichletBC(V, gzero, boundaries,
-    #                                           cntbc['physical entity']))
+    if movingwallcntrl:
+        for cntbc in cntbcsdata['moving walls']:
+            center = np.array(cntbc['geometry']['center'])
+            radius = cntbc['geometry']['radius']
+            if cntbc['type'] == 'circle':
+                rotcyl = RotatingCircle(degree=2, radius=radius,
+                                        xcenter=center)
+            diribcu.append(dolfin.DirichletBC(V, rotcyl, boundaries,
+                                              cntbc['physical entity']))
 
     # Create outflow boundary condition for pressure
     # TODO XXX why zero pressure?? is this do-nothing???
@@ -913,3 +895,53 @@ def _get_cont_shape_fun2D(xi=None, xii=None, element=None, shape='parabola'):
             return (2,)
 
     return GenContShape(element=element)
+
+
+class InflowParabola(dolfin.UserExpression):
+    '''Create inflow boundary condition
+
+    a parabola g with `int g(s)ds = s1-s0 == int 1 ds`
+    if on [0,1]: `g(s) = s*(1-s)*4*3/2`
+    if on [s0,s1]: `g(s) = ((s-s0)/(s1-s0))*(1-(s-s0)/(s1-s0))*6`
+    since then `g((s0+s1)/2)=3/2` and  `g(s0)=0=g(s1)`'''
+
+    def __init__(self, degree=2, lenb=None, xone=None,
+                 inflowvel=1., normalvec=None):
+        self.degree = degree
+        self.lenb = lenb
+        self.xone = xone
+        self.normalvec = normalvec
+        self.inflowvel = inflowvel
+        super().__init__()
+
+    def eval(self, value, x):
+        curs = np.linalg.norm(x - self.xone)/self.lenb
+        # print(x, curs)
+        curvel = self.inflowvel*6*curs*(1-curs)*self.normalvec
+        value[0], value[1] = curvel[0], curvel[1]
+
+    def value_shape(self):
+        return (2,)
+
+
+class RotatingCircle(dolfin.UserExpression):
+    '''Create the boundary condition of a rotating circle
+
+    returns the angular velocity at the circle boundary
+    '''
+
+    def __init__(self, degree=2, radius=None, xcenter=None,
+                 omega=1.):
+        self.degree = degree
+        self.radius = radius
+        self.xcenter = xcenter
+        self.anglevel = radius*omega
+        super().__init__()
+
+    def eval(self, value, x):
+        curn = 1./self.radius*(x - self.xcenter)
+        # print(np.linalg.norm(curn))
+        value[0], value[1] = -self.anglevel*curn[1], self.anglevel*curn[0]
+
+    def value_shape(self):
+        return (2,)
