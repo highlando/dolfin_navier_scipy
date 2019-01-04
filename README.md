@@ -8,12 +8,12 @@ cd tests
 mkdir data
 mkdir results
 # export PYTHONPATH="$PYTHONPATH:path/to/repo/"
-python3 time_dep_nse_.py
+python3 time_dep_nse_expnonl.py
 ```
 
 Then, to examine the results, launch
 ```
-paraview results/vel_TH___timestep.pvd
+paraview results/vel___timestep.pvd
 ```
 
 Dependencies
