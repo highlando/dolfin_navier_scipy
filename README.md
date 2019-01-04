@@ -7,7 +7,7 @@ To get started, create the needed subdirectories and run one of the `tests/time_
 cd tests
 mkdir data
 mkdir results
-# export PYTHONPATH="$PYTHONPATH:path/to/repo/"
+# export PYTHONPATH="$PYTHONPATH:path/to/repo/"  # add the repo to the path
 python3 time_dep_nse_expnonl.py
 ```
 
