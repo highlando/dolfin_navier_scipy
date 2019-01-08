@@ -817,6 +817,8 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
             if cntbc['type'] == 'circle':
                 rotcyl = RotatingCircle(degree=2, radius=radius,
                                         xcenter=center)
+            else:
+                raise NotImplementedError()
             diribcu.append(dolfin.DirichletBC(V, rotcyl, boundaries,
                                               cntbc['physical entity']))
 
@@ -845,7 +847,6 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
         dbcinds.extend(list(bcdict.keys()))
 
     # ## Control boundaries
-
     bcpes, bcshapefuns = [], []
     if bccontrol:
         for cbc in cntbcsdata['controlbcs']:
@@ -856,6 +857,13 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
             bcshapefuns.append(csf)
             bcpes.append(cpe)
 
+    # ## Lift Drag Computation
+    try:
+        ldsurfpe = cntbcsdata['lift drag surface']['physical entity']
+        liftdragds = dolfin.Measure("ds", subdomain_data=boundaries)(ldsurfpe)
+    except KeyError:
+        liftdragds = None  # no domain specified for lift/drag
+
     cylfems = dict(V=V,
                    Q=Q,
                    # diribcs=diribcu,
@@ -863,6 +871,7 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
                    dbcvals=dbcvals,
                    dirip=bcp,
                    # contrbcssubdomains=bcsubdoms,
+                   liftdragds=liftdragds,
                    contrbcmeshfunc=boundaries,
                    contrbcspes=bcpes,
                    contrbcsshapefuns=bcshapefuns,
@@ -945,3 +954,22 @@ class RotatingCircle(dolfin.UserExpression):
 
     def value_shape(self):
         return (2,)
+
+
+class LiftDragSurfForce():
+
+    def __init__(self, V=None, nu=None, ldds=None):
+        self.mesh = V.mesh()
+        self.n = dolfin.FacetNormal(self.mesh)
+        self.I = dolfin.Identity(self.mesh.geometry().dim())
+        self.ldds = ldds
+        self.nu = nu
+
+    def evaliftdragforce(self, u=None, p=None):
+        T = -p*self.I + 2.0*self.nu*dolfin.sym(dolfin.grad(u))
+        force = dolfin.dot(T, self.n)
+        D = force[0]*self.ldds
+        L = force[1]*self.ldds
+        drag = dolfin.assemble(D)
+        lift = dolfin.assemble(L)
+        return lift, drag
