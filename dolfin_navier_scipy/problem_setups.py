@@ -293,7 +293,7 @@ def drivcav_fems(N, vdgree=2, pdgree=1, scheme=None, bccontrol=None):
 
 
 def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
-             bccontrol=False, verbose=False):
+             inflowvel=1., bccontrol=False, verbose=False):
     """
     dictionary for the fem items for the cylinder wake
 
@@ -331,6 +331,8 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
 
     Notes
     -----
+    TODO: `inflowvel` as input is there for consistency but not processed
+
     parts of the code were taken from the NSbench collection
     https://launchpad.net/nsbench
 
