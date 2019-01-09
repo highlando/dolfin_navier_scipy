@@ -13,6 +13,7 @@ __all__ = ['output_paraview',
 
 def output_paraview(V=None, Q=None, VS=None, fstring='nn',
                     invinds=None, diribcs=None,
+                    dbcinds=None, dbcvals=None,
                     vp=None, vc=None, pc=None, sc=None,
                     sname='nn',
                     ppin=-1, t=None, tfilter=None, writeoutput=True,
@@ -39,6 +40,7 @@ def output_paraview(V=None, Q=None, VS=None, fstring='nn',
     if vc is not None or pc is not None or vp is not None:
         v, p = expand_vp_dolfunc(V=V, Q=Q, vp=vp,
                                  vc=vc, pc=pc,
+                                 dbcinds=dbcinds, dbcvals=dbcvals,
                                  invinds=invinds, ppin=ppin,
                                  diribcs=diribcs)
 
@@ -54,6 +56,7 @@ def output_paraview(V=None, Q=None, VS=None, fstring='nn',
 
     if sc is not None:
         sfun, _ = expand_vp_dolfunc(V=VS, vc=sc,
+                                    dbcinds=dbcinds, dbcvals=dbcvals,
                                     invinds=invinds, diribcs=diribcs)
         sfun.rename('s', sname)
 

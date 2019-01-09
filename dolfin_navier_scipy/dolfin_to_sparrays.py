@@ -23,6 +23,18 @@ __all__ = ['ass_convmat_asmatquad',
            'mat_dolfin2sparse']
 
 
+def _unroll_dlfn_dbcs(diribclist, bcinds=None, bcvals=None):
+    if diribclist is None:
+        bcinds, bcvals = bcinds, bcvals
+    else:
+        bcinds, bcvals = [], []
+        for bc in diribclist:
+            bcdict = bc.get_boundary_values()
+            bcvals.extend(list(bcdict.values()))
+            bcinds.extend(list(bcdict.keys()))
+    return bcinds, bcvals
+
+
 def append_bcs_vec(vvec, V=None, vdim=None,
                    invinds=None, diribcs=None, **kwargs):
     """ append given boundary conditions to a vector representing inner nodes
@@ -271,7 +283,7 @@ def get_stokessysmats(V, Q, nu=None, bccontrol=False,
 
 
 def get_convmats(u0_dolfun=None, u0_vec=None, V=None, invinds=None,
-                 diribcs=None):
+                 dbcvals=None, dbcinds=None, diribcs=None):
     """returns the matrices related to the linearized convection
 
     where u_0 is the linearization point
@@ -294,6 +306,7 @@ def get_convmats(u0_dolfun=None, u0_vec=None, V=None, invinds=None,
 
     if u0_vec is not None:
         u0, p = expand_vp_dolfunc(vc=u0_vec, V=V, diribcs=diribcs,
+                                  dbcvals=dbcvals, dbcinds=dbcinds,
                                   invinds=invinds)
     else:
         u0 = u0_dolfun
@@ -401,7 +414,7 @@ def get_convvec(u0_dolfun=None, V=None, u0_vec=None, femp=None,
     return ConvVec
 
 
-def condense_sysmatsbybcs(stms, velbcs):
+def condense_sysmatsbybcs(stms, velbcs=None, dbcinds=None, dbcvals=None):
     """resolve the Dirichlet BCs and condense the system matrices
 
     to the inner nodes
@@ -415,8 +428,12 @@ def condense_sysmatsbybcs(stms, velbcs):
          * ``JT``: the gradient matrix,
          * ``J``: the divergence matrix, and
          * ``MP``: the mass matrix of the pressure space
-    velbcs : list
+    velbcs : list, optional
         of dolfin Dirichlet boundary conditions for the velocity
+    dbcinds: list, optional
+        indices of the Dirichlet boundary conditions
+    dbcvals: list, optional
+        values of the Dirichlet boundary conditions (as listed in `dbcinds`)
 
     Returns
     -------
@@ -439,14 +456,18 @@ def condense_sysmatsbybcs(stms, velbcs):
         vector of the values of the boundary nodes
     """
 
-    nv = stms['A'].shape[0]
+    if velbcs is not None:
+        bcinds, bcvals = [], []
+        for bc in velbcs:
+            bcdict = bc.get_boundary_values()
+            bcvals.extend(list(bcdict.values()))
+            bcinds.extend(list(bcdict.keys()))
+    else:
+        bcinds, bcvals = dbcinds, dbcvals
 
+    nv = stms['A'].shape[0]
     auxu = np.zeros((nv, 1))
-    bcinds = []
-    for bc in velbcs:
-        bcdict = bc.get_boundary_values()
-        auxu[list(bcdict.keys()), 0] = list(bcdict.values())
-        bcinds.extend(list(bcdict.keys()))
+    auxu[bcinds, 0] = bcvals
 
     # putting the bcs into the right hand sides
     fvbc = - stms['A'] * auxu    # '*' is np.dot for csr matrices
@@ -476,7 +497,8 @@ def condense_sysmatsbybcs(stms, velbcs):
     return stokesmatsc, rhsvecsbc, invinds, bcinds, bcvals
 
 
-def condense_velmatsbybcs(A, velbcs, return_bcinfo=False):
+def condense_velmatsbybcs(A, velbcs=None, return_bcinfo=False,
+                          dbcinds=None, dbcvals=None):
     """resolve the Dirichlet BCs, condense velocity related matrices
 
     to the inner nodes, and compute the rhs contribution
@@ -505,14 +527,11 @@ def condense_velmatsbybcs(A, velbcs, return_bcinfo=False):
 
     """
 
-    nv = A.shape[0]
+    bcinds, bcvals = _unroll_dlfn_dbcs(velbcs, bcinds=dbcinds, bcvals=dbcvals)
 
+    nv = A.shape[0]
     auxu = np.zeros((nv, 1))
-    bcinds = []
-    for bc in velbcs:
-        bcdict = bc.get_boundary_values()
-        auxu[list(bcdict.keys()), 0] = list(bcdict.values())
-        bcinds.extend(list(bcdict.keys()))
+    auxu[bcinds, 0] = bcvals
 
     # putting the bcs into the right hand sides
     fvbc = - A * auxu    # '*' is np.dot for csr matrices
@@ -531,6 +550,7 @@ def condense_velmatsbybcs(A, velbcs, return_bcinfo=False):
 
 
 def expand_vp_dolfunc(V=None, Q=None, invinds=None,
+                      dbcinds=None, dbcvals=None,
                       diribcs=None, zerodiribcs=False,
                       vp=None, vc=None, pc=None, ppin=-1, **kwargs):
     """expand v [and p] to the dolfin function representation
@@ -545,8 +565,10 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None,
         vector of indices of the velocity nodes
     diribcs : list, optional
         of the (Dirichlet) velocity boundary conditions, \
-        if `None` it is assumed that `vc` already contains the bc, \
-        defaults to `None`
+    dbcinds: list, optional
+        indices of the Dirichlet boundary conditions
+    dbcvals: list, optional
+        values of the Dirichlet boundary conditions (as listed in `dbcinds`)
     zerodiribcs : boolean, optional
         whether to simply apply zero boundary conditions,
         defaults to `False`
@@ -566,6 +588,11 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None,
     p : dolfin.Function(Q), optional
         pressure as function
 
+    Notes:
+    ------
+    if no Dirichlet boundary data is given, it is assumed that
+    `vc` already contains the bc
+
     See Also
     --------
     expand_vecnbc_dolfunc : for a scalar function with multiple bcs
@@ -582,16 +609,19 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None,
 
     if vc.size > V.dim():
         raise UserWarning('The dimension of the vector must no exceed V.dim')
-    elif diribcs is None or len(vc) == V.dim():
+    elif diribcs is None and dbcinds is None or len(vc) == V.dim():
         # we assume that the boundary conditions are already contained in vc
         ve = vc
     else:
         ve = np.zeros((V.dim(), 1))
+        # print('ve w/o bcvals: ', np.linalg.norm(ve))
         # fill in the boundary values
         if not zerodiribcs:
-            for bc in diribcs:
-                bcdict = bc.get_boundary_values()
-                ve[list(bcdict.keys()), 0] = list(bcdict.values())
+            bcinds, bcvals = _unroll_dlfn_dbcs(diribcs,
+                                               bcinds=dbcinds, bcvals=dbcvals)
+            ve[bcinds, 0] = bcvals
+            # print('ve with bcvals :', np.linalg.norm(ve))
+            # print('norm of bcvals :', np.linalg.norm(bcvals))
 
         ve = ve.flatten()
         ve[invinds] = vc.flatten()

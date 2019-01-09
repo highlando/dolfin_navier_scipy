@@ -5,8 +5,9 @@ import numpy as np
 N, Re, scheme, ppin = 2, 50, 'TH', None
 
 femp, stokesmatsc, rhsd = \
-    dnsps.get_sysmats(problem='cylinderwake', N=N, Re=Re,
-                      scheme=scheme, mergerhs=True)
+    dnsps.get_sysmats(problem='cylinderwake', Re=Re,
+                      scheme=scheme, mergerhs=True,
+                      meshparams=dict(refinement_level=N))
 
 Mc, Ac = stokesmatsc['M'], stokesmatsc['A']
 BTc, Bc = stokesmatsc['JT'], stokesmatsc['J']
