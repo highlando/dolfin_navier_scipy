@@ -7,12 +7,13 @@ To get started, create the needed subdirectories and run one of the `tests/time_
 cd tests
 mkdir data
 mkdir results
-python3 time_dep_nse_.py
+# export PYTHONPATH="$PYTHONPATH:path/to/repo/"  # add the repo to the path
+python3 time_dep_nse_expnonl.py
 ```
 
 Then, to examine the results, launch
 ```
-paraview results/vel_TH___timestep.pvd
+paraview results/vel___timestep.pvd
 ```
 
 Dependencies
