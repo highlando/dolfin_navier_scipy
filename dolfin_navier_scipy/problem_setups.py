@@ -947,6 +947,7 @@ class RotatingCircle(dolfin.UserExpression):
         self.radius = radius
         self.xcenter = xcenter
         self.anglevel = radius*omega
+        print('Rotating cylinder: omega set to {0}'.format(omega))
         super().__init__()
 
     def eval(self, value, x):

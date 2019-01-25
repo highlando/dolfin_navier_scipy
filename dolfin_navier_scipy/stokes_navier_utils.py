@@ -129,6 +129,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           fv=None, fp=None,
                           V=None, Q=None, invinds=None, diribcs=None,
                           dbcvals=None, dbcinds=None,
+                          contbcs=None, contfuncs=None,
                           return_vp=False, ppin=-1,
                           return_nwtnupd_norms=False,
                           N=None, nu=None,
@@ -171,6 +172,11 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         indices of the Dirichlet boundary conditions
     dbcvals: list, optional
         values of the Dirichlet boundary conditions (as listed in `dbcinds`)
+    contbcs: list, optional
+        list like `[[dbcinds, bcvals]]` where the `bcvals` are changed in time
+    contfuncs: list, optional
+        list like `[ufunc]` where `ufunc: (t, v) -> u` where `u` is used to
+        scale the corresponding `bcvals` of `contbcs`
     return_vp : boolean, optional
         whether to return also the pressure, defaults to `False`
     vel_pcrd_stps : int, optional
@@ -260,10 +266,46 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           dbcinds=dbcinds, dbcvals=dbcvals,
                           vp=None, t=None, writeoutput=True)
     else:
-        prvoutdict = dict(writeoutput=False)  # save 'if statements' here
+        prvoutdict = dict(writeoutput=False)  # save 'if statements' later
 
     NV = A.shape[0]
     if vel_start_nwtn is None:
+        if contbcs is not None:
+            cmmat, camat, cj, cjt, cfv, cfp = M, A, J, JT, fv, fp
+        else:
+            def _localizecdbinds(cdbinds):
+                """ find the local indices of the control dirichlet boundaries
+
+                the given control dirichlet boundaries are indexed w.r.t. the
+                full space `V`. However, in the matrices, we have already
+                resolved the constant Dirichlet bcs
+                """
+                allinds = np.arange(V.dim())
+                redcdallinds = allinds[invinds]
+                # now: find the positions of the control dbcs in the reduced
+                # index vector
+                lclinds = np.searchsorted(redcdallinds, cdbinds, side='left')
+                return lclinds
+
+            loccntbcinds, cntrlldbcvals = [], []
+            for k, cdbidbv in enumerate(contbcs):
+                ccntrlfunc = contfuncs[k]
+
+                # no time at steady state, no starting value
+                cntrlval = ccntrlfunc(None, None)
+
+                localbcinds = (_localizecdbinds(cdbidbv)).tolist()
+                loccntbcinds.extend(localbcinds)  # adding the boundary inds
+                ccntrlldbcvals = [cntrlval*bcval for bcval in cdbidbv[1]]
+
+                # adding the scaled boundary values
+                cntrlldbcvals.extend(ccntrlldbcvals)
+
+            cmmat, camat, cjt, cj, _, cfv, cfp, cinvinds = \
+                condense_sysmatsbybcs(stms, dbcinds=None, dbcvals=None,
+                                      mergerhs=True, rhsdict=None,
+                                      ret_unrolled=True)
+
         vp_stokes = lau.solve_sadpnt_smw(amat=A, jmat=J, jmatT=JT,
                                          rhsv=fv, rhsp=fp)
         vp_stokes[NV:] = -vp_stokes[NV:]
