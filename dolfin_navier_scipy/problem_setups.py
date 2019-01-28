@@ -812,17 +812,20 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
         except KeyError:
             pass  # no control boundaries
 
-    if movingwallcntrl:
-        for cntbc in cntbcsdata['moving walls']:
-            center = np.array(cntbc['geometry']['center'])
-            radius = cntbc['geometry']['radius']
-            if cntbc['type'] == 'circle':
-                rotcyl = RotatingCircle(degree=2, radius=radius,
-                                        xcenter=center)
-            else:
-                raise NotImplementedError()
-            diribcu.append(dolfin.DirichletBC(V, rotcyl, boundaries,
-                                              cntbc['physical entity']))
+    mvwdbcs = []
+    for cntbc in cntbcsdata['moving walls']:
+        center = np.array(cntbc['geometry']['center'])
+        radius = cntbc['geometry']['radius']
+        if cntbc['type'] == 'circle':
+            omega = 1. if movingwallcntrl else 0.
+            rotcyl = RotatingCircle(degree=2, radius=radius,
+                                    xcenter=center, omega=omega)
+        else:
+            raise NotImplementedError()
+        mvwdbcs.append(dolfin.DirichletBC(V, rotcyl, boundaries,
+                                          cntbc['physical entity']))
+    if not movingwallcntrl:
+        diribcu.extend(mvwdbcs)  # add the moving walls to the diri bcs
 
     # Create outflow boundary condition for pressure
     # TODO XXX why zero pressure?? is this do-nothing???
@@ -848,6 +851,12 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
         dbcvals.extend(list(bcdict.values()))
         dbcinds.extend(list(bcdict.keys()))
 
+    mvwbcinds, mvwbcvals = [], []
+    for bc in mvwdbcs:
+        bcdict = bc.get_boundary_values()
+        mvwbcvals.extend(list(bcdict.values()))
+        mvwbcinds.extend(list(bcdict.keys()))
+
     # ## Control boundaries
     bcpes, bcshapefuns = [], []
     if bccontrol:
@@ -868,9 +877,10 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
 
     cylfems = dict(V=V,
                    Q=Q,
-                   # diribcs=diribcu,
                    dbcinds=dbcinds,
                    dbcvals=dbcvals,
+                   mvwbcinds=mvwbcinds,
+                   mvwbcvals=mvwbcvals,
                    dirip=bcp,
                    # contrbcssubdomains=bcsubdoms,
                    liftdragds=liftdragds,

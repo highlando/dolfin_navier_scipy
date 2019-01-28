@@ -633,7 +633,11 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None,
         if not zerodiribcs:
             bcinds, bcvals = _unroll_dlfn_dbcs(diribcs,
                                                bcinds=dbcinds, bcvals=dbcvals)
-            ve[bcinds, 0] = bcvals
+            try:
+                ve[bcinds, 0] = bcvals
+            except IndexError:
+                for k, cbc in enumerate(bcinds):
+                    ve[cbc, 0] = bcvals[k]
             # print('ve with bcvals :', np.linalg.norm(ve))
             # print('norm of bcvals :', np.linalg.norm(bcvals))
 
