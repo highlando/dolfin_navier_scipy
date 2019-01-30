@@ -138,6 +138,14 @@ def _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs, time=None, vel=None):
     return cntrlldbcvals
 
 
+def _attach_cntbcvals(vvec, globbcinds=None, dbcvals=None,
+                      globbcinvinds=None, invinds=None, NV=None):
+    auxv = np.full((NV, ), np.nan)
+    auxv[globbcinvinds] = vvec
+    auxv[globbcinds] = dbcvals
+    return auxv[invinds]
+
+
 def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           fv=None, fp=None,
                           V=None, Q=None, invinds=None, diribcs=None,
@@ -145,7 +153,6 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           diricontbcinds=None, diricontbcvals=None,
                           diricontfuncs=None,
                           return_vp=False, ppin=-1,
-                          return_dolfin_funcs=False,
                           return_nwtnupd_norms=False,
                           N=None, nu=None,
                           vel_pcrd_stps=10, vel_pcrd_tol=1e-4,
@@ -209,9 +216,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
     Returns:
     ---
-    vel_[p]k : (N, 1) ndarray / dolfin functions
+    vel_[p]k : (N, 1) ndarray
         the velocity/[pressure] vector. Pressure only if `return_vp`.
-        Dolfin functions are returned if `return_dolfin_funcs`
     norm_nwtnupd_list : list, on demand
         list of the newton upd errors
     """
@@ -288,10 +294,10 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
     NV = A.shape[0]
     if vel_start_nwtn is None:
+        loccntbcinds, cntrlldbcvals, glbcntbcinds = [], [], []
         if diricontbcinds is None or diricontbcinds == []:
             cmmat, camat, cj, cjt, cfv, cfp = M, A, J, JT, fv, fp
             cnv = NV
-            glbcntbcinds, cntrlldbcvals = [], []
             dbcntinvinds = invinds
         else:
             def _localizecdbinds(cdbinds):
@@ -308,8 +314,6 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                 lclinds = np.searchsorted(redcdallinds, cdbinds, side='left')
                 return lclinds
 
-            loccntbcinds, cntrlldbcvals = [], []
-            glbcntbcinds = []
             for k, cdbidbv in enumerate(diricontbcinds):
                 ccntrlfunc = diricontfuncs[k]
 
@@ -326,7 +330,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
             dbcntinvinds = np.setdiff1d(invinds, glbcntbcinds).astype(np.int32)
             matdict = dict(M=M, A=A, J=J, JT=JT, MP=None)
             cmmat, camat, cjt, cj, _, cfv, cfp, _ = dts.\
-                condense_sysmatsbybcs(matdict, dbcinds=localbcinds,
+                condense_sysmatsbybcs(matdict, dbcinds=loccntbcinds,
                                       dbcvals=cntrlldbcvals, mergerhs=True,
                                       rhsdict=dict(fv=fv, fp=fp),
                                       ret_unrolled=True)
@@ -357,7 +361,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
     matdict = dict(M=M, A=A, J=J, JT=JT, MP=None)
     rhsdict = dict(fv=fv, fp=fp)
-    cndnsmtsdct = dict(dbcinds=localbcinds, mergerhs=True,
+    cndnsmtsdct = dict(dbcinds=loccntbcinds, mergerhs=True,
                        ret_unrolled=True)
 
     # Picard iterations for a good starting value for Newton
@@ -448,18 +452,14 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
     # savetomatlab = True
     # if savetomatlab:
     #     export_mats_to_matlab(E=None, A=None, matfname='matexport')
-    vfun, pfun = dts.expand_vp_dolfunc(**prvoutdict)
-    if return_dolfin_funcs:
-        if return_vp:
-            retthing = (vfun, pfun)
-        else:
-            retthing = vfun
+
+    vwc = _attach_cntbcvals(vel_k.flatten(), globbcinvinds=dbcntinvinds,
+                            globbcinds=glbcntbcinds, dbcvals=cntrlldbcvals,
+                            invinds=invinds, NV=V.dim())
+    if return_vp:
+        retthing = (vwc.reshape((NV, 1)), vp_k[cnv:, :])
     else:
-        cvvec = vfun.vector().get_local()[invinds]
-        if return_vp:
-            retthing = (cvvec, vp_k[cnv:])
-        else:
-            retthing = cvvec
+        retthing = vwc.reshape((NV, 1))
 
     if return_nwtnupd_norms:
         return retthing, norm_nwtnupd_list

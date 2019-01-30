@@ -23,11 +23,13 @@ vp_init = snu.solve_steadystate_nse(**inivdict)
 
 NV = Bc.shape[1]
 
-pfv = snu.get_pfromv(v=vp_init[:NV, :], V=femp['V'], M=Mc, A=Ac, J=Bc, fv=fv,
+pfv = snu.get_pfromv(v=vp_init[0],
+                     V=femp['V'], M=Mc, A=Ac, J=Bc, fv=fv,
                      invinds=femp['invinds'], diribcs=femp['diribcs'])
 print(invinds.shape)
 print(Bc.shape)
 print(pfv.shape)
-print(vp_init.shape)
+print(vp_init[0].shape)
+print(vp_init[1].shape)
 
-print(np.linalg.norm(pfv - vp_init[NV:, :]))
+print(np.linalg.norm(pfv - vp_init[1]))
