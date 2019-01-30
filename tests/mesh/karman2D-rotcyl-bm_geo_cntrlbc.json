@@ -1,0 +1,16 @@
+{"info": "data taken from karman2D-rotcyl-bm.geo_unrolled",
+	"characteristic length": 0.1,
+	"walls": {"physical entity": [3, 4]},
+	"outflow": {"physical entity": 2},
+	"inflow": {"physical entity": 1,
+		"inward normal": [1.0, 0.0],
+		"xone": [0.0, 0.0],
+		"xtwo": [0.0, 0.41]},
+	"moving walls": [{"physical entity": 5,
+					  "type": "circle",
+					  "geometry": {"center": [0.2, 0.2],
+					   		   	   "radius": 0.05}
+					 }
+				  	],
+	"lift drag surface": {"physical entity": 5}
+}
