@@ -37,7 +37,7 @@ class StokNavUtsFunctions(unittest.TestCase):
 
         NV = Bc.shape[1]
 
-        pfv = snu.get_pfromv(v=vp_init[:NV, :], V=femp['V'],
+        pfv = snu.get_pfromv(v=vp_init[0], V=femp['V'],
                              M=Mc, A=Ac, J=Bc, fv=fv,
                              invinds=femp['invinds'], diribcs=femp['diribcs'])
-        self.assertTrue(np.allclose(pfv, vp_init[NV:, :]))
+        self.assertTrue(np.allclose(pfv, vp_init[1]))
