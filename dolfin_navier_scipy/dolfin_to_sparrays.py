@@ -25,14 +25,22 @@ __all__ = ['ass_convmat_asmatquad',
 
 def _unroll_dlfn_dbcs(diribclist, bcinds=None, bcvals=None):
     if diribclist is None:
-        bcinds, bcvals = bcinds, bcvals
+        try:
+            urbcinds, urbcvals = [], []
+            for k, cbci in enumerate(bcinds):
+                urbcinds.extend(cbci)
+                urbcvals.extend(bcvals[k])
+        except TypeError:
+            # it's not a list of lists
+            urbcinds, urbcvals = bcinds, bcvals
+
     else:
-        bcinds, bcvals = [], []
+        urbcinds, urbcvals = [], []
         for bc in diribclist:
             bcdict = bc.get_boundary_values()
-            bcvals.extend(list(bcdict.values()))
-            bcinds.extend(list(bcdict.keys()))
-    return bcinds, bcvals
+            urbcvals.extend(list(bcdict.values()))
+            urbcinds.extend(list(bcdict.keys()))
+    return urbcinds, urbcvals
 
 
 def append_bcs_vec(vvec, V=None, vdim=None,
@@ -631,13 +639,9 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None,
         # print('ve w/o bcvals: ', np.linalg.norm(ve))
         # fill in the boundary values
         if not zerodiribcs:
-            bcinds, bcvals = _unroll_dlfn_dbcs(diribcs,
-                                               bcinds=dbcinds, bcvals=dbcvals)
-            try:
-                ve[bcinds, 0] = bcvals
-            except IndexError:
-                for k, cbc in enumerate(bcinds):
-                    ve[cbc, 0] = bcvals[k]
+            urbcinds, urbcvals = _unroll_dlfn_dbcs(diribcs, bcinds=dbcinds,
+                                                   bcvals=dbcvals)
+            ve[urbcinds, 0] = urbcvals
             # print('ve with bcvals :', np.linalg.norm(ve))
             # print('norm of bcvals :', np.linalg.norm(bcvals))
 
