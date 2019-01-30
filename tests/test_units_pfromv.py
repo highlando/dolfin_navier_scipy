@@ -33,11 +33,11 @@ class StokNavUtsFunctions(unittest.TestCase):
         inivdict = dict(A=Ac, J=Bc, JT=BTc, M=Mc, ppin=self.ppin, fv=fv, fp=fp,
                         return_vp=True, V=femp['V'], clearprvdata=True,
                         invinds=invinds, diribcs=femp['diribcs'])
-        vp_init = snu.solve_steadystate_nse(**inivdict)[0]
+        vp_init = snu.solve_steadystate_nse(**inivdict)
 
         NV = Bc.shape[1]
 
-        pfv = snu.get_pfromv(v=vp_init[:NV, :], V=femp['V'],
+        pfv = snu.get_pfromv(v=vp_init[0], V=femp['V'],
                              M=Mc, A=Ac, J=Bc, fv=fv,
                              invinds=femp['invinds'], diribcs=femp['diribcs'])
-        self.assertTrue(np.allclose(pfv, vp_init[NV:, :]))
+        self.assertTrue(np.allclose(pfv, vp_init[1]))

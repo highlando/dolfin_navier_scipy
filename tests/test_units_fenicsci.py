@@ -136,8 +136,8 @@ class OptConPyFunctions(unittest.TestCase):
         import dolfin_navier_scipy.dolfin_to_sparrays as dts
 
         femp, stokesmatsc, rhsd = \
-            dns.problem_setups.get_sysmats(problem='drivencavity',
-                                           N=15, nu=1e-2, mergerhs=True)
+            dns.problem_setups.get_sysmats(problem='drivencavity', nu=1e-2,
+                                           mergerhs=True, meshparams={'N': 15})
 
         invinds = femp['invinds']
         V = femp['V']
