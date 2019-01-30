@@ -24,7 +24,7 @@ vp_steadystate = snu.solve_steadystate_nse(**inivdict)
 NV = Bc.shape[1]
 
 # ## Test: recompute the p from the v
-pfv = snu.get_pfromv(v=vp_steadystate[:NV, :],
+pfv = snu.get_pfromv(v=vp_steadystate[0],
                      V=femp['V'], M=Mc, A=Ac, J=Bc, fv=fv,
                      invinds=femp['invinds'], diribcs=femp['diribcs'])
 
@@ -32,4 +32,4 @@ print('Number of inner velocity nodes: {0}'.format(invinds.shape))
 print('Shape of the divergence matrix: ', Bc.shape)
 
 print('error in recomputed pressure: {0}'.
-      format(np.linalg.norm(pfv - vp_steadystate[NV:, :])))
+      format(np.linalg.norm(pfv - vp_steadystate[1])))

@@ -25,14 +25,22 @@ __all__ = ['ass_convmat_asmatquad',
 
 def _unroll_dlfn_dbcs(diribclist, bcinds=None, bcvals=None):
     if diribclist is None:
-        bcinds, bcvals = bcinds, bcvals
+        try:
+            urbcinds, urbcvals = [], []
+            for k, cbci in enumerate(bcinds):
+                urbcinds.extend(cbci)
+                urbcvals.extend(bcvals[k])
+        except TypeError:
+            # it's not a list of lists
+            urbcinds, urbcvals = bcinds, bcvals
+
     else:
-        bcinds, bcvals = [], []
+        urbcinds, urbcvals = [], []
         for bc in diribclist:
             bcdict = bc.get_boundary_values()
-            bcvals.extend(list(bcdict.values()))
-            bcinds.extend(list(bcdict.keys()))
-    return bcinds, bcvals
+            urbcvals.extend(list(bcdict.values()))
+            urbcinds.extend(list(bcdict.keys()))
+    return urbcinds, urbcvals
 
 
 def append_bcs_vec(vvec, V=None, vdim=None,
@@ -414,7 +422,8 @@ def get_convvec(u0_dolfun=None, V=None, u0_vec=None, femp=None,
     return ConvVec
 
 
-def condense_sysmatsbybcs(stms, velbcs=None, dbcinds=None, dbcvals=None):
+def condense_sysmatsbybcs(stms, velbcs=None, dbcinds=None, dbcvals=None,
+                          mergerhs=False, rhsdict=None, ret_unrolled=False):
     """resolve the Dirichlet BCs and condense the system matrices
 
     to the inner nodes
@@ -491,14 +500,22 @@ def condense_sysmatsbybcs(stms, velbcs=None, dbcinds=None, dbcvals=None):
                    'J': Jc,
                    'MP': stms['MP']}
 
-    rhsvecsbc = {'fv': fvbc,
-                 'fp': fpbc}
+    if mergerhs:
+        rhsvecsbc = {'fv': rhsdict['fv'][invinds, :] + fvbc,
+                     'fp': rhsdict['fp'] + fpbc}
+    else:
+        rhsvecsbc = {'fv': fvbc,
+                     'fp': fpbc}
 
-    return stokesmatsc, rhsvecsbc, invinds, bcinds, bcvals
+    if ret_unrolled:
+        return (Mc, Ac, JTc, Jc, stms['MP'], rhsvecsbc['fv'], rhsvecsbc['fp'],
+                invinds)
+    else:
+        return stokesmatsc, rhsvecsbc, invinds, bcinds, bcvals
 
 
 def condense_velmatsbybcs(A, velbcs=None, return_bcinfo=False,
-                          dbcinds=None, dbcvals=None):
+                          dbcinds=None, dbcvals=None, columnsonly=False):
     """resolve the Dirichlet BCs, condense velocity related matrices
 
     to the inner nodes, and compute the rhs contribution
@@ -513,6 +530,8 @@ def condense_velmatsbybcs(A, velbcs=None, return_bcinfo=False,
     return_bcinfo : boolean, optional
         if `True` a dict with the inner and the boundary indices is returned, \
         defaults to `False`
+    columnsonly : boolean, optional
+        whether to only reduce the columns, defaults to `False`
 
     Returns
     -------
@@ -539,9 +558,12 @@ def condense_velmatsbybcs(A, velbcs=None, return_bcinfo=False,
     # indices of the innernodes
     ininds = np.setdiff1d(list(range(nv)), bcinds).astype(np.int32)
 
-    # extract the inner nodes equation coefficients
-    Ac = A[ininds, :][:, ininds]
-    fvbc = fvbc[ininds, :]
+    if columnsonly:
+        Ac = A[:, ininds]
+    else:
+        # extract the inner nodes equation coefficients
+        Ac = A[ininds, :][:, ininds]
+        fvbc = fvbc[ininds, :]
 
     if return_bcinfo:
         return Ac, fvbc, dict(ininds=ininds, bcinds=bcinds)
@@ -617,9 +639,9 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None,
         # print('ve w/o bcvals: ', np.linalg.norm(ve))
         # fill in the boundary values
         if not zerodiribcs:
-            bcinds, bcvals = _unroll_dlfn_dbcs(diribcs,
-                                               bcinds=dbcinds, bcvals=dbcvals)
-            ve[bcinds, 0] = bcvals
+            urbcinds, urbcvals = _unroll_dlfn_dbcs(diribcs, bcinds=dbcinds,
+                                                   bcvals=dbcvals)
+            ve[urbcinds, 0] = urbcvals
             # print('ve with bcvals :', np.linalg.norm(ve))
             # print('norm of bcvals :', np.linalg.norm(bcvals))
 
