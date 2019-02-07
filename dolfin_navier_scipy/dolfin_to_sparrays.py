@@ -44,6 +44,7 @@ def _unroll_dlfn_dbcs(diribclist, bcinds=None, bcvals=None):
 
 
 def append_bcs_vec(vvec, V=None, vdim=None,
+                   bcinds=None, bcvals=None,
                    invinds=None, diribcs=None, **kwargs):
     """ append given boundary conditions to a vector representing inner nodes
 
@@ -51,14 +52,11 @@ def append_bcs_vec(vvec, V=None, vdim=None,
     if vdim is None:
         vdim = V.dim()
 
-    vwbcs = np.zeros((vdim, 1))
-
-    # fill in the boundary values
-    for bc in diribcs:
-        bcdict = bc.get_boundary_values()
-        vwbcs[list(bcdict.keys()), 0] = list(bcdict.values())
+    vwbcs = np.full((vdim, 1), np.nan)
+    cbcinds, cbcvals = _unroll_dlfn_dbcs(diribcs, bcinds=bcinds, bcvals=bcvals)
 
     vwbcs[invinds] = vvec
+    vwbcs[cbcinds, 0] = cbcvals
 
     return vwbcs
 
@@ -572,7 +570,7 @@ def condense_velmatsbybcs(A, velbcs=None, return_bcinfo=False,
 
 
 def expand_vp_dolfunc(V=None, Q=None, invinds=None,
-                      dbcinds=None, dbcvals=None,
+                      dbcinds=[], dbcvals=None,
                       diribcs=None, zerodiribcs=False,
                       vp=None, vc=None, pc=None, ppin=-1, **kwargs):
     """expand v [and p] to the dolfin function representation
@@ -630,8 +628,8 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None,
     v = dolfin.Function(V)
 
     if vc.size > V.dim():
-        raise UserWarning('The dimension of the vector must no exceed V.dim')
-    elif diribcs is None and dbcinds is None or len(vc) == V.dim():
+        raise ValueError('The dimension of the vector must no exceed V.dim')
+    elif len(vc) == V.dim():
         # we assume that the boundary conditions are already contained in vc
         ve = vc
     else:
