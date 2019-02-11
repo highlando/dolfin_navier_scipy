@@ -995,6 +995,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     convc_mat_n = sps.csr_matrix((cnv, cnv))
                     rhs_con_n = np.zeros((cnv, 1))
                     rhsv_conbc_n = np.zeros((cnv, 1))
+                    prev_v = v_old
                 else:
                     if comp_nonl_semexp or comp_nonl_semexp_inig:
                         prev_v = v_old
@@ -1054,6 +1055,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 else:
                     vmat_n = None
                     umat_n = None
+
+                import ipdb; ipdb.set_trace()
 
                 (solvmat, rhsv, umat,
                  vmat) = _get_mats_rhs_ts(mmat=cmmat, dt=cts, var_c=v_old,
