@@ -94,23 +94,26 @@ def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
         _cndnsmts = dts.condense_velmatsbybcs
 
     if Picard:
-        convc_mat, rhsv_conbc = _cndnsmts(N1, velbcs=diribcs,
+        convc_mat, rhsv_conbc = _cndnsmts(N1, velbcs=diribcs, invinds=invinds,
                                           dbcinds=dbcinds, dbcvals=dbcvals)
         # return convc_mat, rhs_con[invinds, ], rhsv_conbc
         return convc_mat, None, rhsv_conbc
 
     elif retparts:
         picrd_convc_mat, picrd_rhsv_conbc = _cndnsmts(N1, velbcs=diribcs,
+                                                      invinds=invinds,
                                                       dbcinds=dbcinds,
                                                       dbcvals=dbcvals)
         anti_picrd_convc_mat, anti_picrd_rhsv_conbc = \
-            _cndnsmts(N2, velbcs=diribcs, dbcinds=dbcinds, dbcvals=dbcvals)
+            _cndnsmts(N2, velbcs=diribcs, invinds=invinds,
+                      dbcinds=dbcinds, dbcvals=dbcvals)
         return ((picrd_convc_mat, anti_picrd_convc_mat),
                 rhs_con[invinds, ],
                 (picrd_rhsv_conbc, anti_picrd_rhsv_conbc))
 
     else:
         convc_mat, rhsv_conbc = _cndnsmts(N1+N2, velbcs=diribcs,
+                                          invinds=invinds,
                                           dbcinds=dbcinds, dbcvals=dbcvals)
         return convc_mat, rhs_con[invinds, ], rhsv_conbc
 
@@ -322,7 +325,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                 # no time at steady state, no starting value
                 cntrlval = ccntrlfunc(None, None)
 
-                localbcinds = (_localizecdbinds(cdbidbv)).tolist()
+                localbcinds = (_localizecdbinds(cdbidbv, V, invinds)).tolist()
                 loccntbcinds.extend(localbcinds)  # adding the boundary inds
                 glbcntbcinds.extend(cdbidbv)
                 ccntrlldbcvals = [cntrlval*bcvl for bcvl in diricontbcvals[k]]
@@ -1081,13 +1084,13 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                               krplsprms=krplsprms,
                                               umat=umat, vmat=vmat)
 
-                v_old = vp_new[:NV, ]
+                v_old = vp_new[:cnv, ]
                 (umat_c, vmat_c, fvn_c,
                     convc_mat_c) = umat_n, vmat_n, fvn_n, convc_mat_n
 
                 _savev(v_old, ccntrlldbcvals, cdatstr + '__vel')
                 _atdct(dictofvelstrs, t, cdatstr + '__vel')
-                p_new = -1/cts*vp_new[NV:, ]
+                p_new = -1/cts*vp_new[cnv:, ]
                 # p was flipped and scaled for symmetry
                 if return_dictofpstrs:
                     dou.save_npa(p_new, fstring=cdatstr + '__p')

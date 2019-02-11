@@ -513,7 +513,8 @@ def condense_sysmatsbybcs(stms, velbcs=None, dbcinds=None, dbcvals=None,
 
 
 def condense_velmatsbybcs(A, velbcs=None, return_bcinfo=False,
-                          dbcinds=None, dbcvals=None, columnsonly=False):
+                          invinds=None, dbcinds=None, dbcvals=None,
+                          columnsonly=False):
     """resolve the Dirichlet BCs, condense velocity related matrices
 
     to the inner nodes, and compute the rhs contribution
@@ -554,7 +555,10 @@ def condense_velmatsbybcs(A, velbcs=None, return_bcinfo=False,
     fvbc = - A * auxu    # '*' is np.dot for csr matrices
 
     # indices of the innernodes
-    ininds = np.setdiff1d(list(range(nv)), bcinds).astype(np.int32)
+    if invinds is None:
+        ininds = np.setdiff1d(list(range(nv)), bcinds).astype(np.int32)
+    else:
+        ininds = invinds
 
     if columnsonly:
         Ac = A[:, ininds]
