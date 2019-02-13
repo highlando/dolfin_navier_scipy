@@ -39,6 +39,7 @@ def get_datastr_snu(time=None, meshp=None, nu=None, Nts=None, data_prfx='',
 
 def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
                      dbcvals=None, dbcinds=None,
+                     semi_explicit=False,
                      Picard=False, retparts=False, zerodiribcs=False):
     """ get and condense the linearized convection
 
@@ -67,6 +68,9 @@ def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
         of dolfin Dirichlet boundary conditons
     Picard : Boolean
         whether Picard linearization is applied, defaults to `False`
+    semi_explicit: Boolean, optional
+        whether to return minus the convection vector, and zero convmats
+        as needed for semi-explicit integration, defaults to `False`
     retparts : Boolean, optional
         whether to return both components of the matrices
         and contributions to the rhs through the boundary conditions,
@@ -82,6 +86,13 @@ def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
         representing the boundary conditions
 
     """
+
+    if semi_explicit:
+        rhs_con = dts.get_convvec(V=V, u0_vec=prev_v, diribcs=diribcs,
+                                  dbcinds=dbcinds, dbcvals=dbcvals,
+                                  invinds=invinds)
+
+        return 0., -rhs_con, 0.
 
     N1, N2, rhs_con = dts.get_convmats(u0_vec=prev_v, V=V, invinds=invinds,
                                        dbcinds=dbcinds, dbcvals=dbcvals,
@@ -874,6 +885,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
                 convc_mat_c, rhs_con_c, rhsv_conbc_c = \
                     get_v_conv_conts(prev_v=iniv, invinds=invinds,
+                                     semi_explicit=(comp_nonl_semexp or
+                                                    comp_nonl_semexp_inig),
                                      dbcinds=dbcinds, dbcvals=dbcvals,
                                      V=V, diribcs=diribcs, Picard=pcrd_anyone)
 
@@ -952,6 +965,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                 prev_v = cur_linvel_point[None]
                     convc_mat_n, rhs_con_n, rhsv_conbc_n = \
                         get_v_conv_conts(prev_v=prev_v, invinds=invinds, V=V,
+                                         semi_explicit=(comp_nonl_semexp or
+                                                        comp_nonl_semexp_inig),
                                          dbcinds=dbcinds, dbcvals=dbcvals,
                                          diribcs=diribcs, Picard=pcrd_anyone)
 
