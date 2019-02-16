@@ -11,7 +11,7 @@ import dolfin_navier_scipy.problem_setups as dnsps
 krylovdict = {}
 
 
-def testit(problem='drivencavity', N=None, nu=1e-2, Re=None,
+def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, nonltrt=None,
            t0=0.0, tE=1.0, Nts=1e2+1, ParaviewOutput=False, scheme='TH'):
 
     femp, stokesmatsc, rhsd = dnsps.get_sysmats(problem=problem, N=N, Re=Re,
@@ -21,6 +21,8 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None,
     ddir = 'data/'
     data_prfx = problem + '{4}_N{0}_Re{1}_Nts{2}_tE{3}'.\
         format(N, femp['Re'], Nts, tE, scheme)
+
+    nonltrtstr = '' if nonltrt is None else nonltrt
 
     dolfin.plot(femp['V'].mesh())
 
@@ -43,11 +45,11 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None,
                    N=N, nu=nu,
                    start_ssstokes=True,
                    get_datastring=None,
-                   comp_nonl_semexp=True,
+                   treat_nonl_explct=nonltrt,
                    data_prfx=ddir+data_prfx,
                    paraviewoutput=ParaviewOutput,
-                   vfileprfx=proutdir+'vel_',
-                   pfileprfx=proutdir+'p_')
+                   vfileprfx=proutdir+'vel_'+nonltrtstr,
+                   pfileprfx=proutdir+'p_'+nonltrtstr)
 
     soldict.update(krylovdict)  # if we wanna use an iterative solver
 
@@ -59,10 +61,13 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None,
 
 
 if __name__ == '__main__':
+    nonltrt = 'xpcrd'
+    nonltrt = 'xplct'
+    nonltrt = None
     # testit(N=15, nu=1e-3)
     # testit(problem='cylinderwake', N=2, nu=2e-3, t0=0.0, tE=5., Nts=2.5*512,
     #        scheme='CR', ParaviewOutput=True)
-    testit(problem='cylinderwake', N=1, Re=40, t0=0.0, tE=2., Nts=512,
-           scheme='TH', ParaviewOutput=True)
+    testit(problem='cylinderwake', N=1, Re=40, t0=0.0, tE=.1, Nts=51,
+           scheme='TH', ParaviewOutput=True, nonltrt=nonltrt)
     # testit(problem='cylinderwake3D', N=2, Re=50, t0=0.0, tE=2., Nts=512,
     #        scheme='CR', ParaviewOutput=True)
