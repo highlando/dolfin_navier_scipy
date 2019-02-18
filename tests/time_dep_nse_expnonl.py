@@ -22,8 +22,6 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, nonltrt=None,
     data_prfx = problem + '{4}_N{0}_Re{1}_Nts{2}_tE{3}'.\
         format(N, femp['Re'], Nts, tE, scheme)
 
-    nonltrtstr = '' if nonltrt is None else nonltrt
-
     dolfin.plot(femp['V'].mesh())
 
     # setting some parameters
@@ -48,8 +46,8 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, nonltrt=None,
                    treat_nonl_explct=nonltrt,
                    data_prfx=ddir+data_prfx,
                    paraviewoutput=ParaviewOutput,
-                   vfileprfx=proutdir+'vel_'+nonltrtstr,
-                   pfileprfx=proutdir+'p_'+nonltrtstr)
+                   vfileprfx=proutdir+'vel_expnl_',
+                   pfileprfx=proutdir+'p_expnl')
 
     soldict.update(krylovdict)  # if we wanna use an iterative solver
 
@@ -61,13 +59,10 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, nonltrt=None,
 
 
 if __name__ == '__main__':
-    nonltrt = 'xpcrd'
-    nonltrt = 'xplct'
-    nonltrt = None
-    # testit(N=15, nu=1e-3)
+    nonltrt = False
     # testit(problem='cylinderwake', N=2, nu=2e-3, t0=0.0, tE=5., Nts=2.5*512,
     #        scheme='CR', ParaviewOutput=True)
-    testit(problem='cylinderwake', N=1, Re=40, t0=0.0, tE=.1, Nts=51,
+    testit(problem='cylinderwake', N=1, Re=40, t0=0.0, tE=1., Nts=512,
            scheme='TH', ParaviewOutput=True, nonltrt=nonltrt)
     # testit(problem='cylinderwake3D', N=2, Re=50, t0=0.0, tE=2., Nts=512,
     #        scheme='CR', ParaviewOutput=True)

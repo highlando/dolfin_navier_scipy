@@ -20,7 +20,7 @@ __all__ = ['get_datastr_snu',
 
 def get_datastr_snu(time=None, meshp=None, nu=None, Nts=None, data_prfx='',
                     semiexpl=False):
-    sestr = '' if semiexpl is None else semiexpl
+    sestr = '' if not semiexpl else '_semexp'
     nustr = '_nuNone' if nu is None else '_nu{0:.3e}'.format(nu)
     ntsstr = '_NtsNone' if Nts is None else '_Nts{0}'.format(Nts)
     timstr = 'timeNone' if time is None or isinstance(time, str) else \
@@ -39,7 +39,7 @@ def get_datastr_snu(time=None, meshp=None, nu=None, Nts=None, data_prfx='',
 
 def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
                      dbcvals=None, dbcinds=None,
-                     semi_explicit=None,
+                     semi_explicit=False,
                      Picard=False, retparts=False, zerodiribcs=False):
     """ get and condense the linearized convection
 
@@ -87,14 +87,12 @@ def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
 
     """
 
-    if semi_explicit == '_nl-expl':
+    if semi_explicit:
         rhs_con = dts.get_convvec(V=V, u0_vec=prev_v, diribcs=diribcs,
                                   dbcinds=dbcinds, dbcvals=dbcvals,
                                   invinds=invinds)
 
         return 0., -rhs_con, 0.
-    elif semi_explicit == '_nl-expcrd':
-        Picard = True
 
     N1, N2, rhs_con = dts.get_convmats(u0_vec=prev_v, V=V, invinds=invinds,
                                        dbcinds=dbcinds, dbcvals=dbcvals,
@@ -514,7 +512,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               return_dictofvelstrs=False,
               return_dictofpstrs=False,
               dictkeysstr=False,
-              treat_nonl_explct=None,
+              treat_nonl_explct=False,
               return_as_list=False,
               verbose=True,
               start_ssstokes=False,
@@ -581,10 +579,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         for your convenience, compute and use the steady state stokes solution
         as initial value, defaults to `False`
     treat_nonl_explct= string, optional
-        whether and how to treat the nonlinearity explicitly
-        `xplct`: treat it explicit
-        `xpcrd`: use pcrd linearization about the previous vel at every step
-        defaults to `None`
+        whether to treat the nonlinearity explicitly, defaults to `False`
     nsects: int, optional
         in how many segments the trange is split up. (The newton iteration
         will be confined to the segments and, probably, converge faster than
@@ -634,7 +629,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if trange is None:
         trange = np.linspace(t0, tE, Nts+1)
 
-    if treat_nonl_explct is not None and lin_vel_point is not None:
+    if treat_nonl_explct and lin_vel_point is not None:
         raise UserWarning('cant use `lin_vel_point` ' +
                           'and explicit treatment of the nonlinearity')
 
@@ -696,7 +691,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         print('Stokes Flow!')
     elif lin_vel_point is None:
         comp_nonl_semexp_inig = True
-        if treat_nonl_explct is not None:
+        if not treat_nonl_explct:
             print(('No linearization point given - explicit' +
                   ' treatment of the nonlinearity in the first Iteration'))
 
@@ -727,8 +722,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
             if norm_nwtnupd < vel_nwtn_tol and not return_dictofvelstrs:
                 return
-            elif norm_nwtnupd < vel_nwtn_tol or treat_nonl_explct is not None:
-                # looks like converged -- check if all values are there
+            elif norm_nwtnupd < vel_nwtn_tol or treat_nonl_explct:
+                # looks like converged / or semi-expl
+                # -- check if all values are there
                 # t0:
                 datastrdict.update(dict(time=trange[0]))
                 cdatstr = get_datastring(**datastrdict)
@@ -836,30 +832,27 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             if stokes_flow:
                 pcrd_anyone = False
                 newtk = vel_nwtn_stps
-            elif vel_pcrd_stps > 0 and treat_nonl_explct is None:
-                vel_pcrd_stps -= 1
-                pcrd_anyone = True
-                print('Picard iterations for initial value -- {0} left'.
-                      format(vel_pcrd_stps))
-
-            if comp_nonl_semexp_inig and treat_nonl_explct is None:
+            elif comp_nonl_semexp_inig and not treat_nonl_explct:
                 pcrd_anyone = False
-                loc_treat_nonl_explct = 'xpcrd'
-                loc_treat_nonl_explct = 'xplct'
-                print('explicit treatment of nonl. for initial guess: ' +
-                      loc_treat_nonl_explct)
-            elif treat_nonl_explct is not None:
-                loc_treat_nonl_explct = treat_nonl_explct
+                loc_treat_nonl_explct = True
+                print('explicit treatment of nonl. for initial guess!')
+            elif treat_nonl_explct:
                 pcrd_anyone = False
+                loc_treat_nonl_explct = True
                 newtk = vel_nwtn_stps
                 print('No Newton iterations - explicit treatment ' +
                       'of the nonlinearity')
-                if treat_nonl_explct == 'xpcrd':
-                    print(' -- using extrapolated Picard linearization')
-            else:
-                pcrd_anyone = False
-                newtk += 1
-                print('Computing Newton Iteration {0}'.format(newtk))
+
+            if not comp_nonl_semexp_inig and not treat_nonl_explct:
+                if vel_pcrd_stps > 0:
+                    vel_pcrd_stps -= 1
+                    pcrd_anyone = True
+                    print('Picard iterations for initial value -- {0} left'.
+                          format(vel_pcrd_stps))
+                else:
+                    pcrd_anyone = False
+                    newtk += 1
+                    print('Computing Newton Iteration {0}'.format(newtk))
 
             v_old = iniv  # start vector for time integration in every Newtonit
             try:
@@ -911,8 +904,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                        memory=fv_tmdp_memory,
                                        **fv_tmdp_params)
 
-            _rhsconvc = 0. if (pcrd_anyone or loc_treat_nonl_explct
-                               == 'xpcrd') else rhs_con_c
+            _rhsconvc = 0. if pcrd_anyone else rhs_con_c
             fvn_c = fv + rhsv_conbc_c + _rhsconvc + fv_tmdp_cont
 
             if closed_loop:
@@ -966,7 +958,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     rhs_con_n = np.zeros((NV, 1))
                     rhsv_conbc_n = np.zeros((NV, 1))
                 else:
-                    if loc_treat_nonl_explct is not None:
+                    if loc_treat_nonl_explct:
                         prev_v = v_old
                     else:
                         try:
@@ -991,8 +983,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                            memory=fv_tmdp_memory,
                                            **fv_tmdp_params)
 
-                _rhsconvn = 0. if (pcrd_anyone or loc_treat_nonl_explct
-                                   == 'xpcrd') else rhs_con_n
+                _rhsconvn = 0. if pcrd_anyone else rhs_con_n
                 fvn_n = fv + rhsv_conbc_n + _rhsconvn + fv_tmdp_cont
 
                 if closed_loop:
@@ -1063,14 +1054,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 if return_as_list:
                     vellist.append(_append_bcs_ornot(v_old))
 
-                if (newtk == vel_nwtn_stps or
-                        norm_nwtnupd < np.sqrt(loc_nwtn_tol)):
-                    # paraviewoutput in the (probably) last newton sweep
-                    prvoutdict.update(dict(vc=v_old, pc=p_new, t=t))
-                    dou.output_paraview(**prvoutdict)
-
                 # integrate the Newton error
-                if stokes_flow or treat_nonl_explct is not None:
+                if stokes_flow or treat_nonl_explct:
                     norm_nwtnupd = None
                 elif comp_nonl_semexp_inig:
                     norm_nwtnupd = 1.
@@ -1081,17 +1066,22 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     addtonwtnupd = cts * m_innerproduct(M, v_old - prev_v)
                     norm_nwtnupd += np.float(addtonwtnupd.flatten()[0])
 
+                if newtk == vel_nwtn_stps or norm_nwtnupd < loc_nwtn_tol:
+                    # paraviewoutput in the (probably) last newton sweep
+                    prvoutdict.update(dict(vc=v_old, pc=p_new, t=t))
+                    dou.output_paraview(**prvoutdict)
+
             dou.save_npa(norm_nwtnupd, cdatstr + '__norm_nwtnupd')
             print('\nnorm of current Newton update: {}'.format(norm_nwtnupd))
             # print('\nsaved `norm_nwtnupd(={0})'.format(norm_nwtnupd) +
             #       ' to ' + cdatstr)
-            loc_treat_nonl_explct = None
+            loc_treat_nonl_explct = False
             comp_nonl_semexp_inig = False
 
             cur_linvel_point = dictofvelstrs
 
         iniv = v_old
-        if treat_nonl_explct is not None and lin_vel_point is None:
+        if not treat_nonl_explct and lin_vel_point is None:
             comp_nonl_semexp_inig = True
         if addfullsweep and loctrng is loctrngs[-2]:
             comp_nonl_semexp_inig = False
