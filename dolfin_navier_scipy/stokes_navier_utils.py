@@ -227,8 +227,10 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
     Returns:
     ---
-    vel_[p]k : (N, 1) ndarray
-        the velocity/[pressure] vector. Pressure only if `return_vp`.
+    vel_k : (N, 1) ndarray
+        the velocity vector, if not `return_vp`, else
+    (v, p) : tuple
+        of the velocity and the pressure vector
     norm_nwtnupd_list : list, on demand
         list of the newton upd errors
     """
