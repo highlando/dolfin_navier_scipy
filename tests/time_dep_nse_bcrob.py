@@ -63,5 +63,5 @@ if __name__ == '__main__':
     #        ParaviewOutput=True, scheme='TH')
     # testit(problem='cylinderwake', N=3, Re=100, Nts=512, tE=1.,
     #        ParaviewOutput=True, scheme='TH', zerocontrol=False)
-    testit(problem='cylinderwake', N=2, Re=60, Nts=57, tE=.288,
+    testit(problem='cylinderwake', N=2, Re=60, Nts=512, tE=1.,
            ParaviewOutput=True, scheme='TH', zerocontrol=True)
