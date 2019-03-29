@@ -13,7 +13,8 @@ def testit(problem='cylinderwake', N=2, nu=None, Re=1e2, Nts=1e3+1,
     tips = dict(t0=0.0, tE=tE, Nts=Nts)
 
     femp, stokesmatsc, rhsd_vfrc, rhsd_stbc \
-        = dnsps.get_sysmats(problem=problem, N=N, Re=Re,
+        = dnsps.get_sysmats(problem=problem, Re=Re,
+                            meshparams=dict(refinement_level=N),
                             bccontrol=True, nu=nu, scheme=scheme)
     proutdir = 'results/'
     ddir = 'data/'
@@ -22,7 +23,7 @@ def testit(problem='cylinderwake', N=2, nu=None, Re=1e2, Nts=1e3+1,
 
     dolfin.plot(femp['mesh'])
 
-    palpha = 1e-8
+    palpha = 1e-5
     stokesmatsc['A'] = stokesmatsc['A'] + 1./palpha*stokesmatsc['Arob']
     if zerocontrol:
         Brob = 0.*1./palpha*stokesmatsc['Brob']
@@ -39,7 +40,8 @@ def testit(problem='cylinderwake', N=2, nu=None, Re=1e2, Nts=1e3+1,
                    fp=rhsd_stbc['fp']+rhsd_vfrc['fpr'],
                    N=N, nu=nu,
                    vel_nwtn_stps=nnewtsteps,
-                   comp_nonl_semexp=True,
+                   # comp_nonl_semexp=True,
+                   treat_nonl_explct=True,
                    vel_nwtn_tol=vel_nwtn_tol,
                    fv_tmdp=fv_tmdp,
                    start_ssstokes=True,
@@ -59,5 +61,7 @@ if __name__ == '__main__':
     # !!! bccontrol doesn't work for `scheme = 'CR'` !!!
     # testit(problem='cylinderwake', N=2, Re=60, Nts=2e3, tE=4.,
     #        ParaviewOutput=True, scheme='TH')
-    testit(problem='cylinderwake', N=3, Re=100, Nts=512, tE=1.,
-           ParaviewOutput=True, scheme='TH', zerocontrol=False)
+    # testit(problem='cylinderwake', N=3, Re=100, Nts=512, tE=1.,
+    #        ParaviewOutput=True, scheme='TH', zerocontrol=False)
+    testit(problem='cylinderwake', N=2, Re=60, Nts=57, tE=.288,
+           ParaviewOutput=True, scheme='TH', zerocontrol=True)

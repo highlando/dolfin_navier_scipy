@@ -14,9 +14,9 @@ krylovdict = {}
 def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, nonltrt=None,
            t0=0.0, tE=1.0, Nts=1e2+1, ParaviewOutput=False, scheme='TH'):
 
-    femp, stokesmatsc, rhsd = dnsps.get_sysmats(problem=problem, N=N, Re=Re,
-                                                nu=nu, scheme=scheme,
-                                                mergerhs=True)
+    femp, stokesmatsc, rhsd = \
+        dnsps.get_sysmats(problem=problem, Re=Re, nu=nu, scheme=scheme,
+                          meshparams=dict(refinement_level=N), mergerhs=True)
     proutdir = 'results/'
     ddir = 'data/'
     data_prfx = problem + '{4}_N{0}_Re{1}_Nts{2}_tE{3}'.\
@@ -59,10 +59,12 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, nonltrt=None,
 
 
 if __name__ == '__main__':
-    nonltrt = False
+    nonltrt = True
     # testit(problem='cylinderwake', N=2, nu=2e-3, t0=0.0, tE=5., Nts=2.5*512,
     #        scheme='CR', ParaviewOutput=True)
-    testit(problem='cylinderwake', N=1, Re=40, t0=0.0, tE=1., Nts=512,
+    # testit(problem='cylinderwake', N=1, Re=60, t0=0.0, tE=1., Nts=512,
+    #        scheme='TH', ParaviewOutput=True, nonltrt=nonltrt)
+    testit(problem='cylinderwake', N=2, Re=60, t0=0.0, tE=.0288, Nts=57,
            scheme='TH', ParaviewOutput=True, nonltrt=nonltrt)
     # testit(problem='cylinderwake3D', N=2, Re=50, t0=0.0, tE=2., Nts=512,
     #        scheme='CR', ParaviewOutput=True)
