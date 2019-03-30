@@ -828,6 +828,11 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         vel_loc_pcrd_steps = vel_pcrd_stps
 
     for loctrng in loctrngs:
+        dtvec = np.array(loctrng)[1:] - np.array(loctrng)[1:]
+        dotdtvec = dtvec[1:] - dtvec[:-1]
+        uniformgrid = np.allclose(np.linalg.norm(dotdtvec), 0)
+        coeffmatlu = None
+
         while (newtk < vel_nwtn_stps and norm_nwtnupd > loc_nwtn_tol):
             print('solve the NSE on the interval [{0}, {1}]'.
                   format(loctrng[0], loctrng[-1]))
@@ -1031,14 +1036,23 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 except (TypeError, KeyError):
                     pass  # no inival for krylov solver required
 
-                vp_new = lau.solve_sadpnt_smw(amat=solvmat,
-                                              jmat=J, jmatT=JT,
-                                              rhsv=rhsv,
-                                              rhsp=fp,
-                                              krylov=krylov,
-                                              krpslvprms=krpslvprms,
-                                              krplsprms=krplsprms,
-                                              umat=umat, vmat=vmat)
+                if loc_treat_nonl_explct and uniformgrid and not krylov:
+                    vp_new, coeffmatlu = \
+                        lau.solve_sadpnt_smw(amat=solvmat, jmat=J, jmatT=JT,
+                                             rhsv=rhsv, rhsp=fp,
+                                             sadlu=coeffmatlu,
+                                             return_alu=True,
+                                             umat=umat, vmat=vmat)
+
+                else:
+                    vp_new = lau.solve_sadpnt_smw(amat=solvmat,
+                                                  jmat=J, jmatT=JT,
+                                                  rhsv=rhsv,
+                                                  rhsp=fp,
+                                                  krylov=krylov,
+                                                  krpslvprms=krpslvprms,
+                                                  krplsprms=krplsprms,
+                                                  umat=umat, vmat=vmat)
 
                 v_old = vp_new[:NV, ]
                 (umat_c, vmat_c, fvn_c,
