@@ -1037,6 +1037,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     pass  # no inival for krylov solver required
 
                 if loc_treat_nonl_explct and uniformgrid and not krylov:
+                    if coeffmatlu is None:
+                        print('gonna compute an LU of the coefficient ' +
+                              'matrix \n and reuse it in the time stepping')
                     vp_new, coeffmatlu = \
                         lau.solve_sadpnt_smw(amat=solvmat, jmat=J, jmatT=JT,
                                              rhsv=rhsv, rhsp=fp,

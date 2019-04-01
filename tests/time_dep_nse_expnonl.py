@@ -62,9 +62,9 @@ if __name__ == '__main__':
     nonltrt = True
     # testit(problem='cylinderwake', N=2, nu=2e-3, t0=0.0, tE=5., Nts=2.5*512,
     #        scheme='CR', ParaviewOutput=True)
-    # testit(problem='cylinderwake', N=1, Re=60, t0=0.0, tE=1., Nts=512,
-    #        scheme='TH', ParaviewOutput=True, nonltrt=nonltrt)
-    testit(problem='cylinderwake', N=2, Re=60, t0=0.0, tE=.0288, Nts=57,
+    testit(problem='cylinderwake', N=1, Re=60, t0=0.0, tE=1., Nts=512,
            scheme='TH', ParaviewOutput=True, nonltrt=nonltrt)
+    # testit(problem='cylinderwake', N=2, Re=60, t0=0.0, tE=.0288, Nts=57,
+    #        scheme='TH', ParaviewOutput=True, nonltrt=nonltrt)
     # testit(problem='cylinderwake3D', N=2, Re=50, t0=0.0, tE=2., Nts=512,
     #        scheme='CR', ParaviewOutput=True)
