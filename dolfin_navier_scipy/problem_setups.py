@@ -26,7 +26,7 @@ __all__ = ['get_sysmats',
            'cyl3D_fems']
 
 
-def get_sysmats(problem='gen_bccont', N=10, scheme=None, ppin=None,
+def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
                 Re=None, nu=None, charvel=1.,
                 bccontrol=False, mergerhs=False,
                 onlymesh=False, meshparams={}):
