@@ -1056,8 +1056,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     vmat_n = None
                     umat_n = None
 
-                import ipdb; ipdb.set_trace()
-
                 (solvmat, rhsv, umat,
                  vmat) = _get_mats_rhs_ts(mmat=cmmat, dt=cts, var_c=v_old,
                                           coeffmat_c=camat + convc_mat_c,
