@@ -998,7 +998,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     prev_v = v_old
                 else:
                     if comp_nonl_semexp or comp_nonl_semexp_inig:
-                        prev_v = v_old
+                        prev_v = _appbcs(v_old, ccntrlldbcvals)
                     else:
                         try:
                             prev_v = dou.load_npa(_gfdct(cur_linvel_point, t))
@@ -1075,6 +1075,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                         cts_old = cts
                 except (TypeError, KeyError):
                     pass  # no inival for krylov solver required
+
+                import ipdb; ipdb.set_trace()
 
                 vp_new = lau.solve_sadpnt_smw(amat=solvmat,
                                               jmat=cj, jmatT=cjt,
