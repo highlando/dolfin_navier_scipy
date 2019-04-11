@@ -25,14 +25,13 @@ __all__ = ['ass_convmat_asmatquad',
 
 def _unroll_dlfn_dbcs(diribclist, bcinds=None, bcvals=None):
     if diribclist is None:
-        try:
-            urbcinds, urbcvals = [], []
+        urbcinds, urbcvals = [], []
+        if bcinds is None:
+            pass  # return empty lists
+        else:
             for k, cbci in enumerate(bcinds):
                 urbcinds.extend(cbci)
                 urbcvals.extend(bcvals[k])
-        except TypeError:
-            # it's not a list of lists
-            urbcinds, urbcvals = bcinds, bcvals
 
     else:
         urbcinds, urbcvals = [], []
@@ -549,7 +548,8 @@ def condense_velmatsbybcs(A, velbcs=None, return_bcinfo=False,
 
     nv = A.shape[0]
     auxu = np.zeros((nv, 1))
-    auxu[bcinds, 0] = bcvals
+    if bcinds is not None:
+        auxu[bcinds, 0] = bcvals
 
     # putting the bcs into the right hand sides
     fvbc = - A * auxu    # '*' is np.dot for csr matrices

@@ -86,7 +86,6 @@ def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
     N1, N2, rhs_con = dts.get_convmats(u0_vec=prev_v, V=V, invinds=invinds,
                                        dbcinds=dbcinds, dbcvals=dbcvals,
                                        diribcs=diribcs)
-
     if zerodiribcs:
         def _cndnsmts(mat, diribcs, **kw):
             return mat[invinds, :][:, invinds], np.zeros((invinds.size, 1))
@@ -115,6 +114,7 @@ def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
         convc_mat, rhsv_conbc = _cndnsmts(N1+N2, velbcs=diribcs,
                                           invinds=invinds,
                                           dbcinds=dbcinds, dbcvals=dbcvals)
+
         return convc_mat, rhs_con[invinds, ], rhsv_conbc
 
 
@@ -1075,8 +1075,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                         cts_old = cts
                 except (TypeError, KeyError):
                     pass  # no inival for krylov solver required
-
-                import ipdb; ipdb.set_trace()
 
                 vp_new = lau.solve_sadpnt_smw(amat=solvmat,
                                               jmat=cj, jmatT=cjt,
