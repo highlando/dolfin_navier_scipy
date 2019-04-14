@@ -390,6 +390,7 @@ def get_curfv(V, fv, invinds, tcur):
 
 
 def get_convvec(u0_dolfun=None, V=None, u0_vec=None, femp=None,
+                dbcvals=None, dbcinds=None,
                 diribcs=None, invinds=None):
     """return the convection vector e.g. for explicit schemes
 
@@ -400,8 +401,8 @@ def get_convvec(u0_dolfun=None, V=None, u0_vec=None, femp=None,
         if femp is not None:
             diribcs = femp['diribcs']
             invinds = femp['invinds']
-
         u0, p = expand_vp_dolfunc(vc=u0_vec, V=V, diribcs=diribcs,
+                                  dbcvals=dbcvals, dbcinds=dbcinds,
                                   invinds=invinds)
     else:
         u0 = u0_dolfun
