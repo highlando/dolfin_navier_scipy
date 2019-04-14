@@ -731,6 +731,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         vel_nwtn_stps = 1
         vel_pcrd_stps = 0
         print('Stokes Flow!')
+        comp_nonl_semexp_inig = None
     elif lin_vel_point is None:
         comp_nonl_semexp_inig = True
         if not treat_nonl_explct:
@@ -887,6 +888,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                   format(loctrng[0], loctrng[-1]))
             if stokes_flow:
                 pcrd_anyone = False
+                loc_treat_nonl_explct = None
                 newtk = vel_nwtn_stps
             elif comp_nonl_semexp_inig and not treat_nonl_explct:
                 pcrd_anyone = False
@@ -935,8 +937,11 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 rhs_con_c = np.zeros((cnv, 1))
                 rhsv_conbc_c = np.zeros((cnv, 1))
             else:
-                if loc_treat_nonl_explct is not None:
-                    prev_v = v_old
+                if loc_treat_nonl_explct:
+                    ccntrlldbcvals = _unroll_cntrl_dbcs(diricontbcvals,
+                                                        diricontfuncs,
+                                                        time=None, vel=None)
+                    prev_v = _appbcs(v_old, ccntrlldbcvals)
                 else:
                     try:
                         prev_v = dou.load_npa(_gfdct(cur_linvel_point,
@@ -950,7 +955,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     prev_v = prev_v[dbcntinvinds]
 
                 convc_mat_c, rhs_con_c, rhsv_conbc_c = \
-                    get_v_conv_conts(prev_v=prev_v, V=V,
+                    get_v_conv_conts(prev_v=v_old, V=V,
                                      invinds=dbcntinvinds,
                                      semi_explicit=loc_treat_nonl_explct,
                                      dbcinds=[dbcinds, glbcntbcinds],
@@ -1021,7 +1026,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     prev_v = v_old
                 else:
                     if loc_treat_nonl_explct:
-                        prev_v = v_old
+                        ccntrlldbcvals = _unroll_cntrl_dbcs(diricontbcvals,
+                                                            diricontfuncs,
+                                                            time=t, vel=v_old)
+                        prev_v = _appbcs(v_old, ccntrlldbcvals)
                     else:
                         try:
                             prev_v = dou.load_npa(_gfdct(cur_linvel_point, t))
@@ -1050,6 +1058,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
                 _rhsconvn = 0. if pcrd_anyone else rhs_con_n
                 fvn_n = fv + rhsv_conbc_n + _rhsconvn + fv_tmdp_cont
+                if loc_treat_nonl_explct:
+                    fvn_c = fv + rhsv_conbc_n + _rhsconvn + fv_tmdp_cont
 
                 if closed_loop:
                     if static_feedback:
@@ -1094,7 +1104,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 except (TypeError, KeyError):
                     pass  # no inival for krylov solver required
 
-                if loc_treat_nonl_explct and uniformgrid and not krylov:
+                if (uniformgrid and (stokes_flow or loc_treat_nonl_explct)
+                        and not krylov):
                     if coeffmatlu is None:
                         print('gonna compute an LU of the coefficient ' +
                               'matrix \n and reuse it in the time stepping')
