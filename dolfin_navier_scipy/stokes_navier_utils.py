@@ -660,6 +660,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     cndnsmtsdct = dict(dbcinds=loccntbcinds, mergerhs=True,
                        ret_unrolled=True)
 
+    ccntrlldbcvals = _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
+                                        time=None, vel=None)
+    cmmat, camat, cjt, cj, _, cfv, cfp, _ = dts.\
+        condense_sysmatsbybcs(matdict, dbcvals=ccntrlldbcvals,
+                              rhsdict=rhsdict, **cndnsmtsdct)
+
     # ## XXX: looks like this needs treatment
     if return_dictofpstrs:
         gpfvd = dict(V=V, M=M, A=A, J=J, fv=fv, fp=fp,
@@ -672,11 +678,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if iniv is None:
         if start_ssstokes:
             # Stokes solution as starting value
-            ccntrlldbcvals = _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
-                                                time=None, vel=None)
-            cmmat, camat, cjt, cj, _, cfv, cfp, _ = dts.\
-                condense_sysmatsbybcs(matdict, dbcvals=ccntrlldbcvals,
-                                      rhsdict=rhsdict, **cndnsmtsdct)
             vp_stokes =\
                 lau.solve_sadpnt_smw(amat=camat, jmat=cj, jmatT=cjt,
                                      rhsv=cfv,  # + fv_tmdp_cont,
@@ -1017,6 +1018,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                          # dbcvals=[dbcvals, ccntrlldbcvals],
                                          # bcvals were appended at save
                                          Picard=pcrd_anyone)
+                    import ipdb; ipdb.set_trace()
                     # convc_mat_n, rhs_con_n, rhsv_conbc_n = \
                     #     get_v_conv_conts(prev_v=prev_v, invinds=invinds, V=V,
                     #                      dbcinds=dbcinds, dbcvals=dbcvals,
