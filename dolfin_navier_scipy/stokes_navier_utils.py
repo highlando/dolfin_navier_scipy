@@ -1039,11 +1039,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                          # dbcvals=[dbcvals, ccntrlldbcvals],
                                          # bcvals were appended at save
                                          Picard=pcrd_anyone)
-                    import ipdb; ipdb.set_trace()
-                    # convc_mat_n, rhs_con_n, rhsv_conbc_n = \
-                    #     get_v_conv_conts(prev_v=prev_v, invinds=invinds, V=V,
-                    #                      dbcinds=dbcinds, dbcvals=dbcvals,
-                    #                      Picard=pcrd_anyone)
 
                 cury = None if cv_mat is None else cv_mat.dot(prev_v)
                 (fv_tmdp_cont,
