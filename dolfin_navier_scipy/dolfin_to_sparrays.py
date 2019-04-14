@@ -26,8 +26,11 @@ __all__ = ['ass_convmat_asmatquad',
 def _unroll_dlfn_dbcs(diribclist, bcinds=None, bcvals=None):
     if diribclist is None:
         urbcinds, urbcvals = [], []
-        if bcinds is None:
+        if bcinds is None or len(bcinds) == 0:
             pass  # return empty lists
+        elif not isinstance(bcinds[0], list):
+            # bcvals already already
+            urbcinds, urbcvals = bcinds, bcvals
         else:
             for k, cbci in enumerate(bcinds):
                 urbcinds.extend(cbci)
