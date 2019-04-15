@@ -886,6 +886,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         while (newtk < vel_nwtn_stps and norm_nwtnupd > loc_nwtn_tol):
             print('solve the NSE on the interval [{0}, {1}]'.
                   format(loctrng[0], loctrng[-1]))
+            v_old = iniv  # start vector for time integration in every Newtonit
+
             if stokes_flow:
                 pcrd_anyone = False
                 loc_treat_nonl_explct = None
@@ -912,7 +914,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     newtk += 1
                     print('Computing Newton Iteration {0}'.format(newtk))
 
-            v_old = iniv  # start vector for time integration in every Newtonit
             try:
                 if krpslvprms['krylovini'] == 'old':
                     vp_old = np.vstack([v_old, np.zeros((NP, 1))])
@@ -1126,11 +1127,17 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                                   krplsprms=krplsprms,
                                                   umat=umat, vmat=vmat)
 
+                # print('v_old : {0} ({1})'.format(np.linalg.norm(v_old),
+                #                                  v_old.size))
                 v_old = vp_new[:cnv, ]
+                # print('v_new : {0} ({1})'.format(np.linalg.norm(v_old),
+                #                                  v_old.size))
+                # print('v_prv : {0} ({1})'.format(np.linalg.norm(prev_v),
+                #                                  prev_v.size))
                 (umat_c, vmat_c, fvn_c,
                     convc_mat_c) = umat_n, vmat_n, fvn_n, convc_mat_n
 
-                _savev(v_old, ccntrlldbcvals, cdatstr + '__vel')
+                _savev(v_old, ccntrlldbcvals, cdatstr)
                 _atdct(dictofvelstrs, t, cdatstr + '__vel')
                 p_new = -1/cts*vp_new[cnv:, ]
                 # p was flipped and scaled for symmetry
@@ -1146,12 +1153,14 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     norm_nwtnupd = None
                 elif comp_nonl_semexp_inig:
                     norm_nwtnupd = 1.
-
                 else:
                     if len(prev_v) > len(invinds):
                         prev_v = prev_v[invinds, :]
                     addtonwtnupd = cts * m_innerproduct(M, v_old - prev_v)
                     norm_nwtnupd += np.float(addtonwtnupd.flatten()[0])
+                    if tk > 3:
+                        pass
+                        # import ipdb; ipdb.set_trace()
 
                 if newtk == vel_nwtn_stps or norm_nwtnupd < loc_nwtn_tol:
                     # paraviewoutput in the (probably) last newton sweep

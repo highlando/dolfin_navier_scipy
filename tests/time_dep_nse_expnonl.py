@@ -55,8 +55,7 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, nonltrt=None,
 # compute the uncontrolled steady state Navier-Stokes solution
 #
     # vp_ss_nse = snu.solve_steadystate_nse(**soldict)
-    soldict.update(dict(start_ssstokes=True,  # stokes_flow=True,
-                        iniv=0*rhsd['fv']))
+    soldict.update(dict(start_ssstokes=True))
     snu.solve_nse(**soldict)
 
 
@@ -64,7 +63,7 @@ if __name__ == '__main__':
     nonltrt = True
     # testit(problem='cylinderwake', N=2, nu=2e-3, t0=0.0, tE=5., Nts=2.5*512,
     #        scheme='CR', ParaviewOutput=True)
-    testit(problem='cylinderwake', N=1, Re=60, t0=0.0, tE=1., Nts=512,
+    testit(problem='cylinderwake', N=1, Re=80, t0=0.0, tE=2., Nts=2*512,
            scheme='TH', ParaviewOutput=True, nonltrt=nonltrt)
     # testit(problem='cylinderwake', N=2, Re=60, t0=0.0, tE=.0288, Nts=57,
     #        scheme='TH', ParaviewOutput=True, nonltrt=nonltrt)
