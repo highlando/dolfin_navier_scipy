@@ -837,10 +837,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         """
         solvmat = M + 0.5*dt*coeffmat_n
         rhs = M*var_c + 0.5*dt*(fv_n + fv_c - coeffmat_c*var_c)
-        print('|rhs|:{0}({1})'.format(np.linalg.norm(rhs), rhs.size))
-        print('|var_c|:{0}({1})'.format(np.linalg.norm(var_c), rhs.size))
-        print('|fv_n|:{0}({1})'.format(np.linalg.norm(fv_n), fv_n.size))
-        print('|fv_c|:{0}({1})'.format(np.linalg.norm(fv_c), fv_c.size))
         if umat_n is not None:
             matvec = lau.mm_dnssps
             umat = 0.5*dt*umat_n
