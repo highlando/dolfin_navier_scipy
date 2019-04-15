@@ -52,7 +52,7 @@ if __name__ == '__main__':
     # scme = 0
     # schemel = ['CR', 'TH']
     # scheme = schemel[scme]
-    testit(N=40, Re=1e3, Nts=.5e2, tE=.5, ParaviewOutput=True)
+    testit(problem='cylinderwake', N=2, Re=40, Nts=25, tE=.1)
     # testit(problem='cylinderwake', N=2, Re=30, Nts=24, tE=.1)
     # testit(problem='cylinderwake', N=2, Re=70, Nts=56, tE=.2, nsects=5,
     #        ParaviewOutput=True, scheme='TH')
