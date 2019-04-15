@@ -17,9 +17,9 @@ def testit(problem='drivencavity', N=None, nu=None, Re=None, Nts=1e3,
     vel_nwtn_tol = 1e-14
     tips = dict(t0=0.0, tE=tE, Nts=Nts)
 
-    femp, stokesmatsc, rhsd = dnsps.get_sysmats(problem=problem, N=N, Re=Re,
-                                                nu=nu, scheme=scheme,
-                                                mergerhs=True)
+    femp, stokesmatsc, rhsd = dnsps.\
+        get_sysmats(problem=problem, Re=Re, nu=nu, scheme=scheme,
+                    meshparams=dict(refinement_level=N), mergerhs=True)
     proutdir = 'results/'
     ddir = 'data/'
     data_prfx = problem + '_N{0}_Re{1}_Nts{2}_tE{3}'.\
@@ -53,10 +53,10 @@ if __name__ == '__main__':
     # schemel = ['CR', 'TH']
     # scheme = schemel[scme]
     # testit(N=40, Re=1e3, Nts=.5e2, tE=.5, ParaviewOutput=True, scheme=scheme)
-    # testit(problem='cylinderwake', N=2, Re=70, Nts=256, tE=1.,
+    testit(problem='cylinderwake', N=2, Re=40, Nts=25, tE=.1)
     # testit(problem='cylinderwake', N=2, Re=70, Nts=56, tE=.2, nsects=5,
     #        ParaviewOutput=True, scheme='TH')
-    testit(problem='cylinderwake', N=2, Re=100, tE=2., Nts=512,
-           scheme='TH', nsects=10, addfullsweep=True, ParaviewOutput=True)
+    # testit(problem='cylinderwake', N=2, Re=100, tE=2., Nts=512,
+    #        scheme='TH', nsects=10, addfullsweep=True, ParaviewOutput=True)
     # testit(problem='cylinderwake', N=4, Re=80, Nts=1000, tE=1.,
     #        ParaviewOutput=True, scheme='CR')
