@@ -992,6 +992,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
                 _rhsconvn = 0. if pcrd_anyone else rhs_con_n
                 fvn_n = fv + rhsv_conbc_n + _rhsconvn + fv_tmdp_cont
+                if loc_treat_nonl_explct and not closed_loop:
+                    fvn_c = fv + rhsv_conbc_n + _rhsconvn + fv_tmdp_cont
 
                 if closed_loop:
                     if static_feedback:
