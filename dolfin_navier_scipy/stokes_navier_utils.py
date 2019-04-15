@@ -38,7 +38,7 @@ def get_datastr_snu(time=None, meshp=None, nu=None, Nts=None, data_prfx='',
 
 
 def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
-                     dbcvals=None, dbcinds=None,
+                     dbcvals=[], dbcinds=[],
                      semi_explicit=False,
                      Picard=False, retparts=False, zerodiribcs=False):
     """ get and condense the linearized convection
@@ -97,15 +97,18 @@ def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
     N1, N2, rhs_con = dts.get_convmats(u0_vec=prev_v, V=V, invinds=invinds,
                                        dbcinds=dbcinds, dbcvals=dbcvals,
                                        diribcs=diribcs)
+
     if zerodiribcs:
         def _cndnsmts(mat, diribcs, **kw):
             return mat[invinds, :][:, invinds], np.zeros((invinds.size, 1))
     else:
         _cndnsmts = dts.condense_velmatsbybcs
 
+    vwbcs = prev_v if prev_v.size == V.dim() else None
     if Picard:
         convc_mat, rhsv_conbc = _cndnsmts(N1, velbcs=diribcs, invinds=invinds,
-                                          dbcinds=dbcinds, dbcvals=dbcvals)
+                                          dbcinds=dbcinds, dbcvals=dbcvals,
+                                          vwithbcs=vwbcs)
         # return convc_mat, rhs_con[invinds, ], rhsv_conbc
         return convc_mat, None, rhsv_conbc
 
@@ -113,9 +116,10 @@ def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
         picrd_convc_mat, picrd_rhsv_conbc = _cndnsmts(N1, velbcs=diribcs,
                                                       invinds=invinds,
                                                       dbcinds=dbcinds,
+                                                      vwithbcs=vwbcs,
                                                       dbcvals=dbcvals)
         anti_picrd_convc_mat, anti_picrd_rhsv_conbc = \
-            _cndnsmts(N2, velbcs=diribcs, invinds=invinds,
+            _cndnsmts(N2, velbcs=diribcs, invinds=invinds, vwithbcs=vwbcs,
                       dbcinds=dbcinds, dbcvals=dbcvals)
         return ((picrd_convc_mat, anti_picrd_convc_mat),
                 rhs_con[invinds, ],
@@ -124,6 +128,7 @@ def get_v_conv_conts(prev_v=None, V=None, invinds=None, diribcs=None,
     else:
         convc_mat, rhsv_conbc = _cndnsmts(N1+N2, velbcs=diribcs,
                                           invinds=invinds,
+                                          vwithbcs=vwbcs,
                                           dbcinds=dbcinds, dbcvals=dbcvals)
 
         return convc_mat, rhs_con[invinds, ], rhsv_conbc
@@ -1020,10 +1025,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                         print("runtime: {0:.1f} - t/tE: {1:.2f} - t: {2:.4f}".
                               format(time.clock(), curtinst/loctrng[-1],
                                      curtinst))
-                        print('v: {0:.5f} ({1})'.format(np.linalg.norm(v_old),
-                                                        v_old.size))
-                        if not loc_treat_nonl_explct and tk > 1:
-                            raise UserWarning('dbg')
                 except IndexError:
                     pass  # if something goes wrong, don't stop
 
@@ -1048,8 +1049,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                                              None))
                             except TypeError:
                                 prev_v = cur_linvel_point[None]
-                        nprv = np.linalg.norm(prev_v)
-                        print('v_pr: {0:.5f}({1})'.format(nprv, prev_v.size))
+
                     convc_mat_n, rhs_con_n, rhsv_conbc_n = \
                         get_v_conv_conts(prev_v=prev_v, V=V,
                                          invinds=dbcntinvinds,
