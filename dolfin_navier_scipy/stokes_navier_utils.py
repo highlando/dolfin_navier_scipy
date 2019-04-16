@@ -970,9 +970,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
             cury = None if cv_mat is None else cv_mat.dot(v_old)
             (fv_tmdp_cont,
-             fv_tmdp_memory) = fv_tmdp(time=0,
-                                       curvel=v_old,
-                                       cury=cury,
+             fv_tmdp_memory) = fv_tmdp(time=0, curvel=v_old, cury=cury,
                                        memory=fv_tmdp_memory,
                                        **fv_tmdp_params)
 
