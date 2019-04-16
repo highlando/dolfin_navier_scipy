@@ -579,7 +579,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     krylov : {None, 'gmres'}, optional
         whether or not to use an iterative solver, defaults to `None`
     krpslvprms : dictionary, optional
-        to specify parameters of the linear solver for use in Krypy, e.g.,
+        v specify parameters of the linear solver for use in Krypy, e.g.,
 
           * initial guess
           * tolerance
@@ -832,6 +832,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         """
         solvmat = M + 0.5*dt*coeffmat_n
         rhs = M*var_c + 0.5*dt*(fv_n + fv_c - coeffmat_c*var_c)
+        print('|rhs|:{0}({1})'.format(np.linalg.norm(rhs), rhs.size))
+        print('|var_c|:{0}({1})'.format(np.linalg.norm(var_c), rhs.size))
+        print('|fv_n|:{0}({1})'.format(np.linalg.norm(fv_n), fv_n.size))
+        print('|fv_c|:{0}({1})'.format(np.linalg.norm(fv_c), fv_c.size))
         if umat_n is not None:
             matvec = lau.mm_dnssps
             umat = 0.5*dt*umat_n
@@ -1016,6 +1020,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                         print("runtime: {0:.1f} - t/tE: {1:.2f} - t: {2:.4f}".
                               format(time.clock(), curtinst/loctrng[-1],
                                      curtinst))
+                        print('v: {0:.5f} ({1})'.format(np.linalg.norm(v_old),
+                                                        v_old.size))
+                        if not loc_treat_nonl_explct and tk > 1:
+                            raise UserWarning('dbg')
                 except IndexError:
                     pass  # if something goes wrong, don't stop
 
@@ -1040,6 +1048,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                                              None))
                             except TypeError:
                                 prev_v = cur_linvel_point[None]
+                        nprv = np.linalg.norm(prev_v)
+                        print('v_pr: {0:.5f}({1})'.format(nprv, prev_v.size))
                     convc_mat_n, rhs_con_n, rhsv_conbc_n = \
                         get_v_conv_conts(prev_v=prev_v, V=V,
                                          invinds=dbcntinvinds,
