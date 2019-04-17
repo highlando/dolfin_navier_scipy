@@ -1063,7 +1063,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
                 _rhsconvn = 0. if pcrd_anyone else rhs_con_n
                 fvn_n = fv + rhsv_conbc_n + _rhsconvn + fv_tmdp_cont
-                if loc_treat_nonl_explct:
+                if loc_treat_nonl_explct and not closed_loop:
                     fvn_c = fv + rhsv_conbc_n + _rhsconvn + fv_tmdp_cont
 
                 if closed_loop:
@@ -1162,9 +1162,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                         prev_v = prev_v[invinds, :]
                     addtonwtnupd = cts * m_innerproduct(M, v_old - prev_v)
                     norm_nwtnupd += np.float(addtonwtnupd.flatten()[0])
-                    if tk > 3:
-                        pass
-                        # import ipdb; ipdb.set_trace()
 
                 if newtk == vel_nwtn_stps or norm_nwtnupd < loc_nwtn_tol:
                     # paraviewoutput in the (probably) last newton sweep

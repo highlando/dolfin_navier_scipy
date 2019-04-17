@@ -653,7 +653,8 @@ def cyl3D_fems(refinement_level=2, scheme='TH',
     # radius = 0.15
 
     # Load mesh
-    mesh = dolfin.Mesh("mesh/3d-cyl/karman3D_lvl%d.xml.gz" % refinement_level)
+    mesh = dolfin.\
+        Mesh("mesh/3d-cyl/karman3D_lvl{0}.xml.gz".format(refinement_level))
 
     # scheme = 'CR'
     if scheme == 'CR':
@@ -665,7 +666,7 @@ def cyl3D_fems(refinement_level=2, scheme='TH',
         Q = dolfin.FunctionSpace(mesh, "CG", 1)
 
     # get the boundaries from the gmesh file
-    meshfile = 'mesh/3d-cyl/karman3D_lvl{0}d_facet_region.xml.gz'.\
+    meshfile = 'mesh/3d-cyl/karman3D_lvl{0}_facet_region.xml.gz'.\
         format(refinement_level)
     boundaries = dolfin.\
         MeshFunction('size_t', mesh, meshfile)
