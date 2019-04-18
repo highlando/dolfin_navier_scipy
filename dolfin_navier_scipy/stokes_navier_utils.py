@@ -681,7 +681,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     ccntrlldbcvals = _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
                                         time=None, vel=None)
-    cmmat, camat, cjt, cj, _, cfv, cfp, _ = dts.\
+    cmmat, camat, cjt, cj, _, cfv, cfp, locinvinds = dts.\
         condense_sysmatsbybcs(matdict, dbcvals=ccntrlldbcvals,
                               rhsdict=rhsdict, **cndnsmtsdct)
 
@@ -705,6 +705,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             iniv = vp_stokes[:cnv]
         else:
             raise ValueError('No initial value given')
+    else:
+        iniv = iniv[locinvinds]
 
     datastrdict = dict(time=None, meshp=N, nu=nu,
                        Nts=trange.size-1, data_prfx=data_prfx,
@@ -817,7 +819,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     #         return vvec
 
     def _appbcs(vvec, ccntrlldbcvals):
-        return dts.append_bcs_vec(vvec, vdim=V.dim(), invinds=invinds,
+        return dts.append_bcs_vec(vvec, vdim=V.dim(), invinds=dbcntinvinds,
                                   bcinds=[dbcinds, glbcntbcinds],
                                   bcvals=[dbcvals, ccntrlldbcvals])
 
@@ -835,8 +837,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         """ to be tweaked for different int schemes
 
         """
-        solvmat = M + 0.5*dt*coeffmat_n
-        rhs = M*var_c + 0.5*dt*(fv_n + fv_c - coeffmat_c*var_c)
+        solvmat = cmmat + 0.5*dt*coeffmat_n
+        rhs = cmmat*var_c + 0.5*dt*(fv_n + fv_c - coeffmat_c*var_c)
         if umat_n is not None:
             matvec = lau.mm_dnssps
             umat = 0.5*dt*umat_n
@@ -935,6 +937,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             prvoutdict.update(dict(vp=None, vc=iniv, pc=p_old, t=loctrng[0],
                                    dbcvals=[dbcvals, ccntrlldbcvals],
                                    pfile=pfile, vfile=vfile))
+
             dou.output_paraview(**prvoutdict)
 
             # ## current values_c for application of trap rule
@@ -975,7 +978,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                        **fv_tmdp_params)
 
             _rhsconvc = 0. if pcrd_anyone else rhs_con_c
-            fvn_c = fv + rhsv_conbc_c + _rhsconvc + fv_tmdp_cont
+            fvn_c = cfv + rhsv_conbc_c + _rhsconvc + fv_tmdp_cont
 
             if closed_loop:
                 if static_feedback:
@@ -1062,9 +1065,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                            **fv_tmdp_params)
 
                 _rhsconvn = 0. if pcrd_anyone else rhs_con_n
-                fvn_n = fv + rhsv_conbc_n + _rhsconvn + fv_tmdp_cont
+                fvn_n = cfv + rhsv_conbc_n + _rhsconvn + fv_tmdp_cont
                 if loc_treat_nonl_explct and not closed_loop:
-                    fvn_c = fv + rhsv_conbc_n + _rhsconvn + fv_tmdp_cont
+                    fvn_c = cfv + rhsv_conbc_n + _rhsconvn + fv_tmdp_cont
 
                 if closed_loop:
                     if static_feedback:
@@ -1115,7 +1118,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                         print('gonna compute an LU of the coefficient ' +
                               'matrix \n and reuse it in the time stepping')
                     vp_new, coeffmatlu = \
-                        lau.solve_sadpnt_smw(amat=solvmat, jmat=J, jmatT=JT,
+                        lau.solve_sadpnt_smw(amat=solvmat, jmat=cj, jmatT=cjt,
                                              rhsv=rhsv, rhsp=fp,
                                              sadlu=coeffmatlu,
                                              return_alu=True,
@@ -1158,9 +1161,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 elif comp_nonl_semexp_inig:
                     norm_nwtnupd = 1.
                 else:
-                    if len(prev_v) > len(invinds):
-                        prev_v = prev_v[invinds, :]
-                    addtonwtnupd = cts * m_innerproduct(M, v_old - prev_v)
+                    if len(prev_v) > len(locinvinds):
+                        prev_v = prev_v[locinvinds, :]
+                    addtonwtnupd = cts * m_innerproduct(cmmat, v_old - prev_v)
                     norm_nwtnupd += np.float(addtonwtnupd.flatten()[0])
 
                 if newtk == vel_nwtn_stps or norm_nwtnupd < loc_nwtn_tol:
