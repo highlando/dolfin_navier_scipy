@@ -658,7 +658,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         dbcntinvinds = invinds
     else:
         for k, cdbidbv in enumerate(diricontbcinds):
-            localbcinds = (_localizecdbinds(cdbidbv)).tolist()
+            localbcinds = (_localizecdbinds(cdbidbv, V, invinds)).tolist()
             loccntbcinds.extend(localbcinds)  # adding the boundary inds
             glbcntbcinds.extend(cdbidbv)
         dbcntinvinds = np.setdiff1d(invinds, glbcntbcinds).astype(np.int32)
