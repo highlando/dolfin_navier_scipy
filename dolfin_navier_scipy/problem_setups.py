@@ -827,6 +827,7 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
                                           cntbc['physical entity']))
     if not movingwallcntrl:
         diribcu.extend(mvwdbcs)  # add the moving walls to the diri bcs
+        mvwdbcs = []
 
     # Create outflow boundary condition for pressure
     # TODO XXX why zero pressure?? is this do-nothing???

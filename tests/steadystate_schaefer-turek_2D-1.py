@@ -9,23 +9,20 @@ proutdir = 'results/'
 def testit(problem=None, nu=None, charvel=None, Re=None,
            meshlvl=1,
            rho=1.,
-           t0=0.0, tE=1.0, Nts=1e2+1, ParaviewOutput=False, scheme='TH'):
+           ParaviewOutput=False, scheme='TH'):
 
     meshfile = 'mesh/karman2D-rotcyl_lvl{0}.xml.gz'.format(meshlvl)
     physregs = 'mesh/karman2D-rotcyl_lvl{0}_facet_region.xml.gz'.\
         format(meshlvl)
     femp, stokesmatsc, rhsd = \
-        dnsps.get_sysmats(problem='cylinder_rot', nu=nu, bccontrol=False,
+        dnsps.get_sysmats(problem=problem, nu=nu, bccontrol=False,
                           charvel=charvel,
                           scheme=scheme, mergerhs=True,
                           meshparams=dict(strtomeshfile=meshfile,
                                           strtophysicalregions=physregs,
                                           strtobcsobs=geodata))
     ddir = 'data/'
-    data_prfx = problem + '{4}_mesh{0}_Re{1}_Nts{2}_tE{3}'.\
-        format(meshlvl, femp['Re'], Nts, tE, scheme)
-
-    tips = dict(t0=t0, tE=tE, Nts=Nts)
+    data_prfx = problem+'{2}_mesh{0}_Re{1}'.format(meshlvl, femp['Re'], scheme)
 
     # ## Parameters for the benchmark values
     Um = charvel  # (we alread scale the inflow parabola accordingly)
@@ -33,25 +30,13 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     NP, NV = stokesmatsc['J'].shape
     print('NV + NP : {0} + {1} = {2}'.format(NV, NP, NV+NP))
 
-    def rotcont(t, vel):
-        return 0.
-
-    dircntdict = dict(diricontbcinds=[femp['mvwbcinds']],
-                      diricontbcvals=[femp['mvwbcvals']],
-                      diricontfuncs=[rotcont])
-
     soldict = stokesmatsc  # containing A, J, JT
     soldict.update(femp)  # adding V, Q, invinds, diribcs
-    soldict.update(tips)  # adding time integration params
-    soldict.update(dircntdict)
     soldict.update(fv=rhsd['fv'], fp=rhsd['fp'],
                    N=meshlvl, nu=nu,
-                   # start_ssstokes=True,
                    verbose=True,
                    return_vp=True,
-                   iniv=0*rhsd['fv'],
                    get_datastring=None,
-                   comp_nonl_semexp=True,
                    dbcinds=femp['dbcinds'], dbcvals=femp['dbcvals'],
                    data_prfx=ddir+data_prfx,
                    paraviewoutput=ParaviewOutput,
@@ -85,10 +70,6 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     print('Cd: {0}'.format(5.57953523384))
     print('Delta P: {0}'.format(0.11752016697))
 
-    # snu.solve_nse(**soldict)
-    # print('for plots check \nparaview ' + proutdir + 'vel___timestep.pvd')
-    # print('or \nparaview ' + proutdir + 'p___timestep.pvd')
-
 
 if __name__ == '__main__':
     meshlvl = 3
@@ -99,6 +80,5 @@ if __name__ == '__main__':
     scheme = 'TH'
 
     testit(problem='gen_bccont', nu=nu, charvel=charvel,
-           rho=rho,
-           t0=0.0, tE=2., Nts=512, meshlvl=meshlvl,
+           rho=rho, meshlvl=meshlvl,
            scheme=scheme, ParaviewOutput=True)
