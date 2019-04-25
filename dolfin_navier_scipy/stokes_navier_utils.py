@@ -1162,7 +1162,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     norm_nwtnupd = 1.
                 else:
                     if len(prev_v) > len(locinvinds):
-                        prev_v = prev_v[locinvinds, :]
+                        prev_v = prev_v[dbcntinvinds, :]
                     addtonwtnupd = cts * m_innerproduct(cmmat, v_old - prev_v)
                     norm_nwtnupd += np.float(addtonwtnupd.flatten()[0])
 
