@@ -978,6 +978,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                        **fv_tmdp_params)
 
             _rhsconvc = 0. if pcrd_anyone else rhs_con_c
+            _, _, _, _, _, cfv, cfp, _ = dts.\
+                condense_sysmatsbybcs(matdict, dbcvals=ccntrlldbcvals,
+                                      rhsdict=rhsdict, **cndnsmtsdct)
             fvn_c = cfv + rhsv_conbc_c + _rhsconvc + fv_tmdp_cont
 
             if closed_loop:
@@ -1065,6 +1068,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                            **fv_tmdp_params)
 
                 _rhsconvn = 0. if pcrd_anyone else rhs_con_n
+                _, _, _, _, _, cfv, cfp, _ = dts.\
+                    condense_sysmatsbybcs(matdict, dbcvals=ccntrlldbcvals,
+                                          rhsdict=rhsdict, **cndnsmtsdct)
                 fvn_n = cfv + rhsv_conbc_n + _rhsconvn + fv_tmdp_cont
                 if loc_treat_nonl_explct and not closed_loop:
                     fvn_c = cfv + rhsv_conbc_n + _rhsconvn + fv_tmdp_cont
@@ -1168,7 +1174,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
                 if newtk == vel_nwtn_stps or norm_nwtnupd < loc_nwtn_tol:
                     # paraviewoutput in the (probably) last newton sweep
-                    prvoutdict.update(dict(vc=v_old, pc=p_new, t=t))
+                    prvoutdict.update(dict(vc=v_old, pc=p_new, t=t,
+                                           dbcvals=[dbcvals, ccntrlldbcvals]))
                     dou.output_paraview(**prvoutdict)
 
             dou.save_npa(norm_nwtnupd, cdatstr + '__norm_nwtnupd')
