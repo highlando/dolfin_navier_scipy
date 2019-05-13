@@ -656,18 +656,27 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         raise UserWarning('cant use `lin_vel_point` ' +
                           'and explicit treatment of the nonlinearity')
 
-    dbcinds, dbcvals = dts._unroll_dlfn_dbcs(diribcs, bcinds=dbcinds,
-                                             bcvals=dbcvals)
+    dbcinds, dbcvals = dts.unroll_dlfn_dbcs(diribcs, bcinds=dbcinds,
+                                            bcvals=dbcvals)
 
     loccntbcinds, ccntrlldbcvals, glbcntbcinds = [], [], []
     if diricontbcinds is None or diricontbcinds == []:
         dbcntinvinds = invinds
+        cntrlmatrhsdict = dict(fv=fv, fp=fp)
     else:
         for k, cdbidbv in enumerate(diricontbcinds):
             localbcinds = (_localizecdbinds(cdbidbv, V, invinds)).tolist()
             loccntbcinds.extend(localbcinds)  # adding the boundary inds
             glbcntbcinds.extend(cdbidbv)
         dbcntinvinds = np.setdiff1d(invinds, glbcntbcinds).astype(np.int32)
+        cntrlmatrhsdict = {'A': A, 'J': J, 'fv': fv, 'fp': fp,
+                           'loccntbcinds': loccntbcinds}
+
+        locinvinds = (_localizecdbinds(dbcntinvinds, V, invinds)).tolist()
+        cmmat = M[locinvinds, :][:, locinvinds]
+        camat = A[locinvinds, :][:, locinvinds]
+        cjt = JT[locinvinds, :]
+        cj = J[:, locinvinds]
 
     cnv = dbcntinvinds.size
     NP = J.shape[0]
@@ -680,16 +689,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                       invinds=dbcntinvinds, ppin=ppin,
                       tfilter=plttrange, writeoutput=paraviewoutput)
 
-    matdict = dict(M=M, A=A, J=J, JT=JT, MP=None)
-    rhsdict = dict(fv=fv, fp=fp)
-    cndnsmtsdct = dict(dbcinds=loccntbcinds, mergerhs=True,
-                       ret_unrolled=True)
-
-    ccntrlldbcvals = _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
-                                        time=None, vel=None, p=None)
-    cmmat, camat, cjt, cj, _, cfv, cfp, locinvinds = dts.\
-        condense_sysmatsbybcs(matdict, dbcvals=ccntrlldbcvals,
-                              rhsdict=rhsdict, **cndnsmtsdct)
+    ccntrlldbcvals, cfv, cfp = \
+        _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
+                           time=None, vel=None, p=None,
+                           **cntrlmatrhsdict)
 
     # ## XXX: looks like this needs treatment
     if return_dictofpstrs:
@@ -910,9 +913,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                   format(loctrng[0], loctrng[-1]))
             v_old = iniv  # start vector for time integration in every Newtonit
 
-            ccntrlldbcvals = \
+            ccntrlldbcvals, cfv, cfp = \
                 _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
-                                   time=loctrng[0], vel=iniv, p=p_old)
+                                   vel=_appbcs(iniv, ccntrlldbcvals),
+                                   time=loctrng[0], p=p_old, **cntrlmatrhsdict)
             if stokes_flow:
                 pcrd_anyone = False
                 loc_treat_nonl_explct = None
@@ -984,9 +988,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                        **fv_tmdp_params)
 
             _rhsconvc = 0. if pcrd_anyone else rhs_con_c
-            _, _, _, _, _, cfv, cfp, _ = dts.\
-                condense_sysmatsbybcs(matdict, dbcvals=ccntrlldbcvals,
-                                      rhsdict=rhsdict, **cndnsmtsdct)
             fvn_c = cfv + rhsv_conbc_c + _rhsconvc + fv_tmdp_cont
 
             if closed_loop:
@@ -1042,9 +1043,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     prev_v = v_old
                 else:
                     if loc_treat_nonl_explct:
-                        ccntrlldbcvals = _unroll_cntrl_dbcs(diricontbcvals,
-                                                            diricontfuncs,
-                                                            time=t, vel=v_old)
+                        ccntrlldbcvals, cfv, cfp = \
+                            _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
+                                               vel=_appbcs(iniv,
+                                                           ccntrlldbcvals),
+                                               time=t, p=p_old,
+                                               **cntrlmatrhsdict)
                         prev_v = _appbcs(v_old, ccntrlldbcvals)
                     else:
                         try:
@@ -1055,9 +1059,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                                              None))
                             except TypeError:
                                 prev_v = cur_linvel_point[None]
-                        ccntrlldbcvals = _unroll_cntrl_dbcs(diricontbcvals,
-                                                            diricontfuncs,
-                                                            time=t, vel=prev_v)
+                        ccntrlldbcvals, cfv, cfp = \
+                            _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
+                                               vel=_appbcs(iniv,
+                                                           ccntrlldbcvals),
+                                               time=t, p=p_old,
+                                               **cntrlmatrhsdict)
 
                     convc_mat_n, rhs_con_n, rhsv_conbc_n = \
                         get_v_conv_conts(prev_v=prev_v, V=V,
@@ -1077,9 +1084,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                            **fv_tmdp_params)
 
                 _rhsconvn = 0. if pcrd_anyone else rhs_con_n
-                _, _, _, _, _, cfv, cfp, _ = dts.\
-                    condense_sysmatsbybcs(matdict, dbcvals=ccntrlldbcvals,
-                                          rhsdict=rhsdict, **cndnsmtsdct)
                 fvn_n = cfv + rhsv_conbc_n + _rhsconvn + fv_tmdp_cont
                 if loc_treat_nonl_explct and not closed_loop:
                     fvn_c = cfv + rhsv_conbc_n + _rhsconvn + fv_tmdp_cont
