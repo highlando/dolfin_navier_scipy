@@ -162,22 +162,22 @@ def _localizecdbinds(cdbinds, V, invinds):
 def _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
                        time=None, vel=None, p=None,
                        loccntbcinds=None, A=None, J=None, fv=None, fp=None):
-    ccntrlldbcvals = []
+    cntrlldbcvals = []
     try:
         for k, cdbbcv in enumerate(diricontbcvals):
             ccntrlfunc = diricontfuncs[k]
             cntrlval = ccntrlfunc(time, vel=vel, p=p)
             ccntrlldbcvals = [cntrlval*bcvl for bcvl in cdbbcv]
-            ccntrlldbcvals.extend(ccntrlldbcvals)
+            cntrlldbcvals.extend(ccntrlldbcvals)
     except TypeError:
-        return ccntrlldbcvals, fv, fp
+        return cntrlldbcvals, fv, fp
 
     crhsdct = dts.condense_sysmatsbybcs(dict(A=A, J=J),
                                         dbcvals=ccntrlldbcvals,
                                         dbcinds=loccntbcinds,
                                         rhsdict=dict(fv=fv, fp=fp),
                                         mergerhs=True, get_rhs_only=True)
-    return ccntrlldbcvals, crhsdct['fv'], crhsdct['fp']
+    return cntrlldbcvals, crhsdct['fv'], crhsdct['fp']
 
 
 def _attach_cntbcvals(vvec, globbcinds=None, dbcvals=None,
@@ -311,7 +311,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                     pfv = get_pfromv(v=vel_k[:NV, :], V=V,
                                      M=M, A=A, J=J, fv=fv,
                                      dbcinds=dbcinds, dbcvals=dbcvals,
-                                     invinds=invinds, diribcs=diribcs)
+                                     invinds=invinds)
                     return (np.vstack([vel_k, pfv]), norm_nwtnupd_list)
 
         except IOError:
