@@ -161,7 +161,7 @@ def _localizecdbinds(cdbinds, V, invinds):
 
 def _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
                        time=None, vel=None, p=None,
-                       A=None, J=None, fv=None, fp=None):
+                       loccntbcinds=None, A=None, J=None, fv=None, fp=None):
     cntrlldbcvals = []
     try:
         for k, cdbbcv in enumerate(diricontbcvals):
@@ -173,6 +173,8 @@ def _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
         ccntrlldbcvals, fv, fp
 
     crhsdct = dts.condense_sysmatsbybcs(dict(A=A, J=J),
+                                        dbcvals=ccntrlldbcvals,
+                                        dbcinds=loccntbcinds,
                                         rhsdict=dict(fv=fv, fp=fp),
                                         mergerhs=True, get_rhs_only=True)
     return cntrlldbcvals, crhsdct['fv'], crhsdct['fp']
@@ -337,7 +339,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         cmmat, camat, cj, cjt, cfv, cfp = M, A, J, JT, fv, fp
         cnv = NV
         dbcntinvinds = invinds
-        matrhsdict = {}
+        cntrlmatrhsdict = {}
     else:
         for cdbidbv in diricontbcinds:
             localbcinds = (_localizecdbinds(cdbidbv, V, invinds)).tolist()
@@ -345,18 +347,25 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
             glbcntbcinds.extend(cdbidbv)
 
         dbcntinvinds = np.setdiff1d(invinds, glbcntbcinds).astype(np.int32)
-        cmmat = M[loccntbcinds, :][:, loccntbcinds]
-        camat = A[loccntbcinds, :][:, loccntbcinds]
-        cjt = JT[loccntbcinds, :]
-        cj = J[:, loccntbcinds]
+        locdbcntinvinds = (_localizecdbinds(dbcntinvinds, V, invinds)).tolist()
+        cmmat = M[locdbcntinvinds, :][:, locdbcntinvinds]
+        camat = A[locdbcntinvinds, :][:, locdbcntinvinds]
+        cjt = JT[locdbcntinvinds, :]
+        cj = J[:, locdbcntinvinds]
         cnv = cmmat.shape[0]
-        matrhsdict = {'A': A, 'J': J, 'fv': fv, 'fp': fp}
+        cntrlmatrhsdict = {'A': A, 'J': J, 'fv': fv, 'fp': fp,
+                           'loccntbcinds': loccntbcinds}
+
+    def _appbcs(vvec, ccntrlldbcvals):
+        return dts.append_bcs_vec(vvec, vdim=V.dim(), invinds=dbcntinvinds,
+                                  bcinds=[dbcinds, glbcntbcinds],
+                                  bcvals=[dbcvals, ccntrlldbcvals])
 
     if vel_start_nwtn is None:
         cntrlldbcvals, cfv, cfp = \
             _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
-                               time=None, vel=None, p=None,
-                               **matrhsdict)
+                               time=None, vel=None,
+                               p=None, **cntrlmatrhsdict)
 
         vp_stokes = lau.solve_sadpnt_smw(amat=camat, jmat=cj, jmatT=cjt,
                                          rhsv=cfv, rhsp=cfp)
@@ -393,7 +402,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
         cntrlldbcvals, cfv, cfp = \
             _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs, time=None,
-                               vel=vel_k, p=p_k, **matrhsdict)
+                               vel=_appbcs(vel_k, cntrlldbcvals), p=p_k,
+                               **cntrlmatrhsdict)
         (convc_mat,
          rhs_con, rhsv_conbc) = \
             get_v_conv_conts(prev_v=vel_k, V=V, diribcs=diribcs,
@@ -424,8 +434,9 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         cdatstr = get_datastring(**datastrdict)
 
         cntrlldbcvals, cfv, cfp = \
-            _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
-                               time=None, vel=vel_k, p=p_k, **matrhsdict)
+            _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs, time=None,
+                               vel=_appbcs(vel_k, cntrlldbcvals), p=p_k,
+                               **cntrlmatrhsdict)
         (convc_mat, rhs_con, rhsv_conbc) = \
             get_v_conv_conts(prev_v=vel_k, V=V, diribcs=diribcs,
                              invinds=dbcntinvinds,
