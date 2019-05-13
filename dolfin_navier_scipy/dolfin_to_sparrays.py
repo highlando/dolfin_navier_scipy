@@ -424,7 +424,8 @@ def get_convvec(u0_dolfun=None, V=None, u0_vec=None, femp=None,
 
 
 def condense_sysmatsbybcs(stms, velbcs=None, dbcinds=None, dbcvals=None,
-                          mergerhs=False, rhsdict=None, ret_unrolled=False):
+                          mergerhs=False, rhsdict=None, ret_unrolled=False,
+                          get_rhs_only=False):
     """resolve the Dirichlet BCs and condense the system matrices
 
     to the inner nodes
@@ -476,20 +477,26 @@ def condense_sysmatsbybcs(stms, velbcs=None, dbcinds=None, dbcvals=None,
         bcinds, bcvals = dbcinds, dbcvals
 
     nv = stms['A'].shape[0]
+
+    # indices of the innernodes
+    invinds = np.setdiff1d(list(range(nv)), bcinds).astype(np.int32)
     auxu = np.zeros((nv, 1))
     auxu[bcinds, 0] = bcvals
 
     # putting the bcs into the right hand sides
     fvbc = - stms['A'] * auxu    # '*' is np.dot for csr matrices
     fpbc = - stms['J'] * auxu
-
-    # indices of the innernodes
-    invinds = np.setdiff1d(list(range(nv)), bcinds).astype(np.int32)
+    fvbc = fvbc[invinds, :]
+    if get_rhs_only:
+        if mergerhs:
+            return {'fv': rhsdict['fv'][invinds, :] + fvbc,
+                    'fp': rhsdict['fp'] + fpbc}
+        else:
+            return {'fv': fvbc, 'fp': fpbc}
 
     # extract the inner nodes equation coefficients
     Mc = stms['M'][invinds, :][:, invinds]
     Ac = stms['A'][invinds, :][:, invinds]
-    fvbc = fvbc[invinds, :]
     Jc = stms['J'][:, invinds]
     JTc = stms['JT'][invinds, :]
 

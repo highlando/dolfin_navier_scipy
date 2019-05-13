@@ -160,7 +160,8 @@ def _localizecdbinds(cdbinds, V, invinds):
 
 
 def _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
-                       time=None, vel=None, p=None):
+                       time=None, vel=None, p=None,
+                       A=None, J=None, fv=None, fp=None):
     cntrlldbcvals = []
     try:
         for k, cdbbcv in enumerate(diricontbcvals):
@@ -169,8 +170,12 @@ def _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
             ccntrlldbcvals = [cntrlval*bcvl for bcvl in cdbbcv]
             cntrlldbcvals.extend(ccntrlldbcvals)
     except TypeError:
-        pass
-    return cntrlldbcvals
+        ccntrlldbcvals, fv, fp
+
+    crhsdct = dts.condense_sysmatsbybcs(dict(A=A, J=J),
+                                        rhsdict=dict(fv=fv, fp=fp),
+                                        mergerhs=True, get_rhs_only=True)
+    return cntrlldbcvals, crhsdct['fv'], crhsdct['fp']
 
 
 def _attach_cntbcvals(vvec, globbcinds=None, dbcvals=None,
@@ -326,35 +331,32 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         prvoutdict = dict(writeoutput=False)  # save 'if statements' later
 
     NV = A.shape[0]
+
+    loccntbcinds, cntrlldbcvals, glbcntbcinds = [], [], []
+    if diricontbcinds is None or diricontbcinds == []:
+        cmmat, camat, cj, cjt, cfv, cfp = M, A, J, JT, fv, fp
+        cnv = NV
+        dbcntinvinds = invinds
+        matrhsdict = {}
+    else:
+        for cdbidbv in diricontbcinds:
+            localbcinds = (_localizecdbinds(cdbidbv, V, invinds)).tolist()
+            loccntbcinds.extend(localbcinds)  # adding the boundary inds
+            glbcntbcinds.extend(cdbidbv)
+
+        dbcntinvinds = np.setdiff1d(invinds, glbcntbcinds).astype(np.int32)
+        cmmat = M[loccntbcinds, :][:, loccntbcinds]
+        camat = A[loccntbcinds, :][:, loccntbcinds]
+        cjt = JT[loccntbcinds, :]
+        cj = J[:, loccntbcinds]
+        cnv = cmmat.shape[0]
+        matrhsdict = {'A': A, 'J': J, 'fv': fv, 'fp': fp}
+
     if vel_start_nwtn is None:
-        loccntbcinds, cntrlldbcvals, glbcntbcinds = [], [], []
-        if diricontbcinds is None or diricontbcinds == []:
-            cmmat, camat, cj, cjt, cfv, cfp = M, A, J, JT, fv, fp
-            cnv = NV
-            dbcntinvinds = invinds
-        else:
-
-            for k, cdbidbv in enumerate(diricontbcinds):
-                ccntrlfunc = diricontfuncs[k]
-
-                # no time at steady state, no starting value
-                cntrlval = ccntrlfunc(None, None)
-
-                localbcinds = (_localizecdbinds(cdbidbv, V, invinds)).tolist()
-                loccntbcinds.extend(localbcinds)  # adding the boundary inds
-                glbcntbcinds.extend(cdbidbv)
-                ccntrlldbcvals = [cntrlval*bcvl for bcvl in diricontbcvals[k]]
-                # adding the scaled boundary values
-                cntrlldbcvals.extend(ccntrlldbcvals)
-
-            dbcntinvinds = np.setdiff1d(invinds, glbcntbcinds).astype(np.int32)
-            matdict = dict(M=M, A=A, J=J, JT=JT, MP=None)
-            cmmat, camat, cjt, cj, _, cfv, cfp, _ = dts.\
-                condense_sysmatsbybcs(matdict, dbcinds=loccntbcinds,
-                                      dbcvals=cntrlldbcvals, mergerhs=True,
-                                      rhsdict=dict(fv=fv, fp=fp),
-                                      ret_unrolled=True)
-            cnv = cmmat.shape[0]
+        cntrlldbcvals, cfv, cfp = \
+            _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
+                               time=None, vel=None, p=None,
+                               **matrhsdict)
 
         vp_stokes = lau.solve_sadpnt_smw(amat=camat, jmat=cj, jmatT=cjt,
                                          rhsv=cfv, rhsp=cfp)
@@ -381,16 +383,17 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
     else:
         vel_k = vel_start_nwtn
 
-    matdict = dict(M=M, A=A, J=J, JT=JT, MP=None)
-    rhsdict = dict(fv=fv, fp=fp)
-    cndnsmtsdct = dict(dbcinds=loccntbcinds, mergerhs=True,
-                       ret_unrolled=True)
+    # matdict = dict(M=M, A=A, J=J, JT=JT, MP=None)
+    # rhsdict = dict(fv=fv, fp=fp)
+    # cndnsmtsdct = dict(dbcinds=loccntbcinds, mergerhs=True,
+    #                    ret_unrolled=True)
 
     # Picard iterations for a good starting value for Newton
     for k in range(vel_pcrd_stps):
 
-        cntrlldbcvals = _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
-                                           time=None, vel=vel_k, p=p_k)
+        cntrlldbcvals, cfv, cfp = \
+            _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs, time=None,
+                               vel=vel_k, p=p_k, **matrhsdict)
         (convc_mat,
          rhs_con, rhsv_conbc) = \
             get_v_conv_conts(prev_v=vel_k, V=V, diribcs=diribcs,
@@ -398,15 +401,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                              dbcinds=[dbcinds, glbcntbcinds],
                              dbcvals=[dbcvals, cntrlldbcvals], Picard=True)
 
-        _, _, _, _, _, cfv, cfp, _ = dts.\
-            condense_sysmatsbybcs(matdict, dbcvals=cntrlldbcvals,
-                                  rhsdict=rhsdict, **cndnsmtsdct)
-
         vp_k = lau.solve_sadpnt_smw(amat=camat+convc_mat, jmat=cj, jmatT=cjt,
                                     rhsv=cfv+rhsv_conbc, rhsp=cfp)
-        # vp_k = lau.solve_sadpnt_smw(amat=A+convc_mat, jmat=J, jmatT=JT,
-        #                             rhsv=fv+rhsv_conbc,
-        #                             rhsp=fp)
 
         normpicupd = np.sqrt(m_innerproduct(cmmat, vel_k-vp_k[:cnv, ]))[0]
 
@@ -427,11 +423,9 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
         cdatstr = get_datastring(**datastrdict)
 
-        cntrlldbcvals = _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
-                                           time=None, vel=vel_k, p=p_k)
-        _, _, _, _, _, cfv, cfp, _ = dts.\
-            condense_sysmatsbybcs(matdict, dbcvals=cntrlldbcvals,
-                                  rhsdict=rhsdict, **cndnsmtsdct)
+        cntrlldbcvals, cfv, cfp = \
+            _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
+                               time=None, vel=vel_k, p=p_k, **matrhsdict)
         (convc_mat, rhs_con, rhsv_conbc) = \
             get_v_conv_conts(prev_v=vel_k, V=V, diribcs=diribcs,
                              invinds=dbcntinvinds,
