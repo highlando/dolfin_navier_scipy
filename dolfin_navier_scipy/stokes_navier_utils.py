@@ -884,8 +884,17 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if loc_pcrd_stps:
         vel_loc_pcrd_steps = vel_pcrd_stps
 
+    vfile = dolfin.File(vfileprfx+'__timestep.pvd')
+    pfile = dolfin.File(pfileprfx+'__timestep.pvd')
+
+    prvoutdict.update(dict(vp=None, vc=iniv, pc=p_old, t=trange[0],
+                           dbcvals=[dbcvals, ccntrlldbcvals],
+                           pfile=pfile, vfile=vfile))
+
+    dou.output_paraview(**prvoutdict)
+
     for loctrng in loctrngs:
-        dtvec = np.array(loctrng)[1:] - np.array(loctrng)[1:]
+        dtvec = np.array(loctrng)[1:] - np.array(loctrng)[:-1]
         dotdtvec = dtvec[1:] - dtvec[:-1]
         uniformgrid = np.allclose(np.linalg.norm(dotdtvec), 0)
         coeffmatlu = None
@@ -895,6 +904,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                   format(loctrng[0], loctrng[-1]))
             v_old = iniv  # start vector for time integration in every Newtonit
 
+            ccntrlldbcvals = _unroll_cntrl_dbcs(diricontbcvals,
+                                                diricontfuncs,
+                                                time=loctrng[0], vel=iniv)
             if stokes_flow:
                 pcrd_anyone = False
                 loc_treat_nonl_explct = None
@@ -931,15 +943,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             except (TypeError, KeyError):
                 pass  # no inival for krylov solver required
 
-            vfile = dolfin.File(vfileprfx+'__timestep.pvd')
-            pfile = dolfin.File(pfileprfx+'__timestep.pvd')
-
-            prvoutdict.update(dict(vp=None, vc=iniv, pc=p_old, t=loctrng[0],
-                                   dbcvals=[dbcvals, ccntrlldbcvals],
-                                   pfile=pfile, vfile=vfile))
-
-            dou.output_paraview(**prvoutdict)
-
             # ## current values_c for application of trap rule
             if stokes_flow:
                 convc_mat_c = sps.csr_matrix((cnv, cnv))
@@ -947,9 +950,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 rhsv_conbc_c = np.zeros((cnv, 1))
             else:
                 if loc_treat_nonl_explct:
-                    ccntrlldbcvals = _unroll_cntrl_dbcs(diricontbcvals,
-                                                        diricontfuncs,
-                                                        time=None, vel=None)
                     prev_v = _appbcs(v_old, ccntrlldbcvals)
                 else:
                     try:
@@ -1049,6 +1049,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                                              None))
                             except TypeError:
                                 prev_v = cur_linvel_point[None]
+                        ccntrlldbcvals = _unroll_cntrl_dbcs(diricontbcvals,
+                                                            diricontfuncs,
+                                                            time=t, vel=prev_v)
 
                     convc_mat_n, rhs_con_n, rhsv_conbc_n = \
                         get_v_conv_conts(prev_v=prev_v, V=V,

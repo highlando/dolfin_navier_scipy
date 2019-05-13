@@ -732,7 +732,8 @@ def cyl3D_fems(refinement_level=2, scheme='TH',
 
 def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
                     strtomeshfile='', strtophysicalregions='',
-                    inflowvel=1., movingwallcntrl=False,
+                    inflowvel=1., inflowprofile='parabola',
+                    movingwallcntrl=False,
                     strtobcsobs=''):
     """
     dictionary for the fem items for a general 2D flow setup
@@ -793,9 +794,15 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
 
     leninflwb = np.linalg.norm(inflwxi-inflwxii)
 
-    inflowpara = InflowParabola(degree=2, lenb=leninflwb, xone=inflwxi,
-                                normalvec=inflwin, inflowvel=inflowvel)
-    bcin = dolfin.DirichletBC(V, inflowpara, boundaries, inflwpe)
+    if inflowprofile == 'block':
+        inflwprfl = dolfin.\
+            Expression(('cv*no', 'cv*nt'), cv=inflowvel,
+                       no=inflwin[0], nt=inflwin[1],
+                       element=V.ufl_element())
+    elif inflowprofile == 'parabola':
+        inflwprfl = InflowParabola(degree=2, lenb=leninflwb, xone=inflwxi,
+                                   normalvec=inflwin, inflowvel=inflowvel)
+    bcin = dolfin.DirichletBC(V, inflwprfl, boundaries, inflwpe)
     diribcu = [bcin]
 
     # ## THE WALLS
