@@ -162,22 +162,22 @@ def _localizecdbinds(cdbinds, V, invinds):
 def _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
                        time=None, vel=None, p=None,
                        loccntbcinds=None, A=None, J=None, fv=None, fp=None):
-    cntrlldbcvals = []
+    ccntrlldbcvals = []
     try:
         for k, cdbbcv in enumerate(diricontbcvals):
             ccntrlfunc = diricontfuncs[k]
             cntrlval = ccntrlfunc(time, vel=vel, p=p)
             ccntrlldbcvals = [cntrlval*bcvl for bcvl in cdbbcv]
-            cntrlldbcvals.extend(ccntrlldbcvals)
+            ccntrlldbcvals.extend(ccntrlldbcvals)
     except TypeError:
-        ccntrlldbcvals, fv, fp
+        return ccntrlldbcvals, fv, fp
 
     crhsdct = dts.condense_sysmatsbybcs(dict(A=A, J=J),
                                         dbcvals=ccntrlldbcvals,
                                         dbcinds=loccntbcinds,
                                         rhsdict=dict(fv=fv, fp=fp),
                                         mergerhs=True, get_rhs_only=True)
-    return cntrlldbcvals, crhsdct['fv'], crhsdct['fp']
+    return ccntrlldbcvals, crhsdct['fv'], crhsdct['fp']
 
 
 def _attach_cntbcvals(vvec, globbcinds=None, dbcvals=None,
@@ -275,6 +275,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         JT = J.T
 
     NV = J.shape[1]
+    dbcinds, dbcvals = dts.unroll_dlfn_dbcs(diribcs, bcinds=dbcinds,
+                                            bcvals=dbcvals)
 
     norm_nwtnupd_list = []
     # a dict to be passed to the get_datastring function
@@ -339,7 +341,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         cmmat, camat, cj, cjt, cfv, cfp = M, A, J, JT, fv, fp
         cnv = NV
         dbcntinvinds = invinds
-        cntrlmatrhsdict = {}
+        cntrlmatrhsdict = dict(fv=fv, fp=fp)
     else:
         for cdbidbv in diricontbcinds:
             localbcinds = (_localizecdbinds(cdbidbv, V, invinds)).tolist()

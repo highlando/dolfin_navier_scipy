@@ -23,7 +23,7 @@ __all__ = ['ass_convmat_asmatquad',
            'mat_dolfin2sparse']
 
 
-def _unroll_dlfn_dbcs(diribclist, bcinds=None, bcvals=None):
+def unroll_dlfn_dbcs(diribclist, bcinds=None, bcvals=None):
     if diribclist is None:
         urbcinds, urbcvals = [], []
         if bcinds is None or len(bcinds) == 0:
@@ -55,7 +55,7 @@ def append_bcs_vec(vvec, V=None, vdim=None,
         vdim = V.dim()
 
     vwbcs = np.full((vdim, 1), np.nan)
-    cbcinds, cbcvals = _unroll_dlfn_dbcs(diribcs, bcinds=bcinds, bcvals=bcvals)
+    cbcinds, cbcvals = unroll_dlfn_dbcs(diribcs, bcinds=bcinds, bcvals=bcvals)
 
     vwbcs[invinds] = vvec
     vwbcs[cbcinds, 0] = cbcvals
@@ -560,8 +560,8 @@ def condense_velmatsbybcs(A, velbcs=None, return_bcinfo=False,
         bcsv[invinds] = 0
     else:
         nv = A.shape[0]
-        bcinds, bcvals = _unroll_dlfn_dbcs(velbcs, bcinds=dbcinds,
-                                           bcvals=dbcvals)
+        bcinds, bcvals = unroll_dlfn_dbcs(velbcs, bcinds=dbcinds,
+                                          bcvals=dbcvals)
         bcsv = np.zeros((nv, 1))
         bcsv[bcinds, 0] = bcvals
 
@@ -655,8 +655,8 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None,
         # print('ve w/o bcvals: ', np.linalg.norm(ve))
         # fill in the boundary values
         if not zerodiribcs:
-            urbcinds, urbcvals = _unroll_dlfn_dbcs(diribcs, bcinds=dbcinds,
-                                                   bcvals=dbcvals)
+            urbcinds, urbcvals = unroll_dlfn_dbcs(diribcs, bcinds=dbcinds,
+                                                  bcvals=dbcvals)
             ve[urbcinds, 0] = urbcvals
             # print('ve with bcvals :', np.linalg.norm(ve))
             # print('norm of bcvals :', np.linalg.norm(bcvals))
