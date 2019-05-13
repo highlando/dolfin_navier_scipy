@@ -995,3 +995,11 @@ class LiftDragSurfForce():
         drag = dolfin.assemble(D)
         lift = dolfin.assemble(L)
         return lift, drag
+
+    def evatorque2D(self, u=None, p=None):
+        T = -p*self.I + 2.0*self.nu*dolfin.sym(dolfin.grad(u))
+        force = dolfin.dot(T, self.n)
+        ut = u - dolfin.inner(u, self.n)*self.n
+        TF = dolfin.inner(ut, force)*self.ldds
+        trq = dolfin.assemble(TF)
+        return trq

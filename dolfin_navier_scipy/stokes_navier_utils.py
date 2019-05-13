@@ -159,12 +159,13 @@ def _localizecdbinds(cdbinds, V, invinds):
     return lclinds
 
 
-def _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs, time=None, vel=None):
+def _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
+                       time=None, vel=None, p=None):
     cntrlldbcvals = []
     try:
         for k, cdbbcv in enumerate(diricontbcvals):
             ccntrlfunc = diricontfuncs[k]
-            cntrlval = ccntrlfunc(time, vel)
+            cntrlval = ccntrlfunc(time, vel=vel, p=p)
             ccntrlldbcvals = [cntrlval*bcvl for bcvl in cdbbcv]
             cntrlldbcvals.extend(ccntrlldbcvals)
     except TypeError:
@@ -267,10 +268,6 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         JT = J.T
 
     NV = J.shape[1]
-
-#
-# Compute or load the uncontrolled steady state Navier-Stokes solution
-#
 
     norm_nwtnupd_list = []
     # a dict to be passed to the get_datastring function
@@ -379,6 +376,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         # Stokes solution as starting value
         vp_k = vp_stokes
         vel_k = vp_stokes[:cnv, ]
+        p_k = vp_stokes[cnv:, ]
 
     else:
         vel_k = vel_start_nwtn
@@ -392,7 +390,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
     for k in range(vel_pcrd_stps):
 
         cntrlldbcvals = _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
-                                           time=None, vel=vel_k)
+                                           time=None, vel=vel_k, p=p_k)
         (convc_mat,
          rhs_con, rhsv_conbc) = \
             get_v_conv_conts(prev_v=vel_k, V=V, diribcs=diribcs,
@@ -430,7 +428,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         cdatstr = get_datastring(**datastrdict)
 
         cntrlldbcvals = _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
-                                           time=None, vel=vel_k)
+                                           time=None, vel=vel_k, p=p_k)
         _, _, _, _, _, cfv, cfp, _ = dts.\
             condense_sysmatsbybcs(matdict, dbcvals=cntrlldbcvals,
                                   rhsdict=rhsdict, **cndnsmtsdct)
@@ -447,6 +445,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         norm_nwtnupd = np.sqrt(m_innerproduct(cmmat, vel_k - vp_k[:cnv, :]))[0]
         vel_k = vp_k[:cnv, ]
         vp_k[cnv:] = -vp_k[cnv:]
+        p_k = vp_k[cnv:, ]
         # pressure was flipped for symmetry
         if verbose:
             print('Steady State NSE: Newton iteration: {0}'.format(vel_newtk) +
@@ -680,7 +679,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                        ret_unrolled=True)
 
     ccntrlldbcvals = _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
-                                        time=None, vel=None)
+                                        time=None, vel=None, p=None)
     cmmat, camat, cjt, cj, _, cfv, cfp, locinvinds = dts.\
         condense_sysmatsbybcs(matdict, dbcvals=ccntrlldbcvals,
                               rhsdict=rhsdict, **cndnsmtsdct)
@@ -904,9 +903,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                   format(loctrng[0], loctrng[-1]))
             v_old = iniv  # start vector for time integration in every Newtonit
 
-            ccntrlldbcvals = _unroll_cntrl_dbcs(diricontbcvals,
-                                                diricontfuncs,
-                                                time=loctrng[0], vel=iniv)
+            ccntrlldbcvals = \
+                _unroll_cntrl_dbcs(diricontbcvals, diricontfuncs,
+                                   time=loctrng[0], vel=iniv, p=p_old)
             if stokes_flow:
                 pcrd_anyone = False
                 loc_treat_nonl_explct = None
