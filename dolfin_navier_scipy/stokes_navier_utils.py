@@ -95,6 +95,7 @@ def get_v_conv_conts(vvec=None, V=None,
     else:
         ve = np.zeros((V.dim(), ))
         ve[invinds] = vvec.flatten()
+        ve[dbcinds] = dbcvals
     vfun.vector().set_local(ve)
 
     if semi_explicit:
@@ -1251,8 +1252,7 @@ def get_pfromv(v=None, V=None, M=None, A=None, J=None, fv=None, fp=None,
     import sadptprj_riclyap_adi.lin_alg_utils as lau
 
     _, rhs_con, _ = get_v_conv_conts(vvec=v, V=V, invinds=invinds,
-                                     dbcinds=dbcinds, dbcvals=dbcvals,
-                                     diribcs=diribcs)
+                                     dbcinds=dbcinds, dbcvals=dbcvals)
 
     if decouplevp and symmetric:
         vp = lau.solve_sadpnt_smw(jmat=J, jmatT=J.T,
