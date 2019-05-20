@@ -405,7 +405,6 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         p_k = vp_stokes[cnv:, ]
 
     else:
-        vel_k = vel_start_nwtn
         cdbcvals_c = vel_start_nwtn[loccntbcinds, :]
         vel_k = vel_start_nwtn[locdbcntinvinds, :]
 
@@ -717,12 +716,16 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         def fv_tmdp(time=None, curvel=None, **kw):
             return np.zeros((cnv, 1)), None
 
+# ----- #
+# chap: # the initial value
+# ----- #
+
     if iniv is None:
-        inicdbcvals = _comp_cntrl_bcvals(time=trange[0], vel=None, p=None,
-                                         **cntrlmatrhsdict)
-        cfv, cfp = _upd_stffnss_rhs(cntrlldbcvals=inicdbcvals,
-                                    **cntrlmatrhsdict)
         if start_ssstokes:
+            inicdbcvals = _comp_cntrl_bcvals(time=trange[0], vel=None, p=None,
+                                             **cntrlmatrhsdict)
+            cfv, cfp = _upd_stffnss_rhs(cntrlldbcvals=inicdbcvals,
+                                        **cntrlmatrhsdict)
             # Stokes solution as starting value
             vp_stokes =\
                 lau.solve_sadpnt_smw(amat=camat, jmat=cj, jmatT=cjt,
@@ -996,7 +999,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                                   None))
                         except TypeError:
                             prev_v = cur_linvel_point[None]
-                    prev_v = prev_v[dbcntinvinds]
+                    # prev_v = prev_v[dbcntinvinds]
 
                 convc_mat_c, rhs_con_c, rhsv_conbc_c = \
                     get_v_conv_conts(vvec=_appbcs(v_old, cdbcvals_c), V=V,
@@ -1014,11 +1017,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
             _rhsconvc = 0. if pcrd_anyone else rhs_con_c
             fvn_c = cfv_c + rhsv_conbc_c + _rhsconvc + fv_tmdp_cont
-            if loc_treat_nonl_explct:
-                # for consistency in the loop -- going to add this later
-                # since the convection cannot be transferred with fvn_c = fvn_n
-                # fvn_c_semexp = fvn_c - _rhsconvc
-                pass
 
             if closed_loop:
                 if static_feedback:
@@ -1114,9 +1112,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
                 _rhsconvn = 0. if pcrd_anyone else rhs_con_n
                 fvn_n = cfv_n + rhsv_conbc_n + _rhsconvn + fv_tmdp_cont
-                if loc_treat_nonl_explct:
-                    # fvn_c = fvn_c_semexp + _rhsconvn
-                    pass
 
                 if closed_loop:
                     if static_feedback:
@@ -1195,9 +1190,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 # ## chap: preparing for the next time step
 # -----
                 umat_c, vmat_c = umat_n, vmat_n
-                if loc_treat_nonl_explct:
-                    # fvn_c_semexp = fvn_n - _rhsconvn
-                    pass
+                cdbcvals_c = cdbcvals_n
 
                 convc_mat_c, rhs_con_c, rhsv_conbc_c = \
                     get_v_conv_conts(vvec=_appbcs(v_old, cdbcvals_n), V=V,

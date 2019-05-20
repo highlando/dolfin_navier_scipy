@@ -61,15 +61,15 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, nonltrt=None,
 
 if __name__ == '__main__':
     nonltrt = True
-    # ## light
-    # testit(problem='cylinderwake', N=2, Re=80, t0=0.0, tE=2., Nts=2*512,
-    #        scheme='TH', ParaviewOutput=True, nonltrt=nonltrt)
-    # ## medium
+    # # ## light
+    testit(problem='cylinderwake', N=2, Re=80, t0=0.0, tE=1., Nts=512,
+           scheme='TH', ParaviewOutput=True, nonltrt=nonltrt)
+    # # ## medium
     # testit(problem='cylinderwake', N=2, Re=100, t0=0.0, tE=2., Nts=4*512,
     #        scheme='TH', ParaviewOutput=True, nonltrt=nonltrt)
-    # ## hard
-    testit(problem='cylinderwake', N=3, Re=150, t0=0.0, tE=2., Nts=8*512,
-           scheme='TH', ParaviewOutput=True, nonltrt=nonltrt)
-    # ## 3D
+    # # ## hard
+    # testit(problem='cylinderwake', N=3, Re=150, t0=0.0, tE=2., Nts=8*512,
+    #        scheme='TH', ParaviewOutput=True, nonltrt=nonltrt)
+    # # ## 3D
     # testit(problem='cylinderwake3D', N=2, Re=50, t0=0.0, tE=2., Nts=512,
     #        scheme='CR', ParaviewOutput=True)
