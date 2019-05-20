@@ -870,9 +870,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
         return solvmat, rhs, umat, vmat
 
-    # -----
-    # ## chap: initialization of the time integration
-    # -----
+# -----
+# ## chap: initialization of the time integration
+# -----
 
     v_old = iniv  # start vector for time integration in every Newtonit
     datastrdict['time'] = trange[0]
@@ -1017,7 +1017,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             if loc_treat_nonl_explct:
                 # for consistency in the loop -- going to add this later
                 # since the convection cannot be transferred with fvn_c = fvn_n
-                fvn_c_semexp = fvn_c - _rhsconvc
+                # fvn_c_semexp = fvn_c - _rhsconvc
+                pass
 
             if closed_loop:
                 if static_feedback:
@@ -1050,7 +1051,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 loctinstances = loctinstances.tolist()
                 print('doing the time integration...')
 
-            # ### Chap: the time stepping
+# -----
+# ## chap: the time stepping
+# -----
+
             for tk, t in enumerate(loctrng[1:]):
                 cts = t - loctrng[tk]
                 datastrdict.update(dict(time=t))
@@ -1111,7 +1115,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 _rhsconvn = 0. if pcrd_anyone else rhs_con_n
                 fvn_n = cfv_n + rhsv_conbc_n + _rhsconvn + fv_tmdp_cont
                 if loc_treat_nonl_explct:
-                    fvn_c = fvn_c_semexp + _rhsconvn
+                    # fvn_c = fvn_c_semexp + _rhsconvn
+                    pass
 
                 if closed_loop:
                     if static_feedback:
@@ -1185,12 +1190,27 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 #                                  v_old.size))
                 # print('v_prv : {0} ({1})'.format(np.linalg.norm(prev_v),
                 #                                  prev_v.size))
-                (umat_c, vmat_c, fvn_c,
-                    convc_mat_c) = umat_n, vmat_n, fvn_n, convc_mat_n
-                if loc_treat_nonl_explct:
-                    fvn_c_semexp = fvn_n - _rhsconvn
 
-                _savev(v_old, ccntrlldbcvals, cdatstr)
+# -----
+# ## chap: preparing for the next time step
+# -----
+                umat_c, vmat_c = umat_n, vmat_n
+                if loc_treat_nonl_explct:
+                    # fvn_c_semexp = fvn_n - _rhsconvn
+                    pass
+
+                convc_mat_c, rhs_con_c, rhsv_conbc_c = \
+                    get_v_conv_conts(vvec=_appbcs(v_old, cdbcvals_n), V=V,
+                                     invinds=dbcntinvinds,
+                                     dbcinds=[dbcinds, glbcntbcinds],
+                                     dbcvals=[dbcvals, cdbcvals_n],
+                                     Picard=pcrd_anyone)
+
+                _rhsconvc = 0. if pcrd_anyone else rhs_con_c
+                fvn_c = (fvn_n - _rhsconvn - rhsv_conbc_n
+                         + rhsv_conbc_c + _rhsconvc)
+
+                _savev(v_old, cdbcvals_n, cdatstr)
                 _atdct(dictofvelstrs, t, cdatstr + '__vel')
                 p_old = -1/cts*vp_new[cnv:, ]
                 # p was flipped and scaled for symmetry
