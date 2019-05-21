@@ -95,7 +95,9 @@ def get_v_conv_conts(vvec=None, V=None,
     else:
         ve = np.zeros((V.dim(), ))
         ve[invinds] = vvec.flatten()
-        ve[dbcinds] = dbcvals
+        for k, cdbcinds in enumerate(dbcinds):
+            ve[cdbcinds] = dbcvals[k]
+
     vfun.vector().set_local(ve)
 
     if semi_explicit:
@@ -674,7 +676,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     dbcinds, dbcvals = dts.unroll_dlfn_dbcs(diribcs, bcinds=dbcinds,
                                             bcvals=dbcvals)
 
-    loccntbcinds, ccntrlldbcvals, glbcntbcinds = [], [], []
+    loccntbcinds, glbcntbcinds = [], []
     if diricontbcinds is None or diricontbcinds == []:
         dbcntinvinds = invinds
     else:
@@ -738,6 +740,11 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     else:
         iniv = iniv[locinvinds]
         inicdbcvals = (iniv[loccntbcinds].flatten()).tolist()
+
+    if inip is None:
+        inip = get_pfromv(v=iniv, V=V, M=cmmat, A=cmmat, J=cj, fv=cfv, fp=cfp,
+                          dbcinds=[dbcinds, glbcntbcinds],
+                          dbcvals=[dbcvals, inicdbcvals], invinds=dbcntinvinds)
 
     datastrdict = dict(time=None, meshp=N, nu=nu,
                        Nts=trange.size-1, data_prfx=data_prfx,
@@ -884,9 +891,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     dictofvelstrs = {}
     _atdct(dictofvelstrs, trange[0], cdatstr + '__vel')
-    # p_old = get_pfromv(v=v_old, **gpfvd)
-    p_old = None
-    print('p_old set to None in snu')
+    p_old = inip
     cdbcvals_c = inicdbcvals
 
     if return_dictofpstrs:
@@ -896,7 +901,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     if return_as_list:
         vellist = []
-        vellist.append(_appbcs(v_old, ccntrlldbcvals))
+        vellist.append(_appbcs(v_old, inicdbcvals))
 
     lensect = np.int(np.floor(trange.size/nsects))
     loctrngs = []
@@ -916,21 +921,11 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     vfile = dolfin.File(vfileprfx+'__timestep.pvd')
     pfile = dolfin.File(pfileprfx+'__timestep.pvd')
 
-    if inip is None:
-        print('also need to check how to comp the inip')
-        pass
-        # inip = get_pfromv(v=iniv, V=V,
-        #                   M=cmmat, A=cmmat, J=cj, fv=cfv, fp=cfp,
-        #                   dbcinds=[dbcinds, glbcntbcinds],
-        #                   dbcvals=[dbcvals, inicdbcvals],
-        #                   invinds=dbcntinvinds)
-
     prvoutdict.update(dict(vp=None, vc=iniv, pc=inip, t=trange[0],
                            dbcvals=[dbcvals, inicdbcvals],
                            pfile=pfile, vfile=vfile))
 
     dou.output_paraview(**prvoutdict)
-    prev_p = None
 
     for loctrng in loctrngs:
         dtvec = np.array(loctrng)[1:] - np.array(loctrng)[:-1]
@@ -1089,7 +1084,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                 prev_v = cur_linvel_point[None]
                         prev_p = None
 
-                cdbcvals_n = _comp_cntrl_bcvals(vel=prev_v, p=prev_p, t=t,
+                cdbcvals_n = _comp_cntrl_bcvals(vel=prev_v, p=prev_p, time=t,
                                                 **cntrlmatrhsdict)
                 cfv_n, cfp_n = _upd_stffnss_rhs(cntrlldbcvals=cdbcvals_n,
                                                 **cntrlmatrhsdict)
@@ -1212,7 +1207,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     _atdct(dictofpstrs, t, cdatstr + '__p')
 
                 if return_as_list:
-                    vellist.append(_appbcs(v_old, ccntrlldbcvals))
+                    vellist.append(_appbcs(v_old, inicdbcvals))
 
                 # integrate the Newton error
                 if stokes_flow or treat_nonl_explct:
@@ -1228,7 +1223,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 if newtk == vel_nwtn_stps or norm_nwtnupd < loc_nwtn_tol:
                     # paraviewoutput in the (probably) last newton sweep
                     prvoutdict.update(dict(vc=v_old, pc=p_old, t=t,
-                                           dbcvals=[dbcvals, ccntrlldbcvals]))
+                                           dbcvals=[dbcvals, cdbcvals_c]))
                     dou.output_paraview(**prvoutdict)
 
             dou.save_npa(norm_nwtnupd, cdatstr + '__norm_nwtnupd')
@@ -1240,7 +1235,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
             cur_linvel_point = dictofvelstrs
 
-        iniv = v_old
+        iniv = v_old  # overwrite iniv as the starting value
+        inip = p_old  # > for the next time section
+
         if not treat_nonl_explct and lin_vel_point is None:
             comp_nonl_semexp_inig = True
         if addfullsweep and loctrng is loctrngs[-2]:
