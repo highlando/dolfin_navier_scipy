@@ -159,12 +159,13 @@ def _localizecdbinds(cdbinds, V, invinds):
 
 
 def _comp_cntrl_bcvals(diricontbcvals=[], diricontfuncs=[],
-                       time=None, vel=None, p=None, **kw):
+                       diricontfuncmems=[], time=None, vel=None, p=None, **kw):
     cntrlldbcvals = []
     try:
         for k, cdbbcv in enumerate(diricontbcvals):
             ccntrlfunc = diricontfuncs[k]
-            cntrlval = ccntrlfunc(time, vel=vel, p=p)
+            cntrlval, diricontfuncmems[k] = \
+                ccntrlfunc(time, vel=vel, p=p, memory=diricontfuncmems[k])
             ccntrlldbcvals = [cntrlval*bcvl for bcvl in cdbbcv]
             cntrlldbcvals.extend(ccntrlldbcvals)
     except TypeError:
@@ -526,7 +527,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               V=None, Q=None, invinds=None, diribcs=None,
               dbcinds=None, dbcvals=None,
               diricontbcinds=None, diricontbcvals=None,
-              diricontfuncs=None,
+              diricontfuncs=None, diricontfuncmems=None,
               # output_includes_bcs=False,
               N=None, nu=None,
               ppin=-1,
@@ -695,7 +696,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     cntrlmatrhsdict = {'A': A, 'J': J, 'fv': fv, 'fp': fp,
                        'loccntbcinds': loccntbcinds,
                        'diricontbcvals': diricontbcvals,
-                       'diricontfuncs': diricontfuncs
+                       'diricontfuncs': diricontfuncs,
+                       'diricontfuncmems': diricontfuncmems
                        }
 
     cnv = dbcntinvinds.size
