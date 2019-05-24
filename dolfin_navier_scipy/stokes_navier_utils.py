@@ -206,7 +206,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           V=None, Q=None, invinds=None, diribcs=None,
                           dbcvals=None, dbcinds=None,
                           diricontbcinds=None, diricontbcvals=None,
-                          diricontfuncs=None,
+                          diricontfuncs=None, diricontfuncmems=None,
                           return_vp=False, ppin=-1,
                           return_nwtnupd_norms=False,
                           N=None, nu=None,
@@ -371,7 +371,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
     cntrlmatrhsdict = {'A': A, 'J': J, 'fv': fv, 'fp': fp,
                        'loccntbcinds': loccntbcinds,
                        'diricontbcvals': diricontbcvals,
-                       'diricontfuncs': diricontfuncs
+                       'diricontfuncs': diricontfuncs,
+                       'diricontfuncmems': diricontfuncmems
                        }
 
     def _appbcs(vvec, ccntrlldbcvals):
@@ -408,8 +409,16 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         p_k = vp_stokes[cnv:, ]
 
     else:
-        cdbcvals_c = vel_start_nwtn[loccntbcinds, :]
-        vel_k = vel_start_nwtn[locdbcntinvinds, :]
+        cdbcvals_c = vel_start_nwtn[glbcntbcinds, :]
+        vel_k = vel_start_nwtn[dbcntinvinds, :]
+        print('TODO: what about the ini pressure')
+        p_k = np.zeros((J.shape[0], 1))
+        vpsnwtn = np.vstack([vel_k, p_k])
+        prvoutdict.update(dict(vp=vpsnwtn,
+                               dbcinds=[dbcinds, glbcntbcinds],
+                               dbcvals=[dbcvals, cdbcvals_c],
+                               invinds=dbcntinvinds))
+        dou.output_paraview(**prvoutdict)
 
     # Picard iterations for a good starting value for Newton
     for k in range(vel_pcrd_stps):
@@ -551,6 +560,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               return_dictofpstrs=False,
               dictkeysstr=False,
               treat_nonl_explct=False,
+              no_data_caching=False,
               return_as_list=False,
               verbose=True,
               start_ssstokes=False,
@@ -740,9 +750,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         else:
             raise ValueError('No initial value given')
     else:
-        iniv = iniv[locinvinds]
         inicdbcvals = (iniv[loccntbcinds].flatten()).tolist()
-
+        iniv = iniv[locinvinds]
+        cfv, cfp = _upd_stffnss_rhs(cntrlldbcvals=inicdbcvals,
+                                    **cntrlmatrhsdict)
     if inip is None:
         inip = get_pfromv(v=iniv, V=V, M=cmmat, A=cmmat, J=cj, fv=cfv, fp=cfp,
                           dbcinds=[dbcinds, glbcntbcinds],
@@ -855,9 +866,14 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                   bcinds=[dbcinds, glbcntbcinds],
                                   bcvals=[dbcvals, ccntrlldbcvals])
 
-    def _savev(vvec, ccntrlldbcvals, cdatstr):
-        vpbc = _appbcs(vvec, ccntrlldbcvals)
-        dou.save_npa(vpbc, fstring=cdatstr+'__vel')
+    if treat_nonl_explct and no_data_caching:
+        def _savevp(vvec, pvec, ccntrlldbcvals, cdatstr):
+            vpbc = _appbcs(vvec, ccntrlldbcvals)
+            dou.save_npa(vpbc, fstring=cdatstr+'__vel')
+
+    else:
+        def _savevp(vvec, pvec, ccntrlldbcvals, cdatstr):
+            pass
 
     def _get_mats_rhs_ts(mmat=None, dt=None, var_c=None,
                          coeffmat_c=None,
@@ -889,12 +905,13 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     v_old = iniv  # start vector for time integration in every Newtonit
     datastrdict['time'] = trange[0]
     cdatstr = get_datastring(**datastrdict)
-    _savev(v_old, inicdbcvals, cdatstr)
 
     dictofvelstrs = {}
     _atdct(dictofvelstrs, trange[0], cdatstr + '__vel')
     p_old = inip
     cdbcvals_c = inicdbcvals
+
+    _savevp(v_old, p_old, inicdbcvals, cdatstr)
 
     if return_dictofpstrs:
         dou.save_npa(p_old, fstring=cdatstr + '__p')
@@ -1200,7 +1217,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 fvn_c = (fvn_n - _rhsconvn - rhsv_conbc_n
                          + rhsv_conbc_c + _rhsconvc)
 
-                _savev(v_old, cdbcvals_n, cdatstr)
+                _savevp(v_old, p_old, cdbcvals_n, cdatstr)
                 _atdct(dictofvelstrs, t, cdatstr + '__vel')
                 p_old = -1/cts*vp_new[cnv:, ]
                 # p was flipped and scaled for symmetry
