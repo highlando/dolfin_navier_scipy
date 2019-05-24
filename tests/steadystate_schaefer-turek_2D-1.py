@@ -55,6 +55,7 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
                                     ldds=femp['liftdragds'])
     clift, cdrag = getld.evaliftdragforce(u=realvss, p=realpss)
     cdclfac = 2./(rho*L*Um**2)
+    ctfac = 4./(rho*L**2*Um**2)
     print('Cl: {0}'.format(cdclfac*clift))
     print('Cd: {0}'.format(cdclfac*cdrag))
     import dolfin
@@ -62,7 +63,6 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     a_2 = dolfin.Point(0.25, 0.2)
     pdiff = realpss(a_1) - realpss(a_2)
     print('Delta P: {0}'.format(pdiff))
-
     print('\n values from Schaefer/Turek as in')
     print('www.featflow.de/en/benchmarks/cfdbenchmarking/flow/' +
           'dfg_benchmark1_re20.html:')
@@ -70,6 +70,11 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     print('Cd: {0}'.format(5.57953523384))
     print('Delta P: {0}'.format(0.11752016697))
 
+    print('\n Torque:')
+    ctrq = getld.evatorqueSphere2D(u=realvss, radius=0.05)
+    print('Ct: {0}'.format(ctfac*ctrq))
+    print('\n value from Henry')
+    print('Cd: {0}'.format(0.00196))
 
 if __name__ == '__main__':
     meshlvl = 3

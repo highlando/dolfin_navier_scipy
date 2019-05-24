@@ -992,6 +992,9 @@ class LiftDragSurfForce():
     def evaliftdragforce(self, u=None, p=None):
         T = -p*self.I + 2.0*self.nu*dolfin.sym(dolfin.grad(u))
         force = dolfin.dot(T, self.n)
+        # a_1 = dolfin.Point(0.15, 0.2)
+        # a_2 = dolfin.Point(0.25, 0.2)
+
         D = force[0]*self.ldds
         L = force[1]*self.ldds
         drag = dolfin.assemble(D)
@@ -999,12 +1002,8 @@ class LiftDragSurfForce():
         return lift, drag
 
     def evatorqueSphere2D(self, u=None, radius=None):
-        # T = -p*self.I + 2.0*self.nu*dolfin.sym(dolfin.grad(u))
         T = 2.0*self.nu*dolfin.sym(dolfin.grad(u))
         force = dolfin.dot(T, self.n)
-        # ft = force - dolfin.inner(force, self.n)*self.n
-        # tvec = self.n - dolfin.inner(self.n, self.n)*self.n
-        # utsqrd = dolfin.assemble(dolfin.inner(ut, ut)*self.ldds)
         TF = dolfin.inner(self.A*self.n, force)*self.ldds
         trq = radius*dolfin.assemble(TF)
         return trq
