@@ -69,9 +69,16 @@ def mat_dolfin2sparse(A):
     """
     try:
         return dolfin.as_backend_type(A).sparray()
-    except RuntimeError:  # `dolfin <= 1.5+` with `'uBLAS'` support
-        rows, cols, values = A.data()
-        return sps.csr_matrix((values, cols, rows))
+    except (RuntimeError, AttributeError) as e:
+        # `dolfin <= 1.5+` with `'uBLAS'` support
+        try:
+            rows, cols, values = A.data()
+            return sps.csr_matrix((values, cols, rows))
+        except AttributeError:  # if it is a PETSC matrix
+            rows, cols, values = A.dataCSR()
+            return sps.csr_matrix((values, cols, rows))
+        print(e)
+        return
 
 
 def ass_convmat_asmatquad(W=None, invindsw=None):
@@ -424,6 +431,7 @@ def get_convvec(u0_dolfun=None, V=None, u0_vec=None, femp=None,
 
 
 def condense_sysmatsbybcs(stms, velbcs=None, dbcinds=None, dbcvals=None,
+                          invinds=None,
                           mergerhs=False, rhsdict=None, ret_unrolled=False,
                           get_rhs_only=False):
     """resolve the Dirichlet BCs and condense the system matrices
@@ -479,7 +487,8 @@ def condense_sysmatsbybcs(stms, velbcs=None, dbcinds=None, dbcvals=None,
     nv = stms['A'].shape[0]
 
     # indices of the innernodes
-    invinds = np.setdiff1d(list(range(nv)), bcinds).astype(np.int32)
+    if invinds is None:
+        invinds = np.setdiff1d(list(range(nv)), bcinds).astype(np.int32)
     auxu = np.zeros((nv, 1))
     auxu[bcinds, 0] = bcvals
 

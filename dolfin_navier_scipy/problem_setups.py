@@ -942,7 +942,10 @@ class InflowParabola(dolfin.UserExpression):
         self.xone = xone
         self.normalvec = normalvec
         self.inflowvel = inflowvel
-        super().__init__()
+        try:
+            super().__init__()
+        except RuntimeError():
+            pass  # had trouble with this call to __init__ in 'dolfin:2017.2.0'
 
     def eval(self, value, x):
         curs = np.linalg.norm(x - self.xone)/self.lenb

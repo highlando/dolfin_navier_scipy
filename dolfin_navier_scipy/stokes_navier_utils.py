@@ -750,8 +750,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         else:
             raise ValueError('No initial value given')
     else:
-        inicdbcvals = (iniv[loccntbcinds].flatten()).tolist()
-        iniv = iniv[locinvinds]
+        inicdbcvals = (iniv[glbcntbcinds].flatten()).tolist()
+        iniv = iniv[dbcntinvinds]
         cfv, cfp = _upd_stffnss_rhs(cntrlldbcvals=inicdbcvals,
                                     **cntrlmatrhsdict)
     if inip is None:
@@ -868,12 +868,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     if treat_nonl_explct and no_data_caching:
         def _savevp(vvec, pvec, ccntrlldbcvals, cdatstr):
-            vpbc = _appbcs(vvec, ccntrlldbcvals)
-            dou.save_npa(vpbc, fstring=cdatstr+'__vel')
+            pass
 
     else:
         def _savevp(vvec, pvec, ccntrlldbcvals, cdatstr):
-            pass
+            vpbc = _appbcs(vvec, ccntrlldbcvals)
+            dou.save_npa(vpbc, fstring=cdatstr+'__vel')
 
     def _get_mats_rhs_ts(mmat=None, dt=None, var_c=None,
                          coeffmat_c=None,
@@ -881,20 +881,30 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                          fv_c=None, fv_n=None,
                          umat_c=None, vmat_c=None,
                          umat_n=None, vmat_n=None,
+                         mbcs_c=None, mbcs_n=None,
                          impeul=False):
         """ to be tweaked for different int schemes
 
+
+        Parameters
+        ---
+
+        mbcs_c, mbcs_n: arrays
+            boundary values times the corresponding part of the mass matrices
+            needed for time dependent boundary conditions
         """
         solvmat = cmmat + 0.5*dt*coeffmat_n
         rhs = cmmat*var_c + 0.5*dt*(fv_n + fv_c - coeffmat_c*var_c)
         if umat_n is not None:
-            matvec = lau.mm_dnssps
             umat = 0.5*dt*umat_n
             vmat = vmat_n
             # TODO: do we really need a PLUS here??'
-            rhs = rhs + 0.5*dt*matvec(umat_c, matvec(vmat_c, var_c))
+            rhs = rhs + 0.5*dt*umat_c.dot(vmat_c.dot(var_c))
         else:
             umat, vmat = umat_n, vmat_n
+
+        if mbcs_c is not None and mbcs_n is not None:
+            rhs = rhs + mbcs_n - mbcs_c
 
         return solvmat, rhs, umat, vmat
 
@@ -910,6 +920,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     _atdct(dictofvelstrs, trange[0], cdatstr + '__vel')
     p_old = inip
     cdbcvals_c = inicdbcvals
+    mbcs_c = dts.condense_velmatsbybcs(M, invinds=locinvinds,
+                                       dbcinds=loccntbcinds,
+                                       dbcvals=inicdbcvals, get_rhs_only=True)
 
     _savevp(v_old, p_old, inicdbcvals, cdatstr)
 
@@ -1107,6 +1120,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                                 **cntrlmatrhsdict)
                 cfv_n, cfp_n = _upd_stffnss_rhs(cntrlldbcvals=cdbcvals_n,
                                                 **cntrlmatrhsdict)
+                mbcs_n = dts.condense_velmatsbybcs(M, invinds=locinvinds,
+                                                   dbcinds=loccntbcinds,
+                                                   dbcvals=cdbcvals_n,
+                                                   get_rhs_only=True)
 
                 convc_mat_n, rhs_con_n, rhsv_conbc_n = \
                     get_v_conv_conts(vvec=prev_v, V=V,
@@ -1156,7 +1173,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                           coeffmat_n=camat + convc_mat_n,
                                           fv_c=fvn_c, fv_n=fvn_n,
                                           umat_c=umat_c, vmat_c=vmat_c,
-                                          umat_n=umat_n, vmat_n=vmat_n)
+                                          umat_n=umat_n, vmat_n=vmat_n,
+                                          mbcs_c=mbcs_c, mbcs_n=mbcs_n)
 
                 try:
                     if krpslvprms['krylovini'] == 'old':
@@ -1205,6 +1223,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 # -----
                 umat_c, vmat_c = umat_n, vmat_n
                 cdbcvals_c = cdbcvals_n
+                mbcs_c = mbcs_n
 
                 convc_mat_c, rhs_con_c, rhsv_conbc_c = \
                     get_v_conv_conts(vvec=_appbcs(v_old, cdbcvals_n), V=V,
