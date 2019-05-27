@@ -491,7 +491,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
             dou.save_npa(vel_k, fstring=cdatstr + '__vel')
 
         prvoutdict.update(dict(vp=vp_k))  # , dbcvals=[dbcvals, cdbcvals_n]))
-        print('TODO: werden die implicit ubgedated?')
+        # TODO: werden die wirklich implicit ubgedated?
         dou.output_paraview(**prvoutdict)
 
         if norm_nwtnupd < vel_nwtn_tol:
