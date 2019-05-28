@@ -1,3 +1,7 @@
+import numpy as np
+
+import dolfin
+
 import dolfin_navier_scipy.stokes_navier_utils as snu
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import dolfin_navier_scipy.problem_setups as dnsps
@@ -15,12 +19,14 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     physregs = 'mesh/karman2D-rotcyl_lvl{0}_facet_region.xml.gz'.\
         format(meshlvl)
     femp, stokesmatsc, rhsd = \
-        dnsps.get_sysmats(problem=problem, nu=nu, bccontrol=False,
+        dnsps.get_sysmats(problem=problem, nu=nu,
                           charvel=charvel,
                           scheme=scheme, mergerhs=True,
                           meshparams=dict(strtomeshfile=meshfile,
+                                          movingwallcntrl=False,
                                           strtophysicalregions=physregs,
                                           strtobcsobs=geodata))
+
     ddir = 'data/'
     data_prfx = problem+'{2}_mesh{0}_Re{1}'.format(meshlvl, femp['Re'], scheme)
 
@@ -49,16 +55,25 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     vp_ss_nse = snu.solve_steadystate_nse(**soldict)
     vss, dynpss = dts.expand_vp_dolfunc(vc=vp_ss_nse[0], pc=vp_ss_nse[1],
                                         **femp)
+
+    phionevec = np.zeros((femp['V'].dim(), 1))
+    phionevec[femp['ldsbcinds'], :] = 1.
+    phione = dolfin.Function(femp['V'])
+    phione.vector().set_local(phionevec)
+    phionex = phione.sub(0)
+    # phifile = dolfin.File('results/phione.pvd')
+    # phifile << phionex
+
     realpss = rho*dynpss  # Um**2*rho*dynpss
     realvss = vss  # Um*vss
     getld = dnsps.LiftDragSurfForce(V=femp['V'], nu=nu,
-                                    ldds=femp['liftdragds'])
+                                    ldds=femp['liftdragds'],
+                                    phione=phionex)
     clift, cdrag = getld.evaliftdragforce(u=realvss, p=realpss)
     cdclfac = 2./(rho*L*Um**2)
     ctfac = 4./(rho*L**2*Um**2)
     print('Cl: {0}'.format(cdclfac*clift))
     print('Cd: {0}'.format(cdclfac*cdrag))
-    import dolfin
     a_1 = dolfin.Point(0.15, 0.2)
     a_2 = dolfin.Point(0.25, 0.2)
     pdiff = realpss(a_1) - realpss(a_2)

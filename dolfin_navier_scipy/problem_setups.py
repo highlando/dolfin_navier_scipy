@@ -59,8 +59,8 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
          * `V`: FEM space of the velocity
          * `Q`: FEM space of the pressure
          * `diribcs`: list of the (Dirichlet) boundary conditions
-         * `bcinds`: indices of the boundary nodes
-         * `bcvals`: values of the boundary nodes
+         * `dbcinds`: indices of the boundary nodes
+         * `dbcvals`: values of the boundary nodes
          * `invinds`: indices of the inner nodes
          * `fv`: right hand side of the momentum equation
          * `fp`: right hand side of the continuity equation
@@ -162,13 +162,12 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
 
     # reduce the matrices by resolving the BCs
     try:
-        (stokesmatsc, rhsd_stbc, invinds, bcinds,
-         bcvals) = dts.condense_sysmatsbybcs(stokesmats, femp['diribcs'])
+        (stokesmatsc, rhsd_stbc, invinds, _,
+         _) = dts.condense_sysmatsbybcs(stokesmats, femp['diribcs'])
     except KeyError:  # can also just provide indices and values
-        (stokesmatsc, rhsd_stbc, invinds, bcinds,
-         bcvals) = dts.condense_sysmatsbybcs(stokesmats,
-                                             dbcinds=femp['dbcinds'],
-                                             dbcvals=femp['dbcvals'])
+        (stokesmatsc, rhsd_stbc, invinds, _, _) = \
+            dts.condense_sysmatsbybcs(stokesmats, dbcinds=femp['dbcinds'],
+                                      dbcvals=femp['dbcvals'])
     stokesmatsc.update({'Jfull': stokesmats['J']})
 
     # pressure freedom and dirichlet reduced rhs
@@ -183,9 +182,7 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
         stokesmatsc.update({'Brob': Brob, 'Arob': Arob})
 
     # add the info on boundary and inner nodes
-    bcdata = {'bcinds': bcinds,
-              'bcvals': bcvals,
-              'invinds': invinds,
+    bcdata = {'invinds': invinds,
               'ppin': ppin}
     femp.update(bcdata)
     femp.update({'nu': nu})
@@ -821,6 +818,7 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
             pass  # no control boundaries
 
     mvwdbcs = []
+    mvwtvs = []
     for cntbc in cntbcsdata['moving walls']:
         center = np.array(cntbc['geometry']['center'])
         radius = cntbc['geometry']['radius']
@@ -881,8 +879,12 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
     try:
         ldsurfpe = cntbcsdata['lift drag surface']['physical entity']
         liftdragds = dolfin.Measure("ds", subdomain_data=boundaries)(ldsurfpe)
+        bclds = dolfin.DirichletBC(V, gzero, boundaries, ldsurfpe)
+        bcldsdict = bclds.get_boundary_values()
+        ldsbcinds = list(bcldsdict.keys())
     except KeyError:
         liftdragds = None  # no domain specified for lift/drag
+        ldsbcinds = None
 
     cylfems = dict(V=V,
                    Q=Q,
@@ -890,9 +892,11 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
                    dbcvals=dbcvals,
                    mvwbcinds=mvwbcinds,
                    mvwbcvals=mvwbcvals,
+                   mvwtvs=mvwtvs,
                    dirip=bcp,
                    # contrbcssubdomains=bcsubdoms,
                    liftdragds=liftdragds,
+                   ldsbcinds=ldsbcinds,
                    contrbcmeshfunc=boundaries,
                    contrbcspes=bcpes,
                    contrbcsshapefuns=bcshapefuns,
@@ -983,7 +987,7 @@ class RotatingCircle(dolfin.UserExpression):
 
 class LiftDragSurfForce():
 
-    def __init__(self, V=None, nu=None, ldds=None):
+    def __init__(self, V=None, nu=None, ldds=None, phione=None):
         self.mesh = V.mesh()
         self.n = dolfin.FacetNormal(self.mesh)
         self.I = dolfin.Identity(self.mesh.geometry().dim())
@@ -991,15 +995,27 @@ class LiftDragSurfForce():
         self.nu = nu
         self.A = dolfin.as_matrix([[0., 1.],
                                    [-1., 0.]])
+        self.phione = phione
 
     def evaliftdragforce(self, u=None, p=None):
-        T = -p*self.I + 2.0*self.nu*dolfin.sym(dolfin.grad(u))
-        force = dolfin.dot(T, self.n)
+        inner, grad = dolfin.inner, dolfin.grad
         # a_1 = dolfin.Point(0.15, 0.2)
         # a_2 = dolfin.Point(0.25, 0.2)
 
-        D = force[0]*self.ldds
-        L = force[1]*self.ldds
+        ux = u.sub(0)
+        uy = u.sub(1)
+
+        D = (inner(self.nu*grad(ux), grad(self.phione))
+             + inner(u, grad(ux))*self.phione
+             - p*self.phione.dx(0))*dolfin.dx
+        L = (inner(self.nu*grad(uy), grad(self.phione))
+             + inner(u, grad(uy))*self.phione
+             - p*self.phione.dx(1))*dolfin.dx
+
+        # T = -p*self.I + 2.0*self.nu*dolfin.sym(dolfin.grad(u))
+        # force = dolfin.dot(T, self.n)
+        # D = force[0]*self.ldds
+        # L = force[1]*self.ldds
         drag = dolfin.assemble(D)
         lift = dolfin.assemble(L)
         return lift, drag
