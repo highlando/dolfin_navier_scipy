@@ -426,8 +426,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         cdbcvals_n = _comp_cntrl_bcvals(vel=_appbcs(vel_k, cdbcvals_c),
                                         p=p_k, **cntrlmatrhsdict)
 
-        cfv, cfp = _upd_stffnss_rhs(cntrlldbcvals=cdbcvals_n,
-                                    **cntrlmatrhsdict)
+        cfv_n, cfp_n = _upd_stffnss_rhs(cntrlldbcvals=cdbcvals_n,
+                                        **cntrlmatrhsdict)
 
         # use the old v-bcs to compute the convection
         # TODO: actually we only need Picard -- do some fine graining in dts
@@ -441,7 +441,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                                   dbcvals=[dbcvals, cdbcvals_n])
 
         vp_k = lau.solve_sadpnt_smw(amat=camat+pcrdcnvmat, jmat=cj, jmatT=cjt,
-                                    rhsv=cfv+rhsv_conbc, rhsp=cfp)
+                                    rhsv=cfv_n+rhsv_conbc, rhsp=cfp_n)
 
         normpicupd = np.sqrt(m_innerproduct(cmmat, vel_k-vp_k[:cnv, ]))[0]
 
@@ -474,8 +474,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                              dbcvals=[dbcvals, cdbcvals_n])
 
         vp_k = lau.solve_sadpnt_smw(amat=camat+convc_mat, jmat=cj, jmatT=cjt,
-                                    rhsv=cfv+rhs_con+rhsv_conbc,
-                                    rhsp=cfp)
+                                    rhsv=cfv_n+rhs_con+rhsv_conbc,
+                                    rhsp=cfp_n)
 
         norm_nwtnupd = np.sqrt(m_innerproduct(cmmat, vel_k - vp_k[:cnv, :]))[0]
         vel_k = vp_k[:cnv, ]

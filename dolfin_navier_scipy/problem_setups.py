@@ -987,7 +987,7 @@ class RotatingCircle(dolfin.UserExpression):
 
 class LiftDragSurfForce():
 
-    def __init__(self, V=None, nu=None, ldds=None, phione=None):
+    def __init__(self, V=None, nu=None, ldds=None, phione=None, phitwo=None):
         self.mesh = V.mesh()
         self.n = dolfin.FacetNormal(self.mesh)
         self.I = dolfin.Identity(self.mesh.geometry().dim())
@@ -996,6 +996,7 @@ class LiftDragSurfForce():
         self.A = dolfin.as_matrix([[0., 1.],
                                    [-1., 0.]])
         self.phione = phione
+        self.phitwo = phitwo
 
     def evaliftdragforce(self, u=None, p=None):
         inner, grad = dolfin.inner, dolfin.grad
@@ -1020,9 +1021,41 @@ class LiftDragSurfForce():
         lift = dolfin.assemble(L)
         return lift, drag
 
-    def evatorqueSphere2D(self, u=None, radius=None):
-        T = 2.0*self.nu*dolfin.sym(dolfin.grad(u))
-        force = dolfin.dot(T, self.n)
-        TF = dolfin.inner(self.A*self.n, force)*self.ldds
-        trq = radius*dolfin.assemble(TF)
-        return trq
+    def evatorqueSphere2D(self, u=None, p=None):
+        inner, grad, dx = dolfin.inner, dolfin.grad, dolfin.dx
+        # ux = u.sub(0)
+        # uy = u.sub(1)
+
+        donto = inner(dolfin.dot(u, dolfin.nabla_grad(u)), self.phitwo)*dx
+        # donto = inner(dolfin.dot(self.phitwo,
+        #                          dolfin.nabla_grad(self.phitwo)),
+        #               self.phitwo)*dx
+        # donto = inner(self.phitwo, self.phitwo)*dx
+        dontt = self.nu*inner(grad(u), grad(self.phitwo))*dx
+        # dontt = self.nu*inner(grad(u)+grad(u).T, grad(self.phitwo))*dx
+        dontd = (-p*dolfin.div(self.phitwo))*dx
+
+        tconv = dolfin.assemble(donto)
+        tdiff = dolfin.assemble(dontt)
+        tpres = dolfin.assemble(dontd)
+        print('tconv: {0:.4e};\ntdiff: {1:.4e};\ntpres: {2:.4e}\n'.
+              format(tconv, tdiff, tpres))
+
+        # pto = self.phitwo.sub(0)
+        # done = (inner(self.nu*grad(ux), grad(pto))
+        #         + inner(u, grad(ux))*pto
+        #         - p*pto.dx(0))*dolfin.dx
+        # ptt = self.phitwo.sub(1)
+        # dtwo = (inner(self.nu*grad(uy), grad(ptt))
+        #         + inner(u, grad(uy))*ptt
+        #         - p*ptt.dx(1))*dolfin.dx
+
+        # T = 2.0*self.nu*dolfin.sym(dolfin.grad(u))
+        # force = dolfin.dot(T, self.n)
+        # TF = dolfin.inner(self.A*self.n, force)*self.ldds
+        # trqone = 0.05*dolfin.assemble(TF)
+        # trqtwo = dolfin.assemble(done + dtwo)
+        trqthr = tconv + tdiff + tpres
+        # print(trqone, trqtwo, trqthr)
+
+        return trqthr
