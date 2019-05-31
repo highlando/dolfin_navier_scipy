@@ -71,7 +71,6 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
                                     phione=phionex)
     clift, cdrag = getld.evaliftdragforce(u=realvss, p=realpss)
     cdclfac = 2./(rho*L*Um**2)
-    ctfac = 4./(rho*L**2*Um**2)
     print('Cl: {0}'.format(cdclfac*clift))
     print('Cd: {0}'.format(cdclfac*cdrag))
     a_1 = dolfin.Point(0.15, 0.2)
@@ -85,19 +84,20 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     print('Cd: {0}'.format(5.57953523384))
     print('Delta P: {0}'.format(0.11752016697))
 
-    print('\n Torque:')
-    ctrq = getld.evatorqueSphere2D(u=realvss, radius=0.05)
-    print('Ct: {0}'.format(ctfac*ctrq))
-    print('\n value from Henry')
-    print('Cd: {0}'.format(0.00196))
+    # print('\n Torque:')
+    # ctfac = 4./(rho*L**2*Um**2)
+    # ctrq = getld.evatorqueSphere2D(u=realvss, radius=0.05)
+    # print('Ct: {0}'.format(ctfac*ctrq))
+    # print('\n value from Henry')
+    # print('Cd: {0}'.format(0.00196))
 
 if __name__ == '__main__':
-    meshlvl = 3
+    meshlvl = 5
     nu = 1e-3
     rho = 1.
     charvel = .2
-    scheme = 'CR'
     scheme = 'TH'
+    scheme = 'CR'
 
     testit(problem='gen_bccont', nu=nu, charvel=charvel,
            rho=rho, meshlvl=meshlvl,

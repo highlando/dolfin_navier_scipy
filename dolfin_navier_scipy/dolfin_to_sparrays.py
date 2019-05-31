@@ -163,7 +163,7 @@ def ass_convmat_asmatquad(W=None, invindsw=None):
 
 
 def get_stokessysmats(V, Q, nu=None, bccontrol=False,
-                      cbclist=None, cbshapefuns=None):
+                      outflowds=None, cbclist=None, cbshapefuns=None):
     """ Assembles the system matrices for Stokes equation
 
     in mixed FEM formulation, namely
@@ -230,9 +230,18 @@ def get_stokessysmats(V, Q, nu=None, bccontrol=False,
         nu = 1
         print('No viscosity provided -- we set `nu=1`')
 
+    def epsilon(u):
+        return 0.5*(grad(u) + grad(u).T)
+
     ma = inner(u, v) * dx
     mp = inner(p, q) * dx
-    aa = nu * inner(grad(u), grad(v)) * dx
+    aa = nu * inner(2*epsilon(u), grad(v)) * dx
+    if outflowds is not None:
+        nvec = dolfin.FacetNormal(V.mesh())
+        aa = aa - (nu*inner(grad(u).T*nvec, v)*outflowds)
+    else:
+        print('Note: The symmetric gradient is not corrected in the outflow')
+
     grada = div(v) * p * dx
     diva = q * div(u) * dx
 

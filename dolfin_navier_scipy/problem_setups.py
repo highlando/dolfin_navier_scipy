@@ -137,8 +137,14 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
     else:
         cbclist, cbshapefuns = None, None
 
+    try:
+        outflowds = femp['outflowds']
+    except KeyError:
+        outflowds = None
+
     stokesmats = dts.get_stokessysmats(femp['V'], femp['Q'], nu,
                                        cbclist=cbclist,
+                                       outflowds=outflowds,
                                        cbshapefuns=cbshapefuns,
                                        bccontrol=bccontrol)
 
@@ -885,6 +891,11 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
     except KeyError:
         liftdragds = None  # no domain specified for lift/drag
         ldsbcinds = None
+    try:
+        outflwpe = cntbcsdata['outflow']['physical entity']
+        outflowds = dolfin.Measure("ds", subdomain_data=boundaries)(outflwpe)
+    except KeyError:
+        outflowds = None  # no domain specified for outflow
 
     cylfems = dict(V=V,
                    Q=Q,
@@ -894,6 +905,7 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
                    mvwbcvals=mvwbcvals,
                    mvwtvs=mvwtvs,
                    dirip=bcp,
+                   outflowds=outflowds,
                    # contrbcssubdomains=bcsubdoms,
                    liftdragds=liftdragds,
                    ldsbcinds=ldsbcinds,
@@ -998,6 +1010,11 @@ class LiftDragSurfForce():
         self.phione = phione
         self.phitwo = phitwo
 
+        def epsilon(u):
+            return 0.5*(dolfin.nabla_grad(u) + dolfin.nabla_grad(u).T)
+
+        self.epsilon = epsilon
+
     def evaliftdragforce(self, u=None, p=None):
         inner, grad = dolfin.inner, dolfin.grad
         # a_1 = dolfin.Point(0.15, 0.2)
@@ -1022,7 +1039,7 @@ class LiftDragSurfForce():
         return lift, drag
 
     def evatorqueSphere2D(self, u=None, p=None):
-        inner, grad, dx = dolfin.inner, dolfin.grad, dolfin.dx
+        inner, dx = dolfin.inner, dolfin.dx
         # ux = u.sub(0)
         # uy = u.sub(1)
 
@@ -1031,15 +1048,15 @@ class LiftDragSurfForce():
         #                          dolfin.nabla_grad(self.phitwo)),
         #               self.phitwo)*dx
         # donto = inner(self.phitwo, self.phitwo)*dx
-        dontt = self.nu*inner(grad(u), grad(self.phitwo))*dx
-        # dontt = self.nu*inner(grad(u)+grad(u).T, grad(self.phitwo))*dx
+        # dontt = self.nu*inner(grad(u), grad(self.phitwo))*dx
+        dontt = 2*self.nu*inner(self.epsilon(u), dolfin.grad(self.phitwo))*dx
         dontd = (-p*dolfin.div(self.phitwo))*dx
 
         tconv = dolfin.assemble(donto)
         tdiff = dolfin.assemble(dontt)
         tpres = dolfin.assemble(dontd)
-        print('tconv: {0:.4e};\ntdiff: {1:.4e};\ntpres: {2:.4e}\n'.
-              format(tconv, tdiff, tpres))
+        # print('tconv: {0:.4e};\ntdiff: {1:.4e};\ntpres: {2:.4e}\n'.
+        #       format(tconv, tdiff, tpres))
 
         # pto = self.phitwo.sub(0)
         # done = (inner(self.nu*grad(ux), grad(pto))
