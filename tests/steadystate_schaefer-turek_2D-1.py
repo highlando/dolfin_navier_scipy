@@ -92,12 +92,12 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     # print('Cd: {0}'.format(0.00196))
 
 if __name__ == '__main__':
-    meshlvl = 5
+    meshlvl = 3
     nu = 1e-3
     rho = 1.
     charvel = .2
-    scheme = 'TH'
     scheme = 'CR'
+    scheme = 'TH'
 
     testit(problem='gen_bccont', nu=nu, charvel=charvel,
            rho=rho, meshlvl=meshlvl,
