@@ -23,7 +23,7 @@ __all__ = ['ass_convmat_asmatquad',
            'mat_dolfin2sparse']
 
 
-def _unroll_dlfn_dbcs(diribclist, bcinds=None, bcvals=None):
+def unroll_dlfn_dbcs(diribclist, bcinds=None, bcvals=None):
     if diribclist is None:
         urbcinds, urbcvals = [], []
         if bcinds is None or len(bcinds) == 0:
@@ -55,7 +55,7 @@ def append_bcs_vec(vvec, V=None, vdim=None,
         vdim = V.dim()
 
     vwbcs = np.full((vdim, 1), np.nan)
-    cbcinds, cbcvals = _unroll_dlfn_dbcs(diribcs, bcinds=bcinds, bcvals=bcvals)
+    cbcinds, cbcvals = unroll_dlfn_dbcs(diribcs, bcinds=bcinds, bcvals=bcvals)
 
     vwbcs[invinds] = vvec
     vwbcs[cbcinds, 0] = cbcvals
@@ -69,9 +69,16 @@ def mat_dolfin2sparse(A):
     """
     try:
         return dolfin.as_backend_type(A).sparray()
-    except RuntimeError:  # `dolfin <= 1.5+` with `'uBLAS'` support
-        rows, cols, values = A.data()
-        return sps.csr_matrix((values, cols, rows))
+    except (RuntimeError, AttributeError) as e:
+        # `dolfin <= 1.5+` with `'uBLAS'` support
+        try:
+            rows, cols, values = A.data()
+            return sps.csr_matrix((values, cols, rows))
+        except AttributeError:  # if it is a PETSC matrix
+            rows, cols, values = A.dataCSR()
+            return sps.csr_matrix((values, cols, rows))
+        print(e)
+        return
 
 
 def ass_convmat_asmatquad(W=None, invindsw=None):
@@ -155,8 +162,8 @@ def ass_convmat_asmatquad(W=None, invindsw=None):
     return hmat
 
 
-def get_stokessysmats(V, Q, nu=None, bccontrol=False,
-                      cbclist=None, cbshapefuns=None):
+def get_stokessysmats(V, Q, nu=None, bccontrol=False, gradvsymmtrc=True,
+                      outflowds=None, cbclist=None, cbshapefuns=None):
     """ Assembles the system matrices for Stokes equation
 
     in mixed FEM formulation, namely
@@ -223,9 +230,24 @@ def get_stokessysmats(V, Q, nu=None, bccontrol=False,
         nu = 1
         print('No viscosity provided -- we set `nu=1`')
 
+    if gradvsymmtrc:
+        def epsilon(u):
+            return 0.5*(grad(u) + grad(u).T)
+    else:
+        def epsilon(u):
+            return grad(u)
+
     ma = inner(u, v) * dx
     mp = inner(p, q) * dx
-    aa = nu * inner(grad(u), grad(v)) * dx
+    aa = nu * inner(2*epsilon(u), grad(v)) * dx
+    if outflowds is not None and gradvsymmtrc:
+        nvec = dolfin.FacetNormal(V.mesh())
+        aa = aa - (nu*inner(grad(u).T*nvec, v)*outflowds)
+    elif outflowds is None and gradvsymmtrc:
+        print('Note: The symmetric gradient is not corrected in the outflow')
+    else:
+        print('we use the nonsymmetric velocity gradient')
+
     grada = div(v) * p * dx
     diva = q * div(u) * dx
 
@@ -424,7 +446,9 @@ def get_convvec(u0_dolfun=None, V=None, u0_vec=None, femp=None,
 
 
 def condense_sysmatsbybcs(stms, velbcs=None, dbcinds=None, dbcvals=None,
-                          mergerhs=False, rhsdict=None, ret_unrolled=False):
+                          invinds=None,
+                          mergerhs=False, rhsdict=None, ret_unrolled=False,
+                          get_rhs_only=False):
     """resolve the Dirichlet BCs and condense the system matrices
 
     to the inner nodes
@@ -476,20 +500,27 @@ def condense_sysmatsbybcs(stms, velbcs=None, dbcinds=None, dbcvals=None,
         bcinds, bcvals = dbcinds, dbcvals
 
     nv = stms['A'].shape[0]
+
+    # indices of the innernodes
+    if invinds is None:
+        invinds = np.setdiff1d(list(range(nv)), bcinds).astype(np.int32)
     auxu = np.zeros((nv, 1))
     auxu[bcinds, 0] = bcvals
 
     # putting the bcs into the right hand sides
     fvbc = - stms['A'] * auxu    # '*' is np.dot for csr matrices
     fpbc = - stms['J'] * auxu
-
-    # indices of the innernodes
-    invinds = np.setdiff1d(list(range(nv)), bcinds).astype(np.int32)
+    fvbc = fvbc[invinds, :]
+    if get_rhs_only:
+        if mergerhs:
+            return {'fv': rhsdict['fv'][invinds, :] + fvbc,
+                    'fp': rhsdict['fp'] + fpbc}
+        else:
+            return {'fv': fvbc, 'fp': fpbc}
 
     # extract the inner nodes equation coefficients
     Mc = stms['M'][invinds, :][:, invinds]
     Ac = stms['A'][invinds, :][:, invinds]
-    fvbc = fvbc[invinds, :]
     Jc = stms['J'][:, invinds]
     JTc = stms['JT'][invinds, :]
 
@@ -517,7 +548,8 @@ def condense_sysmatsbybcs(stms, velbcs=None, dbcinds=None, dbcvals=None,
 
 def condense_velmatsbybcs(A, velbcs=None, return_bcinfo=False,
                           invinds=None, dbcinds=None, dbcvals=None,
-                          vwithbcs=None, columnsonly=False):
+                          vwithbcs=None, get_rhs_only=False,
+                          columnsonly=False):
     """resolve the Dirichlet BCs, condense velocity related matrices
 
     to the inner nodes, and compute the rhs contribution
@@ -553,8 +585,8 @@ def condense_velmatsbybcs(A, velbcs=None, return_bcinfo=False,
         bcsv[invinds] = 0
     else:
         nv = A.shape[0]
-        bcinds, bcvals = _unroll_dlfn_dbcs(velbcs, bcinds=dbcinds,
-                                           bcvals=dbcvals)
+        bcinds, bcvals = unroll_dlfn_dbcs(velbcs, bcinds=dbcinds,
+                                          bcvals=dbcvals)
         bcsv = np.zeros((nv, 1))
         bcsv[bcinds, 0] = bcvals
 
@@ -566,6 +598,9 @@ def condense_velmatsbybcs(A, velbcs=None, return_bcinfo=False,
         ininds = np.setdiff1d(list(range(nv)), bcinds).astype(np.int32)
     else:
         ininds = invinds
+
+    if get_rhs_only:
+        return fvbc[ininds, :]
 
     if columnsonly:
         Ac = A[:, ininds]
@@ -648,8 +683,8 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None,
         # print('ve w/o bcvals: ', np.linalg.norm(ve))
         # fill in the boundary values
         if not zerodiribcs:
-            urbcinds, urbcvals = _unroll_dlfn_dbcs(diribcs, bcinds=dbcinds,
-                                                   bcvals=dbcvals)
+            urbcinds, urbcvals = unroll_dlfn_dbcs(diribcs, bcinds=dbcinds,
+                                                  bcvals=dbcvals)
             ve[urbcinds, 0] = urbcvals
             # print('ve with bcvals :', np.linalg.norm(ve))
             # print('norm of bcvals :', np.linalg.norm(bcvals))

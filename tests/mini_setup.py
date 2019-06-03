@@ -1,5 +1,6 @@
 import dolfin_navier_scipy.problem_setups as dnsps
 import dolfin_navier_scipy.stokes_navier_utils as snu
+import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import numpy as np
 
 N, Re, scheme, ppin = 2, 50, 'TH', None
@@ -24,9 +25,12 @@ vp_steadystate = snu.solve_steadystate_nse(**inivdict)
 NV = Bc.shape[1]
 
 # ## Test: recompute the p from the v
-pfv = snu.get_pfromv(v=vp_steadystate[0],
+dbcinds, dbcvals = dts.unroll_dlfn_dbcs(femp['diribcs'])
+
+pfv = snu.get_pfromv(v=vp_steadystate[0][femp['invinds'], :],
                      V=femp['V'], M=Mc, A=Ac, J=Bc, fv=fv,
-                     invinds=femp['invinds'], diribcs=femp['diribcs'])
+                     invinds=femp['invinds'],
+                     dbcinds=dbcinds, dbcvals=dbcvals)
 
 print('Number of inner velocity nodes: {0}'.format(invinds.shape))
 print('Shape of the divergence matrix: ', Bc.shape)
