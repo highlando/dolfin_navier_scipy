@@ -63,7 +63,7 @@ if __name__ == '__main__':
     nonltrt = True
     # # ## light
     testit(problem='cylinderwake', N=2, Re=80, t0=0.0, tE=1., Nts=512,
-           scheme='TH', ParaviewOutput=True, nonltrt=nonltrt)
+           scheme='CR', ParaviewOutput=True, nonltrt=nonltrt)
     # # ## medium
     # testit(problem='cylinderwake', N=2, Re=100, t0=0.0, tE=2., Nts=4*512,
     #        scheme='TH', ParaviewOutput=True, nonltrt=nonltrt)
