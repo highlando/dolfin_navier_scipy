@@ -560,7 +560,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               return_dictofpstrs=False,
               dictkeysstr=False,
               treat_nonl_explct=False,
-              no_data_caching=False,
+              no_data_caching=False, return_final_vp=False,
               return_as_list=False,
               verbose=True,
               start_ssstokes=False,
@@ -1245,7 +1245,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     _atdct(dictofpstrs, t, cdatstr + '__p')
 
                 if return_as_list:
-                    vellist.append(_appbcs(v_old, inicdbcvals))
+                    vellist.append(_appbcs(v_old, cdbcvals_n))
 
                 # integrate the Newton error
                 if stokes_flow or treat_nonl_explct:
@@ -1288,7 +1288,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         norm_nwtnupd = 1.
         newtk = 0
 
-    if return_dictofvelstrs:
+    if return_final_vp:
+        return (_appbcs(v_old, cdbcvals_n), p_old)
+    elif return_dictofvelstrs:
         if return_dictofpstrs:
             return dictofvelstrs, dictofpstrs
         else:
