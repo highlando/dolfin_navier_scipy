@@ -11,7 +11,7 @@ proutdir = 'results/'
 
 
 def testit(problem=None, nu=None, charvel=None, Re=None,
-           meshlvl=1,
+           meshlvl=1, gradvsymmtrc=True,
            rho=1.,
            ParaviewOutput=False, scheme='TH'):
 
@@ -20,7 +20,7 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
         format(meshlvl)
     femp, stokesmatsc, rhsd = \
         dnsps.get_sysmats(problem=problem, nu=nu,
-                          charvel=charvel,
+                          charvel=charvel, gradvsymmtrc=gradvsymmtrc,
                           scheme=scheme, mergerhs=True,
                           meshparams=dict(strtomeshfile=meshfile,
                                           movingwallcntrl=False,
@@ -61,8 +61,6 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     phione = dolfin.Function(femp['V'])
     phione.vector().set_local(phionevec)
     phionex = phione.sub(0)
-    # phifile = dolfin.File('results/phione.pvd')
-    # phifile << phionex
 
     realpss = rho*dynpss  # Um**2*rho*dynpss
     realvss = vss  # Um*vss
@@ -84,21 +82,18 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     print('Cd: {0}'.format(5.57953523384))
     print('Delta P: {0}'.format(0.11752016697))
 
-    # print('\n Torque:')
-    # ctfac = 4./(rho*L**2*Um**2)
-    # ctrq = getld.evatorqueSphere2D(u=realvss, radius=0.05)
-    # print('Ct: {0}'.format(ctfac*ctrq))
-    # print('\n value from Henry')
-    # print('Cd: {0}'.format(0.00196))
-
 if __name__ == '__main__':
     meshlvl = 3
     nu = 1e-3
     rho = 1.
     charvel = .2
-    scheme = 'CR'
-    scheme = 'TH'
 
+    scheme = 'CR'
+    testit(problem='gen_bccont', nu=nu, charvel=charvel,
+           rho=rho, meshlvl=meshlvl, gradvsymmtrc=False,
+           scheme=scheme, ParaviewOutput=True)
+
+    scheme = 'TH'
     testit(problem='gen_bccont', nu=nu, charvel=charvel,
            rho=rho, meshlvl=meshlvl,
            scheme=scheme, ParaviewOutput=True)

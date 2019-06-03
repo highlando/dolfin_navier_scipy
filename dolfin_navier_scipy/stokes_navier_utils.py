@@ -411,7 +411,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
     else:
         cdbcvals_c = vel_start_nwtn[glbcntbcinds, :]
         vel_k = vel_start_nwtn[dbcntinvinds, :]
-        print('TODO: what about the ini pressure')
+        # print('TODO: what about the ini pressure')
         p_k = np.zeros((J.shape[0], 1))
         vpsnwtn = np.vstack([vel_k, p_k])
         prvoutdict.update(dict(vp=vpsnwtn,

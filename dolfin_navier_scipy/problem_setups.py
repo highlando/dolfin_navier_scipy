@@ -27,7 +27,7 @@ __all__ = ['get_sysmats',
 
 
 def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
-                Re=None, nu=None, charvel=1.,
+                Re=None, nu=None, charvel=1., gradvsymmtrc=True,
                 bccontrol=False, mergerhs=False,
                 onlymesh=False, meshparams={}):
     """ retrieve the system matrices for stokes flow
@@ -144,6 +144,7 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
 
     stokesmats = dts.get_stokessysmats(femp['V'], femp['Q'], nu,
                                        cbclist=cbclist,
+                                       gradvsymmtrc=gradvsymmtrc,
                                        outflowds=outflowds,
                                        cbshapefuns=cbshapefuns,
                                        bccontrol=bccontrol)
