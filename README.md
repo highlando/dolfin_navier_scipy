@@ -40,7 +40,7 @@ A selection:
 
 The latter is my home-brew module that includes the submodule `lin_alg_utils` with routines for solving the saddle point problem as it arises in the `(v,p)` formulation of the NSE. 
 
-**Note**: the branch `gh-deps-included` already contains the module `sadptprj_riclyap_adi`
+**Note**: the branch `lau-included` already contains the module `sadptprj_riclyap_adi`
 
 ## Documentation
 
