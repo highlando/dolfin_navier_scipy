@@ -1,31 +1,15 @@
 {
     "description": "<p>The package *dolfin_navier_scipy (dns)* provides an interface between *scipy* and *FEniCS* in view of solving Navier-Stokes Equations. *FEniCS* is used to perform a Finite Element discretization of the equations. The assembled coefficients are exported as sparse matrices for use in *scipy*. Nonlinear and time-dependent parts are evaluated and assembled on demand. Visualization is done via the *FEniCS* interface to *paraview*.</p>\n\n<p>&nbsp;</p>", 
     "license": "GPL-3.0", 
-    "title": "highlando/dolfin_navier_scipy: Version for the rotating cylinder benchmark", 
-    "version": "v2.0", 
-    "upload_type": "software", 
     "keywords": [
         "navier-stokes equations", 
         "simulation"
     ], 
-    "publication_date": "2019-06-04", 
     "creators": [
         {
             "orcid": "0000-0003-0228-8522", 
             "name": "Jan Heiland"
         }
     ], 
-    "access_right": "open", 
-    "related_identifiers": [
-        {
-            "scheme": "url", 
-            "identifier": "https://github.com/highlando/dolfin_navier_scipy/tree/v2.0", 
-            "relation": "isSupplementTo"
-        }, 
-        {
-            "scheme": "doi", 
-            "identifier": "10.5281/zenodo.3238608", 
-            "relation": "isVersionOf"
-        }
-    ]
+    "access_right": "open"
 }
