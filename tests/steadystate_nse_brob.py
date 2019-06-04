@@ -16,9 +16,9 @@ def testit(problem='cylinderwake', N=None, nu=None, Re=None,
     ParaviewOutput = True
     proutdir = 'results/'
 
-    femp, stokesmatsc, rhsd = dnsps.get_sysmats(problem=problem, N=N, Re=Re,
-                                                nu=nu, scheme='TH',
-                                                mergerhs=True, bccontrol=True)
+    femp, stokesmatsc, rhsd = dnsps.\
+        get_sysmats(problem=problem, Re=Re, nu=nu, scheme='TH', mergerhs=True,
+                    bccontrol=True, meshparams=dict(refinement_level=N))
     import scipy.sparse.linalg as spsla
     print('get expmats: |A| = {0}'.format(spsla.norm(stokesmatsc['A'])))
     print('get expmats: |Arob| = {0}'.format(spsla.norm(stokesmatsc['Arob'])))

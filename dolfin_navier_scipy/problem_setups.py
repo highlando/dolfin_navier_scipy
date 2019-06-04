@@ -27,7 +27,7 @@ __all__ = ['get_sysmats',
 
 
 def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
-                Re=None, nu=None, charvel=1.,
+                Re=None, nu=None, charvel=1., gradvsymmtrc=True,
                 bccontrol=False, mergerhs=False,
                 onlymesh=False, meshparams={}):
     """ retrieve the system matrices for stokes flow
@@ -59,8 +59,8 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
          * `V`: FEM space of the velocity
          * `Q`: FEM space of the pressure
          * `diribcs`: list of the (Dirichlet) boundary conditions
-         * `bcinds`: indices of the boundary nodes
-         * `bcvals`: values of the boundary nodes
+         * `dbcinds`: indices of the boundary nodes
+         * `dbcvals`: values of the boundary nodes
          * `invinds`: indices of the inner nodes
          * `fv`: right hand side of the momentum equation
          * `fp`: right hand side of the continuity equation
@@ -137,8 +137,15 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
     else:
         cbclist, cbshapefuns = None, None
 
+    try:
+        outflowds = femp['outflowds']
+    except KeyError:
+        outflowds = None
+
     stokesmats = dts.get_stokessysmats(femp['V'], femp['Q'], nu,
                                        cbclist=cbclist,
+                                       gradvsymmtrc=gradvsymmtrc,
+                                       outflowds=outflowds,
                                        cbshapefuns=cbshapefuns,
                                        bccontrol=bccontrol)
 
@@ -162,13 +169,12 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
 
     # reduce the matrices by resolving the BCs
     try:
-        (stokesmatsc, rhsd_stbc, invinds, bcinds,
-         bcvals) = dts.condense_sysmatsbybcs(stokesmats, femp['diribcs'])
+        (stokesmatsc, rhsd_stbc, invinds, _,
+         _) = dts.condense_sysmatsbybcs(stokesmats, femp['diribcs'])
     except KeyError:  # can also just provide indices and values
-        (stokesmatsc, rhsd_stbc, invinds, bcinds,
-         bcvals) = dts.condense_sysmatsbybcs(stokesmats,
-                                             dbcinds=femp['dbcinds'],
-                                             dbcvals=femp['dbcvals'])
+        (stokesmatsc, rhsd_stbc, invinds, _, _) = \
+            dts.condense_sysmatsbybcs(stokesmats, dbcinds=femp['dbcinds'],
+                                      dbcvals=femp['dbcvals'])
     stokesmatsc.update({'Jfull': stokesmats['J']})
 
     # pressure freedom and dirichlet reduced rhs
@@ -183,9 +189,7 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
         stokesmatsc.update({'Brob': Brob, 'Arob': Arob})
 
     # add the info on boundary and inner nodes
-    bcdata = {'bcinds': bcinds,
-              'bcvals': bcvals,
-              'invinds': invinds,
+    bcdata = {'invinds': invinds,
               'ppin': ppin}
     femp.update(bcdata)
     femp.update({'nu': nu})
@@ -653,7 +657,8 @@ def cyl3D_fems(refinement_level=2, scheme='TH',
     # radius = 0.15
 
     # Load mesh
-    mesh = dolfin.Mesh("mesh/3d-cyl/karman3D_lvl%d.xml.gz" % refinement_level)
+    mesh = dolfin.\
+        Mesh("mesh/3d-cyl/karman3D_lvl{0}.xml.gz".format(refinement_level))
 
     # scheme = 'CR'
     if scheme == 'CR':
@@ -665,7 +670,7 @@ def cyl3D_fems(refinement_level=2, scheme='TH',
         Q = dolfin.FunctionSpace(mesh, "CG", 1)
 
     # get the boundaries from the gmesh file
-    meshfile = 'mesh/3d-cyl/karman3D_lvl{0}d_facet_region.xml.gz'.\
+    meshfile = 'mesh/3d-cyl/karman3D_lvl{0}_facet_region.xml.gz'.\
         format(refinement_level)
     boundaries = dolfin.\
         MeshFunction('size_t', mesh, meshfile)
@@ -731,7 +736,8 @@ def cyl3D_fems(refinement_level=2, scheme='TH',
 
 def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
                     strtomeshfile='', strtophysicalregions='',
-                    inflowvel=1., movingwallcntrl=False,
+                    inflowvel=1., inflowprofile='parabola',
+                    movingwallcntrl=False,
                     strtobcsobs=''):
     """
     dictionary for the fem items for a general 2D flow setup
@@ -792,9 +798,15 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
 
     leninflwb = np.linalg.norm(inflwxi-inflwxii)
 
-    inflowpara = InflowParabola(degree=2, lenb=leninflwb, xone=inflwxi,
-                                normalvec=inflwin, inflowvel=inflowvel)
-    bcin = dolfin.DirichletBC(V, inflowpara, boundaries, inflwpe)
+    if inflowprofile == 'block':
+        inflwprfl = dolfin.\
+            Expression(('cv*no', 'cv*nt'), cv=inflowvel,
+                       no=inflwin[0], nt=inflwin[1],
+                       element=V.ufl_element())
+    elif inflowprofile == 'parabola':
+        inflwprfl = InflowParabola(degree=2, lenb=leninflwb, xone=inflwxi,
+                                   normalvec=inflwin, inflowvel=inflowvel)
+    bcin = dolfin.DirichletBC(V, inflwprfl, boundaries, inflwpe)
     diribcu = [bcin]
 
     # ## THE WALLS
@@ -813,6 +825,7 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
             pass  # no control boundaries
 
     mvwdbcs = []
+    mvwtvs = []
     for cntbc in cntbcsdata['moving walls']:
         center = np.array(cntbc['geometry']['center'])
         radius = cntbc['geometry']['radius']
@@ -826,6 +839,7 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
                                           cntbc['physical entity']))
     if not movingwallcntrl:
         diribcu.extend(mvwdbcs)  # add the moving walls to the diri bcs
+        mvwdbcs = []
 
     # Create outflow boundary condition for pressure
     # TODO XXX why zero pressure?? is this do-nothing???
@@ -872,8 +886,17 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
     try:
         ldsurfpe = cntbcsdata['lift drag surface']['physical entity']
         liftdragds = dolfin.Measure("ds", subdomain_data=boundaries)(ldsurfpe)
+        bclds = dolfin.DirichletBC(V, gzero, boundaries, ldsurfpe)
+        bcldsdict = bclds.get_boundary_values()
+        ldsbcinds = list(bcldsdict.keys())
     except KeyError:
         liftdragds = None  # no domain specified for lift/drag
+        ldsbcinds = None
+    try:
+        outflwpe = cntbcsdata['outflow']['physical entity']
+        outflowds = dolfin.Measure("ds", subdomain_data=boundaries)(outflwpe)
+    except KeyError:
+        outflowds = None  # no domain specified for outflow
 
     cylfems = dict(V=V,
                    Q=Q,
@@ -881,9 +904,12 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
                    dbcvals=dbcvals,
                    mvwbcinds=mvwbcinds,
                    mvwbcvals=mvwbcvals,
+                   mvwtvs=mvwtvs,
                    dirip=bcp,
+                   outflowds=outflowds,
                    # contrbcssubdomains=bcsubdoms,
                    liftdragds=liftdragds,
+                   ldsbcinds=ldsbcinds,
                    contrbcmeshfunc=boundaries,
                    contrbcspes=bcpes,
                    contrbcsshapefuns=bcshapefuns,
@@ -933,7 +959,10 @@ class InflowParabola(dolfin.UserExpression):
         self.xone = xone
         self.normalvec = normalvec
         self.inflowvel = inflowvel
-        super().__init__()
+        try:
+            super().__init__()
+        except RuntimeError():
+            pass  # had trouble with this call to __init__ in 'dolfin:2017.2.0'
 
     def eval(self, value, x):
         curs = np.linalg.norm(x - self.xone)/self.lenb
@@ -971,18 +1000,80 @@ class RotatingCircle(dolfin.UserExpression):
 
 class LiftDragSurfForce():
 
-    def __init__(self, V=None, nu=None, ldds=None):
+    def __init__(self, V=None, nu=None, ldds=None, phione=None, phitwo=None):
         self.mesh = V.mesh()
         self.n = dolfin.FacetNormal(self.mesh)
         self.I = dolfin.Identity(self.mesh.geometry().dim())
         self.ldds = ldds
         self.nu = nu
+        self.A = dolfin.as_matrix([[0., 1.],
+                                   [-1., 0.]])
+        self.phione = phione
+        self.phitwo = phitwo
+
+        def epsilon(u):
+            return 0.5*(dolfin.nabla_grad(u) + dolfin.nabla_grad(u).T)
+
+        self.epsilon = epsilon
 
     def evaliftdragforce(self, u=None, p=None):
-        T = -p*self.I + 2.0*self.nu*dolfin.sym(dolfin.grad(u))
-        force = dolfin.dot(T, self.n)
-        D = force[0]*self.ldds
-        L = force[1]*self.ldds
+        inner, grad = dolfin.inner, dolfin.grad
+        # a_1 = dolfin.Point(0.15, 0.2)
+        # a_2 = dolfin.Point(0.25, 0.2)
+
+        ux = u.sub(0)
+        uy = u.sub(1)
+
+        D = (inner(self.nu*grad(ux), grad(self.phione))
+             + inner(u, grad(ux))*self.phione
+             - p*self.phione.dx(0))*dolfin.dx
+        L = (inner(self.nu*grad(uy), grad(self.phione))
+             + inner(u, grad(uy))*self.phione
+             - p*self.phione.dx(1))*dolfin.dx
+
+        # T = -p*self.I + 2.0*self.nu*dolfin.sym(dolfin.grad(u))
+        # force = dolfin.dot(T, self.n)
+        # D = force[0]*self.ldds
+        # L = force[1]*self.ldds
         drag = dolfin.assemble(D)
         lift = dolfin.assemble(L)
         return lift, drag
+
+    def evatorqueSphere2D(self, u=None, p=None):
+        inner, dx = dolfin.inner, dolfin.dx
+        # ux = u.sub(0)
+        # uy = u.sub(1)
+
+        donto = inner(dolfin.dot(u, dolfin.nabla_grad(u)), self.phitwo)*dx
+        # donto = inner(dolfin.dot(self.phitwo,
+        #                          dolfin.nabla_grad(self.phitwo)),
+        #               self.phitwo)*dx
+        # donto = inner(self.phitwo, self.phitwo)*dx
+        # dontt = self.nu*inner(grad(u), grad(self.phitwo))*dx
+        dontt = 2*self.nu*inner(self.epsilon(u), dolfin.grad(self.phitwo))*dx
+        dontd = (-p*dolfin.div(self.phitwo))*dx
+
+        tconv = dolfin.assemble(donto)
+        tdiff = dolfin.assemble(dontt)
+        tpres = dolfin.assemble(dontd)
+        # print('tconv: {0:.4e};\ntdiff: {1:.4e};\ntpres: {2:.4e}\n'.
+        #       format(tconv, tdiff, tpres))
+
+        # pto = self.phitwo.sub(0)
+        # done = (inner(self.nu*grad(ux), grad(pto))
+        #         + inner(u, grad(ux))*pto
+        #         - p*pto.dx(0))*dolfin.dx
+        # ptt = self.phitwo.sub(1)
+        # dtwo = (inner(self.nu*grad(uy), grad(ptt))
+        #         + inner(u, grad(uy))*ptt
+        #         - p*ptt.dx(1))*dolfin.dx
+
+        # T = 2.0*self.nu*dolfin.sym(dolfin.grad(u))
+        # force = dolfin.dot(T, self.n)
+        # TF = dolfin.inner(self.A*self.n, force)*self.ldds
+        # trqone = 0.05*dolfin.assemble(TF)
+        # trqtwo = dolfin.assemble(done + dtwo)
+        trqthr = tconv + tdiff + tpres
+        # print(trqone, trqtwo, trqthr)
+
+        return trqthr

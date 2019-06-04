@@ -41,7 +41,7 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, nonltrt=None,
     soldict.update(tips)  # adding time integration params
     soldict.update(fv=rhsd['fv'], fp=rhsd['fp'],
                    N=N, nu=nu,
-                   start_ssstokes=True,
+                   # start_ssstokes=True,
                    get_datastring=None,
                    treat_nonl_explct=nonltrt,
                    data_prfx=ddir+data_prfx,
@@ -54,17 +54,22 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, nonltrt=None,
 #
 # compute the uncontrolled steady state Navier-Stokes solution
 #
-    # v_ss_nse, list_norm_nwtnupd = snu.solve_steadystate_nse(**soldict)
+    # vp_ss_nse = snu.solve_steadystate_nse(**soldict)
+    soldict.update(dict(start_ssstokes=True))
     snu.solve_nse(**soldict)
 
 
 if __name__ == '__main__':
     nonltrt = True
-    # testit(problem='cylinderwake', N=2, nu=2e-3, t0=0.0, tE=5., Nts=2.5*512,
-    #        scheme='CR', ParaviewOutput=True)
-    testit(problem='cylinderwake', N=1, Re=60, t0=0.0, tE=1., Nts=512,
-           scheme='TH', ParaviewOutput=True, nonltrt=nonltrt)
-    # testit(problem='cylinderwake', N=2, Re=60, t0=0.0, tE=.0288, Nts=57,
+    # # ## light
+    testit(problem='cylinderwake', N=2, Re=80, t0=0.0, tE=1., Nts=512,
+           scheme='CR', ParaviewOutput=True, nonltrt=nonltrt)
+    # # ## medium
+    # testit(problem='cylinderwake', N=2, Re=100, t0=0.0, tE=2., Nts=4*512,
     #        scheme='TH', ParaviewOutput=True, nonltrt=nonltrt)
+    # # ## hard
+    # testit(problem='cylinderwake', N=3, Re=150, t0=0.0, tE=2., Nts=8*512,
+    #        scheme='TH', ParaviewOutput=True, nonltrt=nonltrt)
+    # # ## 3D
     # testit(problem='cylinderwake3D', N=2, Re=50, t0=0.0, tE=2., Nts=512,
     #        scheme='CR', ParaviewOutput=True)

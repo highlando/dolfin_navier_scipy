@@ -41,7 +41,7 @@ def testit(problem='cylinderwake', N=2, nu=None, Re=1e2, Nts=1e3+1,
                    N=N, nu=nu,
                    vel_nwtn_stps=nnewtsteps,
                    # comp_nonl_semexp=True,
-                   treat_nonl_explct=True,
+                   treat_nonl_explct=False,
                    vel_nwtn_tol=vel_nwtn_tol,
                    fv_tmdp=fv_tmdp,
                    start_ssstokes=True,
@@ -64,4 +64,4 @@ if __name__ == '__main__':
     # testit(problem='cylinderwake', N=3, Re=100, Nts=512, tE=1.,
     #        ParaviewOutput=True, scheme='TH', zerocontrol=False)
     testit(problem='cylinderwake', N=2, Re=60, Nts=512, tE=1.,
-           ParaviewOutput=True, scheme='TH', zerocontrol=True)
+           ParaviewOutput=True, scheme='TH', zerocontrol=False)

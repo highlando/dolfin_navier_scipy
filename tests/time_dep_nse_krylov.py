@@ -1,9 +1,9 @@
 import dolfin_navier_scipy.stokes_navier_utils as snu
 import dolfin_navier_scipy.problem_setups as dnsps
 
-krylovdict = dict(krylov='Gmres', krpslvprms={'tol': 1e-6,
+krylovdict = dict(krylov='Gmres', krpslvprms={'tol': 1e-3,
                                               # 'convstatsl': [],
-                                              'krylovini': 'upd',
+                                              # 'krylovini': 'upd',
                                               'maxiter': 800})
 # krylovdict = {}
 
@@ -16,8 +16,9 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, Nts=1e3,
     vel_nwtn_tol = 1e-14
     tips = dict(t0=0.0, tE=tE, Nts=Nts)
 
-    femp, stokesmatsc, rhsd_vfrc, rhsd_stbc \
-        = dnsps.get_sysmats(problem=problem, N=N, nu=nu)
+    femp, stokesmatsc, rhsd = dnsps.\
+        get_sysmats(problem=problem, nu=nu, mergerhs=True,
+                    meshparams=dict(refinement_level=N))
     proutdir = 'results/'
     ddir = 'data/'
     data_prfx = problem + '_N{0}_Re{1}_Nts{2}_tE{3}'.\
@@ -26,8 +27,7 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, Nts=1e3,
     soldict = stokesmatsc  # containing A, J, JT
     soldict.update(femp)  # adding V, Q, invinds, diribcs
     soldict.update(tips)  # adding time integration params
-    soldict.update(fv=rhsd_stbc['fv']+rhsd_vfrc['fvc'],
-                   fp=rhsd_stbc['fp']+rhsd_vfrc['fpr'],
+    soldict.update(fv=rhsd['fv'], fp=rhsd['fp'],
                    N=N, nu=nu,
                    vel_nwtn_stps=nnewtsteps,
                    vel_pcrd_stps=npcrdsteps,
@@ -49,5 +49,5 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, Nts=1e3,
 
 if __name__ == '__main__':
     # testit(N=15, nu=1e-2)
-    testit(problem='cylinderwake', N=1, Re=40, Nts=1024, tE=2.,
+    testit(problem='cylinderwake', N=1, Re=40, Nts=256, tE=.5,
            ParaviewOutput=True)
