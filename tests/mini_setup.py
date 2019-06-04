@@ -22,11 +22,8 @@ inivdict = dict(A=Ac, J=Bc, JT=BTc, M=Mc, ppin=ppin, fv=fv, fp=fp,
 # ## Solve the steady-state NSE
 vp_steadystate = snu.solve_steadystate_nse(**inivdict)
 
-NV = Bc.shape[1]
-
 # ## Test: recompute the p from the v
 dbcinds, dbcvals = dts.unroll_dlfn_dbcs(femp['diribcs'])
-
 pfv = snu.get_pfromv(v=vp_steadystate[0][femp['invinds'], :],
                      V=femp['V'], M=Mc, A=Ac, J=Bc, fv=fv,
                      invinds=femp['invinds'],
