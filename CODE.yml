@@ -1,0 +1,26 @@
+---
+name: dolfin_navier_scipy
+shortname: dns
+version: 2019.06
+release-date: 2019-06-05
+id: 
+id-type: doi
+authors: Jan Heiland
+orcids: 0000-0003-2194-6754
+topic: Flow Simulation
+type: module
+license: GPL v3
+license-type: Open
+repository: github.com/highlando/dolfin_navier_scipy
+repository-type: git
+languages: Python
+dependencies: 
+- Scipy
+- dolfin (fenics)
+systems: Linux
+website: http://dolfin-navier-scipy.readthedocs.org/en/latest/index.html
+keywords: 
+- navier-stokes equations
+- simulations
+- incompressible flows
+---
