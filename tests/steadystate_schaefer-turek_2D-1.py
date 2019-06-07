@@ -60,13 +60,13 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     phionevec[femp['ldsbcinds'], :] = 1.
     phione = dolfin.Function(femp['V'])
     phione.vector().set_local(phionevec)
-    phionex = phione.sub(0)
+    # phionex = phione.sub(0)
 
     realpss = rho*dynpss  # Um**2*rho*dynpss
     realvss = vss  # Um*vss
     getld = dnsps.LiftDragSurfForce(V=femp['V'], nu=nu,
                                     ldds=femp['liftdragds'],
-                                    phione=phionex)
+                                    phione=phione)
     clift, cdrag = getld.evaliftdragforce(u=realvss, p=realpss)
     cdclfac = 2./(rho*L*Um**2)
     print('Cl: {0}'.format(cdclfac*clift))

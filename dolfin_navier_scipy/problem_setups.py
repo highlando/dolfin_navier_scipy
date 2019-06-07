@@ -1008,7 +1008,10 @@ class LiftDragSurfForce():
         self.nu = nu
         self.A = dolfin.as_matrix([[0., 1.],
                                    [-1., 0.]])
-        self.phione = phione
+        pickx = dolfin.as_matrix([[1., 0.], [0., 0.]])
+        picky = dolfin.as_matrix([[0., 0.], [0., 1.]])
+        self.phionex = pickx*phione
+        self.phioney = picky*phione
         self.phitwo = phitwo
 
         def epsilon(u):
@@ -1017,26 +1020,33 @@ class LiftDragSurfForce():
         self.epsilon = epsilon
 
     def evaliftdragforce(self, u=None, p=None):
-        inner, grad = dolfin.inner, dolfin.grad
-        # a_1 = dolfin.Point(0.15, 0.2)
-        # a_2 = dolfin.Point(0.25, 0.2)
+        inner, dx = dolfin.inner, dolfin.dx
 
-        ux = u.sub(0)
-        uy = u.sub(1)
-
-        D = (inner(self.nu*grad(ux), grad(self.phione))
-             + inner(u, grad(ux))*self.phione
-             - p*self.phione.dx(0))*dolfin.dx
-        L = (inner(self.nu*grad(uy), grad(self.phione))
-             + inner(u, grad(uy))*self.phione
-             - p*self.phione.dx(1))*dolfin.dx
-
+        # ux = u.sub(0)
+        # uy = u.sub(1)
+        # D = (2*self.nu*inner(self.epsilon(ux), dolfin.grad(self.phitwo))
+        #      # inner(self.nu*grad(ux), grad(self.phione))
+        #      + inner(u, grad(ux))*self.phione
+        #      - p*self.phione.dx(0))*dolfin.dx
+        # L = (inner(self.nu*grad(uy), grad(self.phione))
+        #      + inner(u, grad(uy))*self.phione
+        #      - p*self.phione.dx(1))*dolfin.dx
         # T = -p*self.I + 2.0*self.nu*dolfin.sym(dolfin.grad(u))
         # force = dolfin.dot(T, self.n)
         # D = force[0]*self.ldds
         # L = force[1]*self.ldds
-        drag = dolfin.assemble(D)
-        lift = dolfin.assemble(L)
+        # drag = dolfin.assemble(D)
+        # lift = dolfin.assemble(L)
+
+        drgo = inner(dolfin.dot(u, dolfin.nabla_grad(u)), self.phionex)*dx
+        drgt = 2*self.nu*inner(self.epsilon(u), dolfin.grad(self.phionex))*dx
+        drgd = (-p*dolfin.div(self.phionex))*dx
+        drag = dolfin.assemble(drgo+drgt+drgd)
+
+        lfto = inner(dolfin.dot(u, dolfin.nabla_grad(u)), self.phioney)*dx
+        lftt = 2*self.nu*inner(self.epsilon(u), dolfin.grad(self.phioney))*dx
+        lftd = (-p*dolfin.div(self.phioney))*dx
+        lift = dolfin.assemble(lfto+lftt+lftd)
         return lift, drag
 
     def evatorqueSphere2D(self, u=None, p=None):

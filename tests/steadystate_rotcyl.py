@@ -51,7 +51,7 @@ def testit(problem=None, nu=None, ininu=None, charvel=None,
     phionevec[femp['mvwbcinds'], :] = 1.
     phione = dolfin.Function(femp['V'])
     phione.vector().set_local(phionevec)
-    phionex = phione.sub(0)
+    # phionex = phione.sub(0)
 
     phitwovec = np.zeros((femp['V'].dim(), 1))
     phitwovec[femp['mvwbcinds'], 0] = femp['mvwbcvals']
@@ -62,7 +62,7 @@ def testit(problem=None, nu=None, ininu=None, charvel=None,
         phifile << phitwo
 
     getld = dnsps.LiftDragSurfForce(V=femp['V'], nu=nu,
-                                    phione=phionex, phitwo=phitwo,
+                                    phione=phione, phitwo=phitwo,
                                     ldds=femp['liftdragds'])
 
     def comptorque(rotval, thingdict=None, returnitall=False):
@@ -103,7 +103,7 @@ def testit(problem=None, nu=None, ininu=None, charvel=None,
             trqe = getld.evatorqueSphere2D(u=vfun, p=pfun)
             a_1 = dolfin.Point(0.15, 0.2)
             a_2 = dolfin.Point(0.25, 0.2)
-            pdiff = rho*pfun(a_1) - rho*pfun(a_2)
+            pdiff = rho*pfun(a_2) - rho*pfun(a_1)
             return trqe, lift, drag, pdiff
         else:
             vfun, pfun = dts.\
@@ -116,16 +116,17 @@ def testit(problem=None, nu=None, ininu=None, charvel=None,
     Um = charvel
     thingdict = dict(vel_start_nwtn=None)
 
-    testrot = 0.  # mol opti val from henry
+    testrot = 0.
     trqe, lift, drag, pdif = comptorque(testrot, thingdict, returnitall=True)
     print('\n\n# ## Nonrotating Cylinder ')
 
     cdclfac = 2./(rho*L*Um**2)
     trqefac = 4/(Um**2*rho*L**2)
-    print('Cl: {0:.8f}'.format(cdclfac*lift))
-    print('Cd: {0:.8f}'.format(cdclfac*drag))
-    print('Ct: {0:.4e}'.format(trqefac*trqe))
-    print('Delta P: {0:.8f}'.format(pdif))
+    print('Cl: {0:.9f}'.format(cdclfac*lift))
+    print('Cd: {0:.9f}'.format(cdclfac*drag))
+    print('Ct: {0:.5e}'.format(trqefac*trqe))
+    print('Delta P: {0:.9f}'.format(pdif))
+
     if charvel == 0.2:
         print('\n cp. values from Schaefer/Turek as in')
         print('www.featflow.de/en/benchmarks/cfdbenchmarking/flow/' +
@@ -133,6 +134,9 @@ def testit(problem=None, nu=None, ininu=None, charvel=None,
         print('Cl: {0:.8f}'.format(0.010618948146))
         print('Cd: {0:.8f}'.format(5.57953523384))
         print('Delta P: {0:.8f}'.format(0.11752016697))
+
+    import ipdb
+    ipdb.set_trace()
 
     print('\n\n# ## Rotating Cylinder -- optimizing rotation for zero torque')
     tinfo = {}
