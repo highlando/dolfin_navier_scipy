@@ -37,7 +37,8 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     print('NV + NP : {0} + {1} = {2}'.format(NV, NP, NV+NP))
 
     soldict = stokesmatsc  # containing A, J, JT
-    soldict.update(femp)  # adding V, Q, invinds, diribcs
+    # soldict.update(femp)  # adding V, Q, invinds, diribcs
+    soldict.update(invinds=femp['invinds'], V=femp['V'], Q=femp['Q'])
     soldict.update(fv=rhsd['fv'], fp=rhsd['fp'],
                    N=meshlvl, nu=nu,
                    verbose=True,
@@ -55,6 +56,36 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     vp_ss_nse = snu.solve_steadystate_nse(**soldict)
     vss, dynpss = dts.expand_vp_dolfunc(vc=vp_ss_nse[0], pc=vp_ss_nse[1],
                                         **femp)
+    checktheres = True
+    if checktheres:
+        dx = dolfin.dx
+        inner = dolfin.inner
+        nabla_grad = dolfin.nabla_grad
+        div = dolfin.div
+        grad = dolfin.grad
+
+        V = femp['V']
+        invinds = femp['invinds']
+        phi = dolfin.TestFunction(V)
+        cnvfrm = inner(dolfin.dot(vss, nabla_grad(vss)), phi)*dx
+        diffrm = nu*inner(grad(vss)+grad(vss).T, grad(phi))*dx
+
+        if gradvsymmtrc:
+            outflowds = femp['outflowds']
+            nvec = dolfin.FacetNormal(V.mesh())
+            diffrm = diffrm - (nu*inner(grad(vss).T*nvec, phi))*outflowds
+        pfrm = inner(rho*dynpss, div(phi))*dx
+        res = dolfin.assemble(diffrm+cnvfrm-pfrm)
+        auxvec = np.zeros((V.dim(), ))
+        auxvec[invinds] = res.get_local()[invinds]
+        print('two norm of the res: {0}'.format(np.linalg.norm(auxvec)))
+        # mvwbcinds = femp['ldsbcinds']
+        # auxvec[mvwbcinds] = 0*res.get_local()[mvwbcinds]
+        resfun = dolfin.Function(V)
+        resfun.vector().set_local(auxvec)
+        # dolfin.plot(resfun)
+        # import matplotlib.pyplot as plt
+        # plt.show()
 
     phionevec = np.zeros((femp['V'].dim(), 1))
     phionevec[femp['ldsbcinds'], :] = 1.
@@ -66,6 +97,7 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     realvss = vss  # Um*vss
     getld = dnsps.LiftDragSurfForce(V=femp['V'], nu=nu,
                                     ldds=femp['liftdragds'],
+                                    outflowds=femp['outflowds'],
                                     phione=phione)
     clift, cdrag = getld.evaliftdragforce(u=realvss, p=realpss)
     cdclfac = 2./(rho*L*Um**2)
@@ -83,15 +115,15 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     print('Delta P: {0}'.format(0.11752016697))
 
 if __name__ == '__main__':
-    meshlvl = 3
+    meshlvl = 5
     nu = 1e-3
     rho = 1.
     charvel = .2
 
-    scheme = 'CR'
-    testit(problem='gen_bccont', nu=nu, charvel=charvel,
-           rho=rho, meshlvl=meshlvl, gradvsymmtrc=False,
-           scheme=scheme, ParaviewOutput=True)
+    # scheme = 'CR'
+    # testit(problem='gen_bccont', nu=nu, charvel=charvel,
+    #        rho=rho, meshlvl=meshlvl, gradvsymmtrc=False,
+    #        scheme=scheme, ParaviewOutput=True)
 
     scheme = 'TH'
     testit(problem='gen_bccont', nu=nu, charvel=charvel,
