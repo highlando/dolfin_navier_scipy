@@ -958,6 +958,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                            pfile=pfile, vfile=vfile))
 
     dou.output_paraview(**prvoutdict)
+    import ipdb; ipdb.set_trace()
 
     for loctrng in loctrngs:
         dtvec = np.array(loctrng)[1:] - np.array(loctrng)[:-1]
