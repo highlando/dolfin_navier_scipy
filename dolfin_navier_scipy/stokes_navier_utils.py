@@ -958,7 +958,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                            pfile=pfile, vfile=vfile))
 
     dou.output_paraview(**prvoutdict)
-    import ipdb; ipdb.set_trace()
 
     if treat_nonl_explct:
         from dolfin_navier_scipy.time_step_schemes import cnab

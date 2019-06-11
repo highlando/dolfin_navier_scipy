@@ -20,7 +20,6 @@ def cnab(trange=None, inivel=None, inip=None,
     NP, NV = J.shape
 
     savevp(inivel, inip, time=trange[0])
-    import ipdb; ipdb.set_trace()
 
     bcs_c = getbcs(trange[0], inivel, inip)
     bfv_c, bfp_c, mbc_c = applybcs(bcs_c)
@@ -45,7 +44,7 @@ def cnab(trange=None, inivel=None, inip=None,
     nfc_n = nonlvfunc(appndbcs(tv_new, bcs_n))
     bcs_n = getbcs(trange[1], appndbcs(tv_new, bcs_n), inip)
     bfv_n, bfp_n, mbc_n = applybcs(bcs_n)
-    rhs_n = M*inivel + .5*dt*A*inivel + .5*dt*(fv_c+fv_n + bfv_n+bfv_c +
+    rhs_n = M*inivel - .5*dt*A*inivel + .5*dt*(fv_c+fv_n + bfv_n+bfv_c +
                                                nfc_c+nfc_n) - (mbc_n-mbc_c)
 
     vp_new = coeffmatlu(np.vstack([rhs_n, fp_n+bfp_n]).flatten())
@@ -67,7 +66,7 @@ def cnab(trange=None, inivel=None, inip=None,
         bfv_n, bfp_n, mbc_n = applybcs(bcs_n)
         fv_n, fp_n = fv(ctime), fp(ctime)
 
-        rhs_n = M*v_old + .5*dt*A*v_old + .5*dt*(fv_c+fv_n + bfv_n+bfv_c) +\
+        rhs_n = M*v_old - .5*dt*A*v_old + .5*dt*(fv_c+fv_n + bfv_n+bfv_c) +\
             1.5*dt*nfc_c-.5*dt*nfc_o - (mbc_n-mbc_c)
 
         vp_new = coeffmatlu(np.vstack([rhs_n, fp_n+bfp_n]).flatten())
