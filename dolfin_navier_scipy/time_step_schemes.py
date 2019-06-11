@@ -17,8 +17,10 @@ def cnab(trange=None, inivel=None, inip=None,
         raise NotImplementedError()
 
     dt = trange[1] - trange[0]
+    NP, NV = J.shape
 
     savevp(inivel, inip, time=trange[0])
+    import ipdb; ipdb.set_trace()
 
     bcs_c = getbcs(trange[0], inivel, inip)
     bfv_c, bfp_c, mbc_c = applybcs(bcs_c)
@@ -32,11 +34,12 @@ def cnab(trange=None, inivel=None, inip=None,
     # Predictor Step -- CN + explicit Euler
     tfv = M*inivel + .5*dt*A*inivel + .5*dt*(fv_c+fv_n + bfv_n+bfv_c) \
         + dt*nfc_c - (mbc_n-mbc_c)
-    tv_new, tp_new, coeffmatlu = \
+    tvp_new, coeffmatlu = \
         lau.solve_sadpnt_smw(amat=M+.5*dt*A, jmat=J, jmatT=J.T,
                              rhsv=tfv,
                              rhsp=fp_n+bfp_n,
                              return_alu=True)
+    tv_new = tvp_new[:NV, :]
 
     # Corrector Step
     nfc_n = nonlvfunc(appndbcs(tv_new, bcs_n))
@@ -44,12 +47,12 @@ def cnab(trange=None, inivel=None, inip=None,
     bfv_n, bfp_n, mbc_n = applybcs(bcs_n)
     rhs_n = M*inivel + .5*dt*A*inivel + .5*dt*(fv_c+fv_n + bfv_n+bfv_c +
                                                nfc_c+nfc_n) - (mbc_n-mbc_c)
-    v_new, p_new = \
-        lau.solve_sadpnt_smw(rhsv=rhs_n, rhsp=fp_n+bfp_n,
-                             sadlu=coeffmatlu,
-                             return_vp_separate=True)
 
-    savevp(appndbcs(v_new, bcs_n), scalep*p_new, time=trange[1])
+    vp_new = coeffmatlu(np.vstack([rhs_n, fp_n+bfp_n]).flatten())
+    v_new = vp_new[:NV].reshape((NV, 1))
+    p_new = scalep*vp_new[NV:].reshape((NP, 1))
+
+    savevp(appndbcs(v_new, bcs_n), p_new, time=trange[1])
 
     for ctime in trange[2:]:
         v_old, p_old = v_new, p_new
@@ -67,12 +70,11 @@ def cnab(trange=None, inivel=None, inip=None,
         rhs_n = M*v_old + .5*dt*A*v_old + .5*dt*(fv_c+fv_n + bfv_n+bfv_c) +\
             1.5*dt*nfc_c-.5*dt*nfc_o - (mbc_n-mbc_c)
 
-        v_new, p_new = \
-            lau.solve_sadpnt_smw(rhsv=rhs_n, rhsp=fp_n+bfp_n,
-                                 sadlu=coeffmatlu,
-                                 return_vp_separate=True)
+        vp_new = coeffmatlu(np.vstack([rhs_n, fp_n+bfp_n]).flatten())
+        v_new = vp_new[:NV].reshape((NV, 1))
+        p_new = scalep*vp_new[NV:].reshape((NP, 1))
 
-        savevp(appndbcs(v_new, bcs_n), scalep*p_new, time=ctime)
+        savevp(appndbcs(v_new, bcs_n), p_new, time=ctime)
 
         nfc_o = nfc_c
         bfv_c, mbc_c = bfv_n, mbc_n

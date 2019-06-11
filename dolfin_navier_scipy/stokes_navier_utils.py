@@ -958,11 +958,24 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                            pfile=pfile, vfile=vfile))
 
     dou.output_paraview(**prvoutdict)
+    import ipdb; ipdb.set_trace()
 
     if treat_nonl_explct:
-        from time_step_schemes import cnab
+        from dolfin_navier_scipy.time_step_schemes import cnab
 
-        fvin = fv[loccntbcinds, :]
+        if loccntbcinds == []:
+            fvin = fv
+
+            def applybcs(bcs_n):
+                return 0., 0., 0.
+
+        else:
+            fvin = fv[dbcntinvinds, :]
+
+            def applybcs(bcs_n):
+                cauxvec[loccntbcinds, :] = bcs_n
+                return (-camat.dot(cauxvec), -cj.dot(cauxvec),
+                        cmmat.dot(cauxvec))
 
         def rhsv(t):
             return fvin
@@ -983,10 +996,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                       diricontfuncmems=diricontfuncmems)
 
         cauxvec = np.zeros((cnv, 1))
-
-        def applybcs(bcs_n):
-            cauxvec[loccntbcinds, :] = bcs_n
-            return -camat.dot(cauxvec), -cj.dot(cauxvec), cmmat.dot(cauxvec)
 
         listofvstrings, listofpstrings = [], []
 
