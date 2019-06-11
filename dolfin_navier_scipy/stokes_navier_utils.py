@@ -790,11 +790,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         vel_pcrd_stps = 0
         print('Stokes Flow!')
         comp_nonl_semexp_inig = None
-    elif lin_vel_point is None:
-        comp_nonl_semexp_inig = True
-        if not treat_nonl_explct:
-            print(('No linearization point given - explicit' +
-                  ' treatment of the nonlinearity in the first Iteration'))
 
     else:
         cur_linvel_point = lin_vel_point
@@ -959,7 +954,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     dou.output_paraview(**prvoutdict)
 
-    if treat_nonl_explct:
+    if lin_vel_point is None:
         from dolfin_navier_scipy.time_step_schemes import cnab
 
         if loccntbcinds == []:
@@ -997,9 +992,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         cauxvec = np.zeros((cnv, 1))
 
         listofvstrings, listofpstrings = [], []
+        expnlveldct = {}
 
         def _svpplz(vvec, pvec, time=None):
-            if no_data_caching:
+            if no_data_caching and not treat_nonl_explct:
                 pass
             else:
                 cfvstr = data_prfx + '_prs_t{0}'.format(time)
@@ -1008,6 +1004,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 dou.save_npa(vvec, fstring=cfvstr)
                 listofvstrings.append(cfvstr)
                 listofpstrings.append(cfpstr)
+                _atdct(expnlveldct, time, cfvstr)
             if paraviewoutput:
                 prvoutdict.update(dict(vc=vvec, pc=pvec, t=time))
                 dou.output_paraview(**prvoutdict)
@@ -1020,11 +1017,14 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                             getbcs=getbcs, applybcs=applybcs, appndbcs=_appbcs,
                             savevp=_svpplz)
 
+        if treat_nonl_explct:
+            return
+
+        cur_linvel_point = expnlveldct
+    else:
+        cur_linvel_point = lin_vel_point
+
     for loctrng in loctrngs:
-        dtvec = np.array(loctrng)[1:] - np.array(loctrng)[:-1]
-        dotdtvec = dtvec[1:] - dtvec[:-1]
-        uniformgrid = np.allclose(np.linalg.norm(dotdtvec), 0)
-        coeffmatlu = None
 
         while (newtk < vel_nwtn_stps and norm_nwtnupd > loc_nwtn_tol):
             print('solve the NSE on the interval [{0}, {1}]'.
@@ -1033,31 +1033,16 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             p_old = inip
             cfv_c, cfp_c = _upd_stffnss_rhs(cntrlldbcvals=cdbcvals_c,
                                             **cntrlmatrhsdict)
-            if stokes_flow:
-                pcrd_anyone = False
-                loc_treat_nonl_explct = None
-                newtk = vel_nwtn_stps
-            elif comp_nonl_semexp_inig and not treat_nonl_explct:
-                pcrd_anyone = False
-                loc_treat_nonl_explct = True
-                print('explicit treatment of nonl. for initial guess!')
-            elif treat_nonl_explct:
-                pcrd_anyone = False
-                loc_treat_nonl_explct = True
-                newtk = vel_nwtn_stps
-                print('No Newton iterations - explicit treatment ' +
-                      'of the nonlinearity')
 
-            if not comp_nonl_semexp_inig and not treat_nonl_explct:
-                if vel_pcrd_stps > 0:
-                    vel_pcrd_stps -= 1
-                    pcrd_anyone = True
-                    print('Picard iterations for initial value -- {0} left'.
-                          format(vel_pcrd_stps))
-                else:
-                    pcrd_anyone = False
-                    newtk += 1
-                    print('Computing Newton Iteration {0}'.format(newtk))
+            if vel_pcrd_stps > 0:
+                vel_pcrd_stps -= 1
+                pcrd_anyone = True
+                print('Picard iterations for initial value -- {0} left'.
+                      format(vel_pcrd_stps))
+            else:
+                pcrd_anyone = False
+                newtk += 1
+                print('Computing Newton Iteration {0}'.format(newtk))
 
             try:
                 if krpslvprms['krylovini'] == 'old':
@@ -1075,24 +1060,20 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 rhs_con_c = np.zeros((cnv, 1))
                 rhsv_conbc_c = np.zeros((cnv, 1))
             else:
-                if loc_treat_nonl_explct:
-                    prev_v = _appbcs(v_old, cdbcvals_c)
-                else:
+                try:
+                    prev_v = dou.load_npa(_gfdct(cur_linvel_point,
+                                          loctrng[0]))
+                except KeyError:
                     try:
                         prev_v = dou.load_npa(_gfdct(cur_linvel_point,
-                                              loctrng[0]))
-                    except KeyError:
-                        try:
-                            prev_v = dou.load_npa(_gfdct(cur_linvel_point,
-                                                  None))
-                        except TypeError:
-                            prev_v = cur_linvel_point[None]
-                    # prev_v = prev_v[dbcntinvinds]
+                                              None))
+                    except TypeError:
+                        prev_v = cur_linvel_point[None]
+                # prev_v = prev_v[dbcntinvinds]
 
                 convc_mat_c, rhs_con_c, rhsv_conbc_c = \
                     get_v_conv_conts(vvec=_appbcs(v_old, cdbcvals_c), V=V,
                                      invinds=dbcntinvinds,
-                                     semi_explicit=loc_treat_nonl_explct,
                                      dbcinds=[dbcinds, glbcntbcinds],
                                      dbcvals=[dbcvals, cdbcvals_c],
                                      Picard=pcrd_anyone)
@@ -1163,19 +1144,15 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     rhsv_conbc_n = np.zeros((cnv, 1))
                     prev_v = v_old
                 else:
-                    if loc_treat_nonl_explct:
-                        prev_v = _appbcs(v_old, cdbcvals_c)
-                        prev_p = p_old
-                    else:
+                    try:
+                        prev_v = dou.load_npa(_gfdct(cur_linvel_point, t))
+                    except KeyError:
                         try:
-                            prev_v = dou.load_npa(_gfdct(cur_linvel_point, t))
-                        except KeyError:
-                            try:
-                                prev_v = dou.load_npa(_gfdct(cur_linvel_point,
-                                                             None))
-                            except TypeError:
-                                prev_v = cur_linvel_point[None]
-                        prev_p = None
+                            prev_v = dou.load_npa(_gfdct(cur_linvel_point,
+                                                         None))
+                        except TypeError:
+                            prev_v = cur_linvel_point[None]
+                    prev_p = None
 
                 cdbcvals_n = _comp_cntrl_bcvals(vel=prev_v, p=prev_p, time=t,
                                                 **cntrlmatrhsdict)
@@ -1191,7 +1168,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                      invinds=dbcntinvinds,
                                      dbcinds=[dbcinds, glbcntbcinds],
                                      dbcvals=[dbcvals, cdbcvals_n],
-                                     semi_explicit=loc_treat_nonl_explct,
                                      Picard=pcrd_anyone)
 
                 cury = None if cv_mat is None else cv_mat.dot(prev_v)
@@ -1249,27 +1225,14 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 except (TypeError, KeyError):
                     pass  # no inival for krylov solver required
 
-                if (uniformgrid and (stokes_flow or loc_treat_nonl_explct)
-                        and not krylov):
-                    if coeffmatlu is None:
-                        print('gonna compute an LU of the coefficient ' +
-                              'matrix \n and reuse it in the time stepping')
-                    vp_new, coeffmatlu = \
-                        lau.solve_sadpnt_smw(amat=solvmat, jmat=cj, jmatT=cjt,
-                                             rhsv=rhsv, rhsp=fp,
-                                             sadlu=coeffmatlu,
-                                             return_alu=True,
-                                             umat=umat, vmat=vmat)
-
-                else:
-                    vp_new = lau.solve_sadpnt_smw(amat=solvmat,
-                                                  jmat=cj, jmatT=cjt,
-                                                  rhsv=rhsv,
-                                                  rhsp=fp,
-                                                  krylov=krylov,
-                                                  krpslvprms=krpslvprms,
-                                                  krplsprms=krplsprms,
-                                                  umat=umat, vmat=vmat)
+                vp_new = lau.solve_sadpnt_smw(amat=solvmat,
+                                              jmat=cj, jmatT=cjt,
+                                              rhsv=rhsv,
+                                              rhsp=fp,
+                                              krylov=krylov,
+                                              krpslvprms=krpslvprms,
+                                              krplsprms=krplsprms,
+                                              umat=umat, vmat=vmat)
 
                 # print('v_old : {0} ({1})'.format(np.linalg.norm(v_old),
                 #                                  v_old.size))
@@ -1329,16 +1292,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             print('\nnorm of current Newton update: {}'.format(norm_nwtnupd))
             # print('\nsaved `norm_nwtnupd(={0})'.format(norm_nwtnupd) +
             #       ' to ' + cdatstr)
-            loc_treat_nonl_explct = False
-            comp_nonl_semexp_inig = False
 
             cur_linvel_point = dictofvelstrs
 
         iniv = v_old  # overwrite iniv as the starting value
         inip = p_old  # > for the next time section
 
-        if not treat_nonl_explct and lin_vel_point is None:
-            comp_nonl_semexp_inig = True
         if addfullsweep and loctrng is loctrngs[-2]:
             comp_nonl_semexp_inig = False
             iniv = realiniv
