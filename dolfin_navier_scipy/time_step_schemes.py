@@ -3,29 +3,29 @@ import numpy as np
 import sadptprj_riclyap_adi.lin_alg_utils as lau
 
 
-def sadpnt_cnab(trange=None, inivel=None, inip=None,
-                M=None, A=None, J=None, nonlvfunc=None,
-                fv=None, fp=None, scalep=-1.,
-                getbcs=None, compbcsdict=None, applybcs=None, appndbcs=None,
-                savevp=None):
+def cnab(trange=None, inivel=None, inip=None,
+         M=None, A=None, J=None, nonlvfunc=None,
+         fv=None, fp=None, scalep=-1.,
+         getbcs=None, applybcs=None, appndbcs=None,
+         savevp=None):
 
-    atr = np.array(trange)
-    eqdchecko = np.sum((atr[1:] - atr[:-1])**2)
-    eqdcheckt = ((atr[-1] - atr[0])/(atr.size-1))**2
+    dtvec = np.array(trange)[1:] - np.array(trange)[:-1]
+    dotdtvec = dtvec[1:] - dtvec[:-1]
+    uniformgrid = np.allclose(np.linalg.norm(dotdtvec), 0)
 
-    if not np.isclose(eqdchecko, eqdcheckt):
+    if not uniformgrid:
         raise NotImplementedError()
 
     dt = trange[1] - trange[0]
 
     savevp(inivel, inip, time=trange[0])
 
-    bcs_c = getbcs(trange[0], inivel, inip, **compbcsdict)
+    bcs_c = getbcs(trange[0], inivel, inip)
     bfv_c, bfp_c, mbc_c = applybcs(bcs_c)
     fv_c = fv(trange[0])
     nfc_c = nonlvfunc(inivel)
 
-    bcs_n = getbcs(trange[1], inivel, inip, **compbcsdict)
+    bcs_n = getbcs(trange[1], inivel, inip)
     bfv_n, bfp_n, mbc_n = applybcs(bcs_n)
     fv_n, fp_n = fv(trange[1]), fp(trange[1])
 
@@ -40,7 +40,7 @@ def sadpnt_cnab(trange=None, inivel=None, inip=None,
 
     # Corrector Step
     nfc_n = nonlvfunc(appndbcs(tv_new, bcs_n))
-    bcs_n = getbcs(trange[1], appndbcs(tv_new, bcs_n), inip, **compbcsdict)
+    bcs_n = getbcs(trange[1], appndbcs(tv_new, bcs_n), inip)
     bfv_n, bfp_n, mbc_n = applybcs(bcs_n)
     rhs_n = M*inivel + .5*dt*A*inivel + .5*dt*(fv_c+fv_n + bfv_n+bfv_c +
                                                nfc_c+nfc_n) - (mbc_n-mbc_c)
@@ -60,7 +60,7 @@ def sadpnt_cnab(trange=None, inivel=None, inip=None,
         nfc_o = nfc_c
         nfc_c = nonlvfunc(appndbcs(v_old, bcs_c))
 
-        bcs_n = getbcs(ctime, appndbcs(v_old, bcs_c), p_old, **compbcsdict)
+        bcs_n = getbcs(ctime, appndbcs(v_old, bcs_c), p_old)
         bfv_n, bfp_n, mbc_n = applybcs(bcs_n)
         fv_n, fp_n = fv(ctime), fp(ctime)
 

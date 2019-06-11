@@ -959,6 +959,59 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     dou.output_paraview(**prvoutdict)
 
+    if treat_nonl_explct:
+        from time_step_schemes import cnab
+
+        fvin = fv[loccntbcinds, :]
+
+        def rhsv(t):
+            return fvin
+
+        def rhsp(t):
+            return fp
+
+        def nonlvfunc(vvec):
+            _, convvec, _ = \
+                get_v_conv_conts(vvec=vvec, V=V,
+                                 invinds=dbcntinvinds, semi_explicit=True)
+            return convvec
+
+        def getbcs(time, vvec, pvec):
+            return _comp_cntrl_bcvals(time=time, vel=vvec, p=pvec,
+                                      diricontbcvals=diricontbcvals,
+                                      diricontfuncs=diricontfuncs,
+                                      diricontfuncmems=diricontfuncmems)
+
+        cauxvec = np.zeros((cnv, 1))
+
+        def applybcs(bcs_n):
+            cauxvec[loccntbcinds, :] = bcs_n
+            return -camat.dot(cauxvec), -cj.dot(cauxvec), cmmat.dot(cauxvec)
+
+        listofvstrings, listofpstrings = [], []
+
+        def _svpplz(vvec, pvec, time=None):
+            if no_data_caching:
+                pass
+            else:
+                cfvstr = data_prfx + '_prs_t{0}'.format(time)
+                cfpstr = data_prfx + '_vel_t{0}'.format(time)
+                dou.save_npa(pvec, fstring=cfpstr)
+                dou.save_npa(vvec, fstring=cfvstr)
+                listofvstrings.append(cfvstr)
+                listofpstrings.append(cfpstr)
+            if paraviewoutput:
+                prvoutdict.update(dict(vc=vvec, pc=pvec, t=time))
+                dou.output_paraview(**prvoutdict)
+            else:
+                pass
+
+        v_end, p_end = cnab(trange=trange, inivel=iniv, inip=inip,
+                            M=cmmat, A=camat, J=cj, nonlvfunc=nonlvfunc,
+                            fv=rhsv, fp=rhsp, scalep=-1.,
+                            getbcs=getbcs, applybcs=applybcs, appndbcs=_appbcs,
+                            savevp=_svpplz)
+
     for loctrng in loctrngs:
         dtvec = np.array(loctrng)[1:] - np.array(loctrng)[:-1]
         dotdtvec = dtvec[1:] - dtvec[:-1]
