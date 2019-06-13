@@ -58,7 +58,7 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
                                         **femp)
     checktheres = True
     if checktheres:
-        from residual_checks import get_steady_state_res
+        from dolfin_navier_scipy.residual_checks import get_steady_state_res
         steady_state_res = \
             get_steady_state_res(V=femp['V'], gradvsymmtrc=True,
                                  outflowds=femp['outflowds'], nu=nu)
@@ -73,6 +73,19 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
         # dolfin.plot(resfun)
         # import matplotlib.pyplot as plt
         # plt.show()
+
+        phionevec = np.zeros((femp['V'].dim(), 1))
+        phionevec[femp['ldsbcinds'], :] = 1.
+        phione = dolfin.Function(femp['V'])
+        phione.vector().set_local(phionevec)
+        pickx = dolfin.as_matrix([[1., 0.], [0., 0.]])
+        picky = dolfin.as_matrix([[0., 0.], [0., 1.]])
+        pox = pickx*phione
+        poy = picky*phione
+        drag = steady_state_res(vss, rho*dynpss, phi=pox)
+        lift = steady_state_res(vss, rho*dynpss, phi=poy)
+        print('Drag: {0}'.format(2./(rho*L*Um**2)*drag))
+        print('Lift: {0}'.format(2./(rho*L*Um**2)*lift))
 
     phionevec = np.zeros((femp['V'].dim(), 1))
     phionevec[femp['ldsbcinds'], :] = 1.

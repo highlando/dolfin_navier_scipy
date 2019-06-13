@@ -26,7 +26,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
     fv_c = fv(trange[0])
     nfc_c = nonlvfunc(inivel)
 
-    bcs_n = getbcs(trange[1], appndbcs(inivel, bcs_ini), inip)
+    bcs_n = getbcs(trange[1], appndbcs(inivel, bcs_ini), inip, mode='heunpred')
     bfv_n, bfp_n, mbc_n = applybcs(bcs_n)
     fv_n, fp_n = fv(trange[1]), fp(trange[1])
 
@@ -42,7 +42,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
 
     # Corrector Step
     nfc_n = nonlvfunc(appndbcs(tv_new, bcs_n))
-    bcs_n = getbcs(trange[1], appndbcs(tv_new, bcs_n), inip)
+    bcs_n = getbcs(trange[1], appndbcs(tv_new, bcs_n), inip, mode='heuncorr')
     bfv_n, bfp_n, mbc_n = applybcs(bcs_n)
     rhs_n = M*inivel - .5*dt*A*inivel + .5*dt*(fv_c+fv_n + bfv_n+bfv_c +
                                                nfc_c+nfc_n) - (mbc_n-mbc_c)
@@ -62,7 +62,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
         nfc_o = nfc_c
         nfc_c = nonlvfunc(appndbcs(v_old, bcs_c))
 
-        bcs_n = getbcs(ctime, appndbcs(v_old, bcs_c), p_old)
+        bcs_n = getbcs(ctime, appndbcs(v_old, bcs_c), p_old, mode='abtwo')
         bfv_n, bfp_n, mbc_n = applybcs(bcs_n)
         fv_n, fp_n = fv(ctime), fp(ctime)
 
