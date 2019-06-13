@@ -158,14 +158,21 @@ def _localizecdbinds(cdbinds, V, invinds):
     return lclinds
 
 
-def _comp_cntrl_bcvals(diricontbcvals=[], diricontfuncs=[],
+def _comp_cntrl_bcvals(diricontbcvals=[], diricontfuncs=[], mode=None,
                        diricontfuncmems=[], time=None, vel=None, p=None, **kw):
     cntrlldbcvals = []
     try:
         for k, cdbbcv in enumerate(diricontbcvals):
             ccntrlfunc = diricontfuncs[k]
-            cntrlval, diricontfuncmems[k] = \
-                ccntrlfunc(time, vel=vel, p=p, memory=diricontfuncmems[k])
+            try:
+                cntrlval, diricontfuncmems[k] = \
+                    ccntrlfunc(time, vel=vel, p=p, mode=mode,
+                               memory=diricontfuncmems[k])
+            except TypeError:
+                cntrlval, diricontfuncmems[k] = \
+                    ccntrlfunc(time, vel=vel, p=p,
+                               memory=diricontfuncmems[k])
+
             ccntrlldbcvals = [cntrlval*bcvl for bcvl in cdbbcv]
             cntrlldbcvals.extend(ccntrlldbcvals)
     except TypeError:
@@ -382,6 +389,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
     if vel_start_nwtn is None:
         cdbcvals_c = _comp_cntrl_bcvals(time=None, vel=None, p=None,
+                                        mode='init',
                                         **cntrlmatrhsdict)
         cfv, cfp = _upd_stffnss_rhs(cntrlldbcvals=cdbcvals_c,
                                     **cntrlmatrhsdict)
@@ -737,7 +745,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if iniv is None:
         if start_ssstokes:
             inicdbcvals = _comp_cntrl_bcvals(time=trange[0], vel=None, p=None,
-                                             **cntrlmatrhsdict)
+                                             mode='init', **cntrlmatrhsdict)
             cfv, cfp = _upd_stffnss_rhs(cntrlldbcvals=inicdbcvals,
                                         **cntrlmatrhsdict)
             # Stokes solution as starting value
@@ -927,11 +935,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                  invinds=dbcntinvinds, semi_explicit=True)
             return convvec
 
-        def getbcs(time, vvec, pvec):
+        def getbcs(time, vvec, pvec, mode=None):
             return _comp_cntrl_bcvals(time=time, vel=vvec, p=pvec,
                                       diricontbcvals=diricontbcvals,
                                       diricontfuncs=diricontfuncs,
-                                      diricontfuncmems=diricontfuncmems)
+                                      diricontfuncmems=diricontfuncmems,
+                                      mode=mode)
 
         listofvstrings, listofpstrings = [], []
         expnlveldct = {}

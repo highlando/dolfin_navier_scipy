@@ -23,25 +23,38 @@ def get_steady_state_res(V=None, outflowds=None, gradvsymmtrc=True, nu=None):
     return steady_state_res
 
 
-def get_cnabtwo_res(V=None, outflowds=None, gradvsymmtrc=True, nu=None):
+def get_imex_res(V=None, outflowds=None, gradvsymmtrc=True, nu=None,
+                 explscheme='abtw'):
     """ define the residual for an IMEX/AB2 time discretization
 
     """
+    if explscheme == 'abtw':
+        def convform(cvo=None, cvt=None, phi=None):
+            return (1.5*inner(dolfin.dot(cvo, nabla_grad(cvo)), phi)*dx -
+                    .5*inner(dolfin.dot(cvt, nabla_grad(cvt)), phi)*dx)
 
-    def cnabtwo_res(vel, pres, lastvel, lastlastvel, dt, phi=None):
+    elif explscheme == 'heun':
+        def convform(cvo=None, cvt=None, phi=None):
+            return (.5*inner(dolfin.dot(cvo, nabla_grad(cvo)), phi)*dx +
+                    .5*inner(dolfin.dot(cvt, nabla_grad(cvt)), phi)*dx)
+
+    elif explscheme == 'eule':
+        def convform(cvo=None, cvt=None, phi=None):
+            return inner(dolfin.dot(cvo, nabla_grad(cvo)), phi)*dx
+
+    def imex_res(vel, pres, dt, lastvel=None, othervel=None, phi=None):
         if phi is None:
             phi = dolfin.TestFunction(V)
 
-        cnvfrm = 1.5*inner(dolfin.dot(lastvel, nabla_grad(lastvel)), phi)*dx -\
-            .5*inner(dolfin.dot(lastlastvel, nabla_grad(lastlastvel)), phi)*dx
         diffrm = nu*inner(grad(vel)+grad(vel).T, grad(phi))*dx
         if gradvsymmtrc:
             nvec = dolfin.FacetNormal(V.mesh())
             diffrm = diffrm - (nu*inner(grad(vel).T*nvec, phi))*outflowds
+        cnvfrm = convform(cvo=lastvel, cvt=othervel, phi=phi)
         pfrm = inner(pres, div(phi))*dx
-        dtprt = dolfin.assemble(inner(1./dt*vel, phi))*dx \
-            - dolfin.assemble(inner(1./dt*lastvel, phi))*dx
+        dtprt = 1./dt*dolfin.assemble(inner(vel, phi)*dx) \
+            - 1./dt*dolfin.assemble(inner(lastvel, phi)*dx)
         res = dolfin.assemble(diffrm+cnvfrm-pfrm) + dtprt
         return res
 
-    return cnabtwo_res
+    return imex_res
