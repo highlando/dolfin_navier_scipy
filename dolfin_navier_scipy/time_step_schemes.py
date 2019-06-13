@@ -3,7 +3,7 @@ import numpy as np
 import sadptprj_riclyap_adi.lin_alg_utils as lau
 
 
-def cnab(trange=None, inivel=None, inip=None,
+def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
          M=None, A=None, J=None, nonlvfunc=None,
          fv=None, fp=None, scalep=-1.,
          getbcs=None, applybcs=None, appndbcs=None,
@@ -21,12 +21,12 @@ def cnab(trange=None, inivel=None, inip=None,
 
     savevp(inivel, inip, time=trange[0])
 
-    bcs_c = getbcs(trange[0], inivel, inip)
+    bcs_c = bcs_ini  # getbcs(trange[0], inivel, inip)
     bfv_c, bfp_c, mbc_c = applybcs(bcs_c)
     fv_c = fv(trange[0])
     nfc_c = nonlvfunc(inivel)
 
-    bcs_n = getbcs(trange[1], inivel, inip)
+    bcs_n = getbcs(trange[1], appndbcs(inivel, bcs_ini), inip)
     bfv_n, bfp_n, mbc_n = applybcs(bcs_n)
     fv_n, fp_n = fv(trange[1]), fp(trange[1])
 

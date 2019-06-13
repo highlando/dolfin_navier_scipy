@@ -58,31 +58,18 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
                                         **femp)
     checktheres = True
     if checktheres:
-        dx = dolfin.dx
-        inner = dolfin.inner
-        nabla_grad = dolfin.nabla_grad
-        div = dolfin.div
-        grad = dolfin.grad
+        from residual_checks import get_steady_state_res
+        steady_state_res = \
+            get_steady_state_res(V=femp['V'], gradvsymmtrc=True,
+                                 outflowds=femp['outflowds'], nu=nu)
 
-        V = femp['V']
+        res = steady_state_res(vss, rho*dynpss)
+        auxvec = np.zeros((femp['V'].dim(), ))
         invinds = femp['invinds']
-        phi = dolfin.TestFunction(V)
-        cnvfrm = inner(dolfin.dot(vss, nabla_grad(vss)), phi)*dx
-        diffrm = nu*inner(grad(vss)+grad(vss).T, grad(phi))*dx
-
-        if gradvsymmtrc:
-            outflowds = femp['outflowds']
-            nvec = dolfin.FacetNormal(V.mesh())
-            diffrm = diffrm - (nu*inner(grad(vss).T*nvec, phi))*outflowds
-        pfrm = inner(rho*dynpss, div(phi))*dx
-        res = dolfin.assemble(diffrm+cnvfrm-pfrm)
-        auxvec = np.zeros((V.dim(), ))
         auxvec[invinds] = res.get_local()[invinds]
         print('two norm of the res: {0}'.format(np.linalg.norm(auxvec)))
-        # mvwbcinds = femp['ldsbcinds']
-        # auxvec[mvwbcinds] = 0*res.get_local()[mvwbcinds]
-        resfun = dolfin.Function(V)
-        resfun.vector().set_local(auxvec)
+        # resfun = dolfin.Function(V)
+        # resfun.vector().set_local(auxvec)
         # dolfin.plot(resfun)
         # import matplotlib.pyplot as plt
         # plt.show()
@@ -115,7 +102,7 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     print('Delta P: {0}'.format(0.11752016697))
 
 if __name__ == '__main__':
-    meshlvl = 5
+    meshlvl = 1
     nu = 1e-3
     rho = 1.
     charvel = .2

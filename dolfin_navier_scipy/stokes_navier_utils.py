@@ -722,9 +722,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                       tfilter=plttrange, writeoutput=paraviewoutput)
 
     # ## XXX: looks like this needs treatment
-    if return_dictofpstrs:
-        gpfvd = dict(V=V, M=M, A=A, J=J, fv=fv, fp=fp,
-                     dbcinds=dbcinds, dbcvals=dbcvals, invinds=invinds)
+    # if return_dictofpstrs:
+    #     gpfvd = dict(V=V, M=M, A=A, J=J, fv=fv, fp=fp,
+    #                  dbcinds=dbcinds, dbcvals=dbcvals, invinds=invinds)
 
     if fv_tmdp is None:
         def fv_tmdp(time=None, curvel=None, **kw):
@@ -796,65 +796,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         comp_nonl_semexp_inig = False
 
     newtk, norm_nwtnupd = 0, 1
-
-    # check for previously computed velocities
-    if useolddata and lin_vel_point is None and not stokes_flow:
-        try:
-            datastrdict.update(dict(time=trange[-1]))
-            cdatstr = get_datastring(**datastrdict)
-
-            norm_nwtnupd = (dou.load_npa(cdatstr + '__norm_nwtnupd')).flatten()
-            try:
-                if norm_nwtnupd[0] is None:
-                    norm_nwtnupd = 1.
-            except IndexError:
-                norm_nwtnupd = 1.
-
-            dou.load_npa(cdatstr + '__vel')
-
-            print('found vel files')
-            print('norm of last Nwtn update: {0}'.format(norm_nwtnupd))
-            print('... loaded from ' + cdatstr)
-
-            if norm_nwtnupd < vel_nwtn_tol and not return_dictofvelstrs:
-                return
-            elif norm_nwtnupd < vel_nwtn_tol or treat_nonl_explct:
-                # looks like converged / or semi-expl
-                # -- check if all values are there
-                # t0:
-                datastrdict.update(dict(time=trange[0]))
-                cdatstr = get_datastring(**datastrdict)
-                dictofvelstrs = {}
-                _atdct(dictofvelstrs, trange[0], cdatstr + '__vel')
-                if return_dictofpstrs:
-                    dictofpstrs = {}
-
-                for t in trange:
-                    datastrdict.update(dict(time=t))
-                    cdatstr = get_datastring(**datastrdict)
-                    # test if the vels are there
-                    v_old = dou.load_npa(cdatstr + '__vel')
-                    # update the dict
-                    _atdct(dictofvelstrs, t, cdatstr + '__vel')
-                    if return_dictofpstrs:
-                        try:
-                            p_old = dou.load_npa(cdatstr + '__p')
-                            _atdct(dictofpstrs, t, cdatstr + '__p')
-                        except:
-                            p_old = get_pfromv(v=v_old, **gpfvd)
-                            dou.save_npa(p_old, fstring=cdatstr + '__p')
-                            _atdct(dictofpstrs, t, cdatstr + '__p')
-
-                if return_dictofpstrs:
-                    return dictofvelstrs, dictofpstrs
-                else:
-                    return dictofvelstrs
-
-            # comp_nonl_semexp = False
-
-        except IOError:
-            norm_nwtnupd = 2
-            print('no old velocity data found')
 
     def _appbcs(vvec, ccntrlldbcvals):
         return dts.append_bcs_vec(vvec, vdim=V.dim(), invinds=dbcntinvinds,
@@ -954,7 +895,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     dou.output_paraview(**prvoutdict)
 
-    if lin_vel_point is None:
+    if lin_vel_point is None:  # do a semi-explicit integration
         from dolfin_navier_scipy.time_step_schemes import cnab
 
         if loccntbcinds == []:
@@ -964,12 +905,15 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 return 0., 0., 0.
 
         else:
-            fvin = fv[dbcntinvinds, :]
+            fvin = fv[locinvinds, :]
+            NV = J.shape[1]
+            cauxvec = np.zeros((NV, 1))
 
             def applybcs(bcs_n):
-                cauxvec[loccntbcinds, :] = bcs_n
-                return (-camat.dot(cauxvec), -cj.dot(cauxvec),
-                        cmmat.dot(cauxvec))
+                cauxvec[loccntbcinds, 0] = bcs_n
+                return (-(A.dot(cauxvec))[locinvinds, :],
+                        -(J.dot(cauxvec)),
+                        (M.dot(cauxvec))[locinvinds, :])
 
         def rhsv(t):
             return fvin
@@ -989,13 +933,11 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                       diricontfuncs=diricontfuncs,
                                       diricontfuncmems=diricontfuncmems)
 
-        cauxvec = np.zeros((cnv, 1))
-
         listofvstrings, listofpstrings = [], []
         expnlveldct = {}
 
         def _svpplz(vvec, pvec, time=None):
-            if no_data_caching and not treat_nonl_explct:
+            if no_data_caching and treat_nonl_explct:
                 pass
             else:
                 cfvstr = data_prfx + '_prs_t{0}'.format(time)
@@ -1012,13 +954,14 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 pass
 
         v_end, p_end = cnab(trange=trange, inivel=iniv, inip=inip,
+                            bcs_ini=inicdbcvals,
                             M=cmmat, A=camat, J=cj, nonlvfunc=nonlvfunc,
                             fv=rhsv, fp=rhsp, scalep=-1.,
                             getbcs=getbcs, applybcs=applybcs, appndbcs=_appbcs,
                             savevp=_svpplz)
 
         if treat_nonl_explct:
-            return
+            return (v_end, p_end)
 
         cur_linvel_point = expnlveldct
     else:
