@@ -93,7 +93,7 @@ def get_v_conv_conts(vvec=None, V=None,
     if len(vvec) == V.dim():
         ve = vvec
     else:
-        ve = np.zeros((V.dim(), ))
+        ve = np.full((V.dim(), ), np.nan)
         ve[invinds] = vvec.flatten()
         for k, cdbcinds in enumerate(dbcinds):
             ve[cdbcinds] = dbcvals[k]
