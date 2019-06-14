@@ -2,12 +2,22 @@ import numpy as np
 
 import sadptprj_riclyap_adi.lin_alg_utils as lau
 
+# from dolfin_navier_scipy.residual_checks import get_imex_res
+# from dolfin_navier_scipy.dolfin_to_sparrays import expand_vp_dolfunc
+
 
 def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
          M=None, A=None, J=None, nonlvfunc=None,
          fv=None, fp=None, scalep=-1.,
          getbcs=None, applybcs=None, appndbcs=None,
          savevp=None):
+
+    # reschkdict = dict(V=femp['V'], gradvsymmtrc=True, implscheme='crni',
+    #                   outflowds=femp['outflowds'], nu=femp['nu'])
+    # crnieuleres = get_imex_res(explscheme='eule', **reschkdict)
+    # # crniheunres = get_imex_res(explscheme='heun', **reschkdict)
+    # # crniabtwres = get_imex_res(explscheme='abtw', **reschkdict)
+    # invinds, V, Q, rho = (femp['invinds'], femp['V'], femp['Q'], femp['rho'])
 
     dtvec = np.array(trange)[1:] - np.array(trange)[:-1]
     dotdtvec = dtvec[1:] - dtvec[:-1]
@@ -24,25 +34,44 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
     bcs_c = bcs_ini  # getbcs(trange[0], inivel, inip)
     bfv_c, bfp_c, mbc_c = applybcs(bcs_c)
     fv_c = fv(trange[0])
-    nfc_c = nonlvfunc(inivel)
+    nfc_c = nonlvfunc(appndbcs(inivel, bcs_ini))
+    import ipdb; ipdb.set_trace()
 
     bcs_n = getbcs(trange[1], appndbcs(inivel, bcs_ini), inip, mode='heunpred')
     bfv_n, bfp_n, mbc_n = applybcs(bcs_n)
     fv_n, fp_n = fv(trange[1]), fp(trange[1])
 
     # Predictor Step -- CN + explicit Euler
-    tfv = M*inivel + .5*dt*A*inivel + .5*dt*(fv_c+fv_n + bfv_n+bfv_c) \
+    tfv = M*inivel - .5*dt*A*inivel + .5*dt*(fv_c+fv_n + bfv_n+bfv_c) \
         + dt*nfc_c - (mbc_n-mbc_c)
+
+    print(np.linalg.norm(nfc_c), nfc_c[0])
+    print(nfc_c.size)
+
     tvp_new, coeffmatlu = \
         lau.solve_sadpnt_smw(amat=M+.5*dt*A, jmat=J, jmatT=J.T,
                              rhsv=tfv,
                              rhsp=fp_n+bfp_n,
                              return_alu=True)
     tv_new = tvp_new[:NV, :]
+    tp_new = tvp_new[NV:, :]
+
+    return appndbcs(tv_new, bcs_n), tp_new
+
+    # inivfun = expand_vp_dolfunc(vc=appndbcs(inivel, bcs_ini), V=V, Q=Q)
+    # vfun, pfun = expand_vp_dolfunc(vc=appndbcs(tv_new, bcs_n),
+    #                                pc=-rho*tvp_new[NV:, :], V=V, Q=Q)
+
+    # res = crnieuleres(vfun, pfun, dt, lastvel=inivfun)
+    # auxvec = np.zeros((femp['V'].dim(), ))
+    # auxvec[invinds] = res.get_local()[invinds]
+    # print('twonorm of the res: {0}'.format(np.linalg.norm(auxvec)))
+    # import ipdb; ipdb.set_trace()
 
     # Corrector Step
     nfc_n = nonlvfunc(appndbcs(tv_new, bcs_n))
-    bcs_n = getbcs(trange[1], appndbcs(tv_new, bcs_n), inip, mode='heuncorr')
+    bcs_n = getbcs(trange[1], appndbcs(tv_new, bcs_n), tp_new, mode='heuncorr')
+
     bfv_n, bfp_n, mbc_n = applybcs(bcs_n)
     rhs_n = M*inivel - .5*dt*A*inivel + .5*dt*(fv_c+fv_n + bfv_n+bfv_c +
                                                nfc_c+nfc_n) - (mbc_n-mbc_c)

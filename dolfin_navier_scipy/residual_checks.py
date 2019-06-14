@@ -24,10 +24,13 @@ def get_steady_state_res(V=None, outflowds=None, gradvsymmtrc=True, nu=None):
 
 
 def get_imex_res(V=None, outflowds=None, gradvsymmtrc=True, nu=None,
-                 explscheme='abtw'):
+                 implscheme='crni', explscheme='abtw'):
     """ define the residual for an IMEX/AB2 time discretization
 
     """
+    if not implscheme == 'crni':
+        raise NotImplementedError()
+
     if explscheme == 'abtw':
         def convform(cvo=None, cvt=None, phi=None):
             return (1.5*inner(dolfin.dot(cvo, nabla_grad(cvo)), phi)*dx -
@@ -46,15 +49,16 @@ def get_imex_res(V=None, outflowds=None, gradvsymmtrc=True, nu=None,
         if phi is None:
             phi = dolfin.TestFunction(V)
 
-        diffrm = nu*inner(grad(vel)+grad(vel).T, grad(phi))*dx
+        diffvel = .5*(vel+lastvel)  # Crank-Nicolson
+        diffrm = nu*inner(grad(diffvel)+grad(diffvel).T, grad(phi))*dx
         if gradvsymmtrc:
             nvec = dolfin.FacetNormal(V.mesh())
-            diffrm = diffrm - (nu*inner(grad(vel).T*nvec, phi))*outflowds
+            diffrm = diffrm - (nu*inner(grad(diffvel).T*nvec, phi))*outflowds
         cnvfrm = convform(cvo=lastvel, cvt=othervel, phi=phi)
-        pfrm = inner(pres, div(phi))*dx
+        pfrm = -1./dt*inner(pres, div(phi))*dx
         dtprt = 1./dt*dolfin.assemble(inner(vel, phi)*dx) \
             - 1./dt*dolfin.assemble(inner(lastvel, phi)*dx)
-        res = dolfin.assemble(diffrm+cnvfrm-pfrm) + dtprt
+        res = dolfin.assemble(diffrm+0*cnvfrm+pfrm) + dtprt
         return res
 
     return imex_res
