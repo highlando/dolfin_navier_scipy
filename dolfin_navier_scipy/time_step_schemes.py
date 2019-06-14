@@ -35,7 +35,6 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
     bfv_c, bfp_c, mbc_c = applybcs(bcs_c)
     fv_c = fv(trange[0])
     nfc_c = nonlvfunc(appndbcs(inivel, bcs_ini))
-    import ipdb; ipdb.set_trace()
 
     bcs_n = getbcs(trange[1], appndbcs(inivel, bcs_ini), inip, mode='heunpred')
     bfv_n, bfp_n, mbc_n = applybcs(bcs_n)
