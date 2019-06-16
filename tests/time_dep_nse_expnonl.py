@@ -17,10 +17,6 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, nonltrt=None,
     femp, stokesmatsc, rhsd = \
         dnsps.get_sysmats(problem=problem, Re=Re, nu=nu, scheme=scheme,
                           meshparams=dict(refinement_level=N), mergerhs=True)
-    proutdir = 'results/'
-    ddir = 'data/'
-    data_prfx = problem + '{4}_N{0}_Re{1}_Nts{2}_tE{3}'.\
-        format(N, femp['Re'], Nts, tE, scheme)
 
     dolfin.plot(femp['V'].mesh())
 
@@ -30,46 +26,31 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None, nonltrt=None,
 
     tips = dict(t0=t0, tE=tE, Nts=Nts)
 
-    try:
-        os.chdir(ddir)
-    except OSError:
-        raise Warning('need "' + ddir + '" subdir for storing the data')
-    os.chdir('..')
-
     soldict = stokesmatsc  # containing A, J, JT
     soldict.update(femp)  # adding V, Q, invinds, diribcs
     soldict.update(tips)  # adding time integration params
     soldict.update(fv=rhsd['fv'], fp=rhsd['fp'],
                    N=N, nu=nu,
-                   # start_ssstokes=True,
                    get_datastring=None,
                    treat_nonl_explct=nonltrt,
-                   data_prfx=ddir+data_prfx,
-                   paraviewoutput=ParaviewOutput,
-                   vfileprfx=proutdir+'vel_expnl_',
-                   pfileprfx=proutdir+'p_expnl')
+                   ret_vp_dict=True)
 
-    soldict.update(krylovdict)  # if we wanna use an iterative solver
-
-#
-# compute the uncontrolled steady state Navier-Stokes solution
-#
-    # vp_ss_nse = snu.solve_steadystate_nse(**soldict)
     soldict.update(dict(start_ssstokes=True))
     snu.solve_nse(**soldict)
 
 
 if __name__ == '__main__':
     nonltrt = True
+    Nts = 3
     # # ## baby
-    # testit(problem='cylinderwake', N=1, Re=30, t0=0.0, tE=.1, Nts=50,
+    # testit(problem='cylinderwake', N=1, Re=30, t0=0.0, tE=.1, Nts=3,
     #        scheme='TH', ParaviewOutput=True, nonltrt=nonltrt)
     # # ## light
     # testit(problem='cylinderwake', N=2, Re=80, t0=0.0, tE=1., Nts=512,
     #        scheme='CR', ParaviewOutput=True, nonltrt=nonltrt)
     # # ## medium
     testit(problem='cylinderwake', N=2, Re=100, t0=0.0, tE=2., Nts=4*512,
-           scheme='TH', ParaviewOutput=True, nonltrt=nonltrt)
+           scheme='TH', nonltrt=nonltrt)
     # # ## hard
     # testit(problem='cylinderwake', N=3, Re=150, t0=0.0, tE=2., Nts=8*512,
     #        scheme='TH', ParaviewOutput=True, nonltrt=nonltrt)

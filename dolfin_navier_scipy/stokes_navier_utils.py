@@ -969,23 +969,23 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                             getbcs=getbcs, applybcs=applybcs, appndbcs=_appbcs,
                             savevp=_svpplz)
 
-        vplus = v_end[invinds]
-        pplus = p_end
-        vcur = _appbcs(iniv, inicdbcvals)
+        # vplus = v_end[invinds]
+        # pplus = p_end
+        # vcur = _appbcs(iniv, inicdbcvals)
 
-        _, convvec, _ = \
-            get_v_conv_conts(vvec=vcur, V=V,
-                             invinds=invinds, semi_explicit=True)
-        print(np.linalg.norm(convvec), convvec[0])
-        print(convvec.size)
+        # _, convvec, _ = \
+        #     get_v_conv_conts(vvec=vcur, V=V,
+        #                      invinds=invinds, semi_explicit=True)
+        # print(np.linalg.norm(convvec), convvec[0])
+        # print(convvec.size)
 
-        vcur = vcur[invinds]
-        dt = trange[1] - trange[0]
-        res = M*(vplus-vcur) + .5*dt*A*(vplus+vcur) - dt*convvec + J.T*pplus \
-            - dt*fv
-        print(np.linalg.norm(res[locinvinds]))
+        # vcur = vcur[invinds]
+        # dt = trange[1] - trange[0]
+        # res = M*(vplus-vcur) + .5*dt*A*(vplus+vcur) - dt*convvec \
+        #     + J.T*pplus - dt*fv
+        # print(np.linalg.norm(res[locinvinds]))
 
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
 
         if treat_nonl_explct:
             return (v_end, p_end)

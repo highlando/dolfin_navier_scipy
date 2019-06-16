@@ -55,10 +55,16 @@ def get_imex_res(V=None, outflowds=None, gradvsymmtrc=True, nu=None,
             nvec = dolfin.FacetNormal(V.mesh())
             diffrm = diffrm - (nu*inner(grad(diffvel).T*nvec, phi))*outflowds
         cnvfrm = convform(cvo=lastvel, cvt=othervel, phi=phi)
+
+        import numpy as np
+        nfc_c = dolfin.assemble(cnvfrm).get_local()
+        print(np.linalg.norm(nfc_c), nfc_c[0], nfc_c.size)
+
         pfrm = -1./dt*inner(pres, div(phi))*dx
         dtprt = 1./dt*dolfin.assemble(inner(vel, phi)*dx) \
             - 1./dt*dolfin.assemble(inner(lastvel, phi)*dx)
-        res = dolfin.assemble(diffrm+0*cnvfrm+pfrm) + dtprt
+        res = dolfin.assemble(diffrm+cnvfrm+pfrm) + dtprt
+        print('debggng')
         return res
 
     return imex_res

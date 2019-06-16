@@ -679,15 +679,18 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None,
         # we assume that the boundary conditions are already contained in vc
         ve = vc
     else:
-        ve = np.zeros((V.dim(), 1))
         # print('ve w/o bcvals: ', np.linalg.norm(ve))
         # fill in the boundary values
         if not zerodiribcs:
+            ve = np.full((V.dim(), 1), np.nan)
             urbcinds, urbcvals = unroll_dlfn_dbcs(diribcs, bcinds=dbcinds,
                                                   bcvals=dbcvals)
             ve[urbcinds, 0] = urbcvals
             # print('ve with bcvals :', np.linalg.norm(ve))
             # print('norm of bcvals :', np.linalg.norm(bcvals))
+
+        else:
+            ve = np.zeros((V.dim(), 1))
 
         ve = ve.flatten()
         ve[invinds] = vc.flatten()

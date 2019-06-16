@@ -35,6 +35,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
     bfv_c, bfp_c, mbc_c = applybcs(bcs_c)
     fv_c = fv(trange[0])
     nfc_c = nonlvfunc(appndbcs(inivel, bcs_ini))
+    print(np.linalg.norm(nfc_c), nfc_c[0], nfc_c.size)
 
     bcs_n = getbcs(trange[1], appndbcs(inivel, bcs_ini), inip, mode='heunpred')
     bfv_n, bfp_n, mbc_n = applybcs(bcs_n)
@@ -43,9 +44,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
     # Predictor Step -- CN + explicit Euler
     tfv = M*inivel - .5*dt*A*inivel + .5*dt*(fv_c+fv_n + bfv_n+bfv_c) \
         + dt*nfc_c - (mbc_n-mbc_c)
-
-    print(np.linalg.norm(nfc_c), nfc_c[0])
-    print(nfc_c.size)
+    print('debggng')
 
     tvp_new, coeffmatlu = \
         lau.solve_sadpnt_smw(amat=M+.5*dt*A, jmat=J, jmatT=J.T,
@@ -53,19 +52,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
                              rhsp=fp_n+bfp_n,
                              return_alu=True)
     tv_new = tvp_new[:NV, :]
-    tp_new = tvp_new[NV:, :]
-
-    return appndbcs(tv_new, bcs_n), tp_new
-
-    # inivfun = expand_vp_dolfunc(vc=appndbcs(inivel, bcs_ini), V=V, Q=Q)
-    # vfun, pfun = expand_vp_dolfunc(vc=appndbcs(tv_new, bcs_n),
-    #                                pc=-rho*tvp_new[NV:, :], V=V, Q=Q)
-
-    # res = crnieuleres(vfun, pfun, dt, lastvel=inivfun)
-    # auxvec = np.zeros((femp['V'].dim(), ))
-    # auxvec[invinds] = res.get_local()[invinds]
-    # print('twonorm of the res: {0}'.format(np.linalg.norm(auxvec)))
-    # import ipdb; ipdb.set_trace()
+    tp_new = scalep*tvp_new[NV:, :]
 
     # Corrector Step
     nfc_n = nonlvfunc(appndbcs(tv_new, bcs_n))
