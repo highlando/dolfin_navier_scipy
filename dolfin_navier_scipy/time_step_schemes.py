@@ -29,7 +29,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
     dt = trange[1] - trange[0]
     NP, NV = J.shape
 
-    savevp(inivel, inip, time=trange[0])
+    savevp(appndbcs(inivel, bcs_ini), inip, time=trange[0])
 
     bcs_c = bcs_ini  # getbcs(trange[0], inivel, inip)
     bfv_c, bfp_c, mbc_c = applybcs(bcs_c)
@@ -53,6 +53,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
                              return_alu=True)
     tv_new = tvp_new[:NV, :]
     tp_new = scalep*tvp_new[NV:, :]
+    savevp(appndbcs(tv_new, bcs_n), tp_new, time=(trange[1], 'heunpred'))
 
     # Corrector Step
     nfc_n = nonlvfunc(appndbcs(tv_new, bcs_n))

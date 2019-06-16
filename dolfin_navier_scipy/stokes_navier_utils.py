@@ -569,7 +569,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               dictkeysstr=False,
               treat_nonl_explct=False,
               no_data_caching=False, return_final_vp=False,
-              return_as_list=False,
+              return_as_list=False, return_vp_dict=False,
               verbose=True,
               start_ssstokes=False,
               **kw):
@@ -945,7 +945,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         listofvstrings, listofpstrings = [], []
         expnlveldct = {}
 
+        vp_dict = {}
+
         def _svpplz(vvec, pvec, time=None):
+            if return_vp_dict:
+                vp_dict.update({time: dict(p=pvec, v=vvec)})
+
             if no_data_caching and treat_nonl_explct:
                 pass
             else:
@@ -988,7 +993,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         # import ipdb; ipdb.set_trace()
 
         if treat_nonl_explct:
-            return (v_end, p_end)
+            if return_vp_dict:
+                return vp_dict
+            elif return_final_vp:
+                return (v_end, p_end)
+            else:
+                return
 
         cur_linvel_point = expnlveldct
     else:
