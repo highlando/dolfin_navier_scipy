@@ -63,6 +63,7 @@ def testit(problem=None, nu=None, ininu=None, charvel=None,
 
     getld = dnsps.LiftDragSurfForce(V=femp['V'], nu=nu,
                                     phione=phione, phitwo=phitwo,
+                                    outflowds=femp['outflowds'],
                                     ldds=femp['liftdragds'])
 
     def comptorque(rotval, thingdict=None, returnitall=False):
@@ -134,9 +135,6 @@ def testit(problem=None, nu=None, ininu=None, charvel=None,
         print('Cl: {0:.8f}'.format(0.010618948146))
         print('Cd: {0:.8f}'.format(5.57953523384))
         print('Delta P: {0:.8f}'.format(0.11752016697))
-
-    import ipdb
-    ipdb.set_trace()
 
     print('\n\n# ## Rotating Cylinder -- optimizing rotation for zero torque')
     tinfo = {}
