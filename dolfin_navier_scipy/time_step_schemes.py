@@ -52,7 +52,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
                              rhsp=fp_n+bfp_n,
                              return_alu=True)
     tv_new = tvp_new[:NV, :]
-    tp_new = scalep*tvp_new[NV:, :]
+    tp_new = 1./dt*scalep*tvp_new[NV:, :]
     savevp(appndbcs(tv_new, bcs_n), tp_new, time=(trange[1], 'heunpred'))
 
     # Corrector Step
@@ -65,7 +65,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
 
     vp_new = coeffmatlu(np.vstack([rhs_n, fp_n+bfp_n]).flatten())
     v_new = vp_new[:NV].reshape((NV, 1))
-    p_new = scalep*vp_new[NV:].reshape((NP, 1))
+    p_new = 1./dt*scalep*vp_new[NV:].reshape((NP, 1))
 
     savevp(appndbcs(v_new, bcs_n), p_new, time=trange[1])
 
@@ -87,7 +87,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
 
         vp_new = coeffmatlu(np.vstack([rhs_n, fp_n+bfp_n]).flatten())
         v_new = vp_new[:NV].reshape((NV, 1))
-        p_new = scalep*vp_new[NV:].reshape((NP, 1))
+        p_new = 1./dt*scalep*vp_new[NV:].reshape((NP, 1))
 
         savevp(appndbcs(v_new, bcs_n), p_new, time=ctime)
 
