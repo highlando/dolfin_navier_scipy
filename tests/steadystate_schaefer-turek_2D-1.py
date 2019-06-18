@@ -56,36 +56,32 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     vp_ss_nse = snu.solve_steadystate_nse(**soldict)
     vss, dynpss = dts.expand_vp_dolfunc(vc=vp_ss_nse[0], pc=vp_ss_nse[1],
                                         **femp)
-    checktheres = True
-    if checktheres:
-        from dolfin_navier_scipy.residual_checks import get_steady_state_res
-        steady_state_res = \
-            get_steady_state_res(V=femp['V'], gradvsymmtrc=True,
-                                 outflowds=femp['outflowds'], nu=nu)
+    from dolfin_navier_scipy.residual_checks import get_steady_state_res
+    steady_state_res = \
+        get_steady_state_res(V=femp['V'], gradvsymmtrc=True,
+                             outflowds=femp['outflowds'], nu=nu)
 
-        res = steady_state_res(vss, rho*dynpss)
-        auxvec = np.zeros((femp['V'].dim(), ))
-        invinds = femp['invinds']
-        auxvec[invinds] = res.get_local()[invinds]
-        print('two norm of the res: {0}'.format(np.linalg.norm(auxvec)))
-        # resfun = dolfin.Function(V)
-        # resfun.vector().set_local(auxvec)
-        # dolfin.plot(resfun)
-        # import matplotlib.pyplot as plt
-        # plt.show()
+    res = steady_state_res(vss, rho*dynpss)
+    auxvec = np.zeros((femp['V'].dim(), ))
+    invinds = femp['invinds']
+    auxvec[invinds] = res.get_local()[invinds]
+    print('two norm of the res: {0}'.format(np.linalg.norm(auxvec)))
 
-        phionevec = np.zeros((femp['V'].dim(), 1))
-        phionevec[femp['ldsbcinds'], :] = 1.
-        phione = dolfin.Function(femp['V'])
-        phione.vector().set_local(phionevec)
-        pickx = dolfin.as_matrix([[1., 0.], [0., 0.]])
-        picky = dolfin.as_matrix([[0., 0.], [0., 1.]])
-        pox = pickx*phione
-        poy = picky*phione
-        drag = steady_state_res(vss, rho*dynpss, phi=pox)
-        lift = steady_state_res(vss, rho*dynpss, phi=poy)
-        print('Drag: {0}'.format(2./(rho*L*Um**2)*drag))
-        print('Lift: {0}'.format(2./(rho*L*Um**2)*lift))
+    phionevec = np.zeros((femp['V'].dim(), 1))
+    phionevec[femp['ldsbcinds'], :] = 1.
+    phione = dolfin.Function(femp['V'])
+    phione.vector().set_local(phionevec)
+    pickx = dolfin.as_matrix([[1., 0.], [0., 0.]])
+    picky = dolfin.as_matrix([[0., 0.], [0., 1.]])
+    pox = pickx*phione
+    poy = picky*phione
+    drag = steady_state_res(vss, rho*dynpss, phi=pox)
+    lift = steady_state_res(vss, rho*dynpss, phi=poy)
+    cdclfac = 2./(rho*L*Um**2)
+
+    print('Computed via testing the residual: ')
+    print('Cl: {0}'.format(cdclfac*lift))
+    print('Cd: {0}'.format(cdclfac*drag))
 
     phionevec = np.zeros((femp['V'].dim(), 1))
     phionevec[femp['ldsbcinds'], :] = 1.
@@ -93,6 +89,7 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     phione.vector().set_local(phionevec)
     # phionex = phione.sub(0)
 
+    print('Computed via `dnsps.LiftDragSurfForce`:')
     realpss = rho*dynpss  # Um**2*rho*dynpss
     realvss = vss  # Um*vss
     getld = dnsps.LiftDragSurfForce(V=femp['V'], nu=nu,
@@ -100,13 +97,14 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
                                     outflowds=femp['outflowds'],
                                     phione=phione)
     clift, cdrag = getld.evaliftdragforce(u=realvss, p=realpss)
-    cdclfac = 2./(rho*L*Um**2)
     print('Cl: {0}'.format(cdclfac*clift))
     print('Cd: {0}'.format(cdclfac*cdrag))
+
     a_1 = dolfin.Point(0.15, 0.2)
     a_2 = dolfin.Point(0.25, 0.2)
     pdiff = realpss(a_1) - realpss(a_2)
     print('Delta P: {0}'.format(pdiff))
+
     print('\n values from Schaefer/Turek as in')
     print('www.featflow.de/en/benchmarks/cfdbenchmarking/flow/' +
           'dfg_benchmark1_re20.html:')
