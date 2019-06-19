@@ -6,6 +6,8 @@ import dolfin_navier_scipy.stokes_navier_utils as snu
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import dolfin_navier_scipy.problem_setups as dnsps
 
+from dolfin_navier_scipy.residual_checks import get_steady_state_res
+
 geodata = 'mesh/karman2D-rotcyl-bm_geo_cntrlbc.json'
 proutdir = 'results/'
 
@@ -56,7 +58,6 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     vp_ss_nse = snu.solve_steadystate_nse(**soldict)
     vss, dynpss = dts.expand_vp_dolfunc(vc=vp_ss_nse[0], pc=vp_ss_nse[1],
                                         **femp)
-    from dolfin_navier_scipy.residual_checks import get_steady_state_res
     steady_state_res = \
         get_steady_state_res(V=femp['V'], gradvsymmtrc=True,
                              outflowds=femp['outflowds'], nu=nu)
