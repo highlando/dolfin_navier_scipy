@@ -68,22 +68,22 @@ def testit(problem='gen_bccont', nu=1e-3, charvel=0.2,
     hcconvvec = dts.get_convvec(V=V, u0_vec=cnhevwbcs, invinds=invinds)
     hcvelfun = dts.expand_vp_dolfunc(vc=cnhevwbcs, **femp)[0]
 
-    # print('Heun-Prediction: one step of Euler')
-    # resvec = (1./dt*M*(cneev-iniv) + .5*A*(iniv+cneev)
-    #           + iniconvvec - JT*cneep - fv)
-    # print('Scipy residual: ', np.linalg.norm(resvec))
-    # curv, curp = dts.expand_vp_dolfunc(vc=cneevwbcs, pc=cneep, **femp)
-    # res = euleres(curv, curp, dt, lastvel=inivelfun)
-    # print('dolfin residua: ', np.linalg.norm(res.get_local()[invinds]))
+    print('Heun-Prediction: one step of Euler')
+    resvec = (1./dt*M*(cneev-iniv) + .5*A*(iniv+cneev)
+              + iniconvvec - JT*cneep - fv)
+    print('Scipy residual: ', np.linalg.norm(resvec))
+    curv, curp = dts.expand_vp_dolfunc(vc=cneevwbcs, pc=cneep, **femp)
+    res = euleres(curv, curp, dt, lastvel=inivelfun)
+    print('dolfin residua: ', np.linalg.norm(res.get_local()[invinds]))
 
-    # print('\nHeun-Step:')
-    # heunrhs = M*iniv - .5*dt*(A*iniv + iniconvvec+hpconvvec) + dt*fv
-    # matvp = M*cnhev + .5*dt*A*cnhev - dt*JT*cnhep
-    # print('Scipy residual: ', np.linalg.norm(matvp - heunrhs))
-    # # import ipdb; ipdb.set_trace()
-    # curv, curp = dts.expand_vp_dolfunc(vc=cnhevwbcs, pc=cnhep, **femp)
-    # heunres = heunres(curv, curp, dt, lastvel=inivelfun, othervel=hpvelfun)
-    # print('dolfin residua: ', np.linalg.norm(heunres.get_local()[invinds]))
+    print('\nHeun-Step:')
+    heunrhs = M*iniv - .5*dt*(A*iniv + iniconvvec+hpconvvec) + dt*fv
+    matvp = M*cnhev + .5*dt*A*cnhev - dt*JT*cnhep
+    print('Scipy residual: ', np.linalg.norm(matvp - heunrhs))
+    # import ipdb; ipdb.set_trace()
+    curv, curp = dts.expand_vp_dolfunc(vc=cnhevwbcs, pc=cnhep, **femp)
+    heunres = heunres(curv, curp, dt, lastvel=inivelfun, othervel=hpvelfun)
+    print('dolfin residua: ', np.linalg.norm(heunres.get_local()[invinds]))
 
     print('\nAB2-Step:')
     abtrhs = M*cnhev - .5*dt*(A*cnhev + -iniconvvec + 3.*hcconvvec) + dt*fv

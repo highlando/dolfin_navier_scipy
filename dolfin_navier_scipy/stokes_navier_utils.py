@@ -762,6 +762,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         iniv = iniv[dbcntinvinds]
         cfv, cfp = _upd_stffnss_rhs(cntrlldbcvals=inicdbcvals,
                                     **cntrlmatrhsdict)
+        # initialization
+        _comp_cntrl_bcvals(time=trange[0], vel=iniv, p=inip,
+                           mode='init', **cntrlmatrhsdict)
     if inip is None:
         inip = get_pfromv(v=iniv, V=V, M=cmmat, A=cmmat, J=cj, fv=cfv, fp=cfp,
                           dbcinds=[dbcinds, glbcntbcinds],
