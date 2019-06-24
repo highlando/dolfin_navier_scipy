@@ -75,7 +75,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
         if verbose:
             print('time-stepping {0}/{1} complete -- @runtime {2:.1f}'.
                   format(kck, ntimeslices, time.clock()))
-        for ctime in ctrange[2:]:
+        for ctime in ctrange:
             v_old, p_old = v_new, p_new
             bcs_c = bcs_n
             bfv_c, mbc_c = bfv_n, mbc_n

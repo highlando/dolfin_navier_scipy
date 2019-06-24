@@ -28,6 +28,7 @@ def testit(problem='gen_bccont', nu=1e-3, charvel=0.2,
     soldict.update(fv=rhsd['fv'], fp=rhsd['fp'],
                    treat_nonl_explct=nonltrt,
                    return_vp_dict=True,
+                   no_data_caching=True,
                    start_ssstokes=True)
 
     vpdct = snu.solve_nse(**soldict)
