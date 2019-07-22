@@ -53,9 +53,9 @@ if __name__ == '__main__':
     # schemel = ['CR', 'TH']
     # scheme = schemel[scme]
     # testit(problem='cylinderwake', N=2, Re=40, Nts=25, tE=.1)
-    # testit(problem='cylinderwake', N=2, Re=30, Nts=24, tE=.1)
+    testit(problem='cylinderwake', N=2, Re=30, Nts=48, tE=.1)
     # testit(N=40, Re=1e3, Nts=.5e2, tE=.5, ParaviewOutput=True, scheme=scheme)
-    testit(problem='cylinderwake', N=2, Re=80, Nts=512, tE=1.,
-           scheme='TH', nsects=4, ParaviewOutput=True)
+    # testit(problem='cylinderwake', N=2, Re=80, Nts=512, tE=1.,
+    #        scheme='TH', nsects=4, ParaviewOutput=True)
     # testit(problem='cylinderwake', N=4, Re=80, Nts=1000, tE=1.,
     #        ParaviewOutput=True, scheme='CR')

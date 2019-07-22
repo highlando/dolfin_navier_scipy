@@ -6,6 +6,8 @@ import dolfin_navier_scipy.stokes_navier_utils as snu
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import dolfin_navier_scipy.problem_setups as dnsps
 
+from dolfin_navier_scipy.residual_checks import get_steady_state_res
+
 geodata = 'mesh/karman2D-rotcyl-bm_geo_cntrlbc.json'
 proutdir = 'results/'
 
@@ -56,36 +58,31 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     vp_ss_nse = snu.solve_steadystate_nse(**soldict)
     vss, dynpss = dts.expand_vp_dolfunc(vc=vp_ss_nse[0], pc=vp_ss_nse[1],
                                         **femp)
-    checktheres = True
-    if checktheres:
-        dx = dolfin.dx
-        inner = dolfin.inner
-        nabla_grad = dolfin.nabla_grad
-        div = dolfin.div
-        grad = dolfin.grad
+    steady_state_res = \
+        get_steady_state_res(V=femp['V'], gradvsymmtrc=True,
+                             outflowds=femp['outflowds'], nu=nu)
 
-        V = femp['V']
-        invinds = femp['invinds']
-        phi = dolfin.TestFunction(V)
-        cnvfrm = inner(dolfin.dot(vss, nabla_grad(vss)), phi)*dx
-        diffrm = nu*inner(grad(vss)+grad(vss).T, grad(phi))*dx
+    res = steady_state_res(vss, rho*dynpss)
+    auxvec = np.zeros((femp['V'].dim(), ))
+    invinds = femp['invinds']
+    auxvec[invinds] = res.get_local()[invinds]
+    print('two norm of the res: {0}'.format(np.linalg.norm(auxvec)))
 
-        if gradvsymmtrc:
-            outflowds = femp['outflowds']
-            nvec = dolfin.FacetNormal(V.mesh())
-            diffrm = diffrm - (nu*inner(grad(vss).T*nvec, phi))*outflowds
-        pfrm = inner(rho*dynpss, div(phi))*dx
-        res = dolfin.assemble(diffrm+cnvfrm-pfrm)
-        auxvec = np.zeros((V.dim(), ))
-        auxvec[invinds] = res.get_local()[invinds]
-        print('two norm of the res: {0}'.format(np.linalg.norm(auxvec)))
-        # mvwbcinds = femp['ldsbcinds']
-        # auxvec[mvwbcinds] = 0*res.get_local()[mvwbcinds]
-        resfun = dolfin.Function(V)
-        resfun.vector().set_local(auxvec)
-        # dolfin.plot(resfun)
-        # import matplotlib.pyplot as plt
-        # plt.show()
+    phionevec = np.zeros((femp['V'].dim(), 1))
+    phionevec[femp['ldsbcinds'], :] = 1.
+    phione = dolfin.Function(femp['V'])
+    phione.vector().set_local(phionevec)
+    pickx = dolfin.as_matrix([[1., 0.], [0., 0.]])
+    picky = dolfin.as_matrix([[0., 0.], [0., 1.]])
+    pox = pickx*phione
+    poy = picky*phione
+    drag = steady_state_res(vss, rho*dynpss, phi=pox)
+    lift = steady_state_res(vss, rho*dynpss, phi=poy)
+    cdclfac = 2./(rho*L*Um**2)
+
+    print('Computed via testing the residual: ')
+    print('Cl: {0}'.format(cdclfac*lift))
+    print('Cd: {0}'.format(cdclfac*drag))
 
     phionevec = np.zeros((femp['V'].dim(), 1))
     phionevec[femp['ldsbcinds'], :] = 1.
@@ -93,6 +90,7 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     phione.vector().set_local(phionevec)
     # phionex = phione.sub(0)
 
+    print('Computed via `dnsps.LiftDragSurfForce`:')
     realpss = rho*dynpss  # Um**2*rho*dynpss
     realvss = vss  # Um*vss
     getld = dnsps.LiftDragSurfForce(V=femp['V'], nu=nu,
@@ -100,13 +98,14 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
                                     outflowds=femp['outflowds'],
                                     phione=phione)
     clift, cdrag = getld.evaliftdragforce(u=realvss, p=realpss)
-    cdclfac = 2./(rho*L*Um**2)
     print('Cl: {0}'.format(cdclfac*clift))
     print('Cd: {0}'.format(cdclfac*cdrag))
+
     a_1 = dolfin.Point(0.15, 0.2)
     a_2 = dolfin.Point(0.25, 0.2)
     pdiff = realpss(a_1) - realpss(a_2)
     print('Delta P: {0}'.format(pdiff))
+
     print('\n values from Schaefer/Turek as in')
     print('www.featflow.de/en/benchmarks/cfdbenchmarking/flow/' +
           'dfg_benchmark1_re20.html:')
@@ -115,7 +114,7 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     print('Delta P: {0}'.format(0.11752016697))
 
 if __name__ == '__main__':
-    meshlvl = 5
+    meshlvl = 1
     nu = 1e-3
     rho = 1.
     charvel = .2
