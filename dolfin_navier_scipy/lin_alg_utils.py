@@ -4,10 +4,10 @@ import scipy.sparse as sps
 import scipy.sparse.linalg as spsla
 
 __all__ = ['app_prj_via_sadpnt',
+           'solve_sadpnt_smw',
            'apply_sqrt_fromright',
            'apply_invsqrt_fromright',
            'get_Sinv_smw',
-           'solve_sadpnt_smw',
            'app_luinv_to_spmat',
            'comp_sqfnrm_factrd_diff',
            'comp_sqfnrm_factrd_lyap_res',
@@ -24,26 +24,26 @@ def app_prj_via_sadpnt(amat=None, jmat=None, rhsv=None,
 
     .. math::
 
-        P = I - M^{-1}J_1^T(J_1^TM^{-1}J_2)^{-1}J_2.
+        P = I - A^{-1}J_1^T(J_1^TA^{-1}J_2)^{-1}J_2.
 
     Then :math:`Pv` can be obtained via
 
     .. math::
 
-        A^{-1}\\begin{bmatrix} Pv \\\\ * \end{bmatrix} = \
-        \\begin{bmatrix} Mv \\\\ 0 \end{bmatrix},
+        \mathcal{A}^{-1}\\begin{bmatrix} Pv \\\\ * \end{bmatrix} = \
+        \\begin{bmatrix} Av \\\\ 0 \end{bmatrix},
 
     where
 
     .. math::
 
-        A := \\begin{bmatrix} M & J_1^T \\\\ J_2 & 0 \\end{bmatrix}.
+        \mathcal{A} := \\begin{bmatrix} A & J_1^T \\\\ J_2 & 0 \\end{bmatrix}.
 
     And :math:`P^Tv` can be obtained via
 
     .. math::
 
-        A^{-T}\\begin{bmatrix} M^{-T}P^Tv \\\\ * \end{bmatrix} = \
+        \mathcal A^{-T}\\begin{bmatrix} A^{-T}P^Tv \\\\ * \end{bmatrix} = \
         \\begin{bmatrix} v \\\\ 0 \end{bmatrix}.
 
     Parameters
@@ -57,7 +57,7 @@ def app_prj_via_sadpnt(amat=None, jmat=None, rhsv=None,
     rhsv : (N,K) ndarray
         array to be projected
     umat, vmat : (N,L), (L,N) ndarrays or sparse matrices, optional
-        factored contribution to `amat`, default to `None`
+        factored contribution to `amat <- amat - umat*vmat`, default to `None`
     transposedprj : boolean
         whether to apply the transpose of the projection, defaults to `False`
 
@@ -74,19 +74,21 @@ def app_prj_via_sadpnt(amat=None, jmat=None, rhsv=None,
         jmat = jmatT.T
 
     if transposedprj:
-        return amat.T * solve_sadpnt_smw(amat=amat.T, jmat=jmatT.T,
-                                         rhsv=rhsv, jmatT=jmat.T,
-                                         )[:amat.shape[0], :]
+        mpmoprjv = solve_sadpnt_smw(amat=amat.T, jmat=jmatT.T,
+                                    rhsv=rhsv, jmatT=jmat.T)[:amat.shape[0], :]
+        if umat is None and vmat is None:
+            return amat.T.dot(mpmoprjv)
+        else:
+            return amat.T.dot(mpmoprjv) - vmat.T.dot(umat.T.dot(mpmoprjv))
 
     else:
         if umat is None and vmat is None:
             arhsv = amat * rhsv
         else:
-            arhsv = amat * rhsv - \
-                np.dot(umat, np.dot(vmat, rhsv))
+            arhsv = amat * rhsv - umat.dot(vmat.dot(rhsv))
 
-        return solve_sadpnt_smw(amat=amat, jmat=jmat, rhsv=arhsv,
-                                jmatT=jmatT)[:amat.shape[0], :]
+        return solve_sadpnt_smw(amat=amat, jmat=jmat, rhsv=arhsv, jmatT=jmatT,
+                                umat=umat, vmat=vmat)[:amat.shape[0], :]
 
 
 def solve_sadpnt_smw(amat=None, jmat=None, rhsv=None,
@@ -97,11 +99,22 @@ def solve_sadpnt_smw(amat=None, jmat=None, rhsv=None,
                      symmetric=False, posdefinite=False,
                      cgtol=1e-8,
                      krylov=None, krpslvprms={}, krplsprms={}):
+
     """solve a saddle point system
 
-    A - np.dot(U,V)    J.T  *  X   =   rhsv
-    J                   0              rhsp
-    by sparse direct solves
+    .. math::
+
+        \\begin{bmatrix} A - UV &  J_1^T  \\\\
+                         J      &      0
+        \\end{bmatrix}
+        \\begin{bmatrix} X \\\\ * \\end{bmatrix}
+        =
+        \\begin{bmatrix} f_v \\\\ f_p \end{bmatrix}
+
+    making use of the Sherman-Morrison-Woodbury formula and
+
+        * sparse direct solves by recycling an LU decomposition
+        * or CG (if the problem is decoupled and the Schur complement is spd)
 
     Parameters
     ----------
@@ -122,6 +135,9 @@ def solve_sadpnt_smw(amat=None, jmat=None, rhsv=None,
         to `None`
     return_alu : boolean, optional
         whether to return the lu factored sadpoint matrix
+    decouplevp : boolean, optional
+        whether to decouple the system and solve with A and the Schur
+        Complement, defautls to `False`
 
     Returns
     -------
