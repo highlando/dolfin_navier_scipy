@@ -8,6 +8,8 @@ import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import dolfin_navier_scipy.problem_setups as dnsps
 import dolfin_navier_scipy.data_output_utils as dou
 
+from dolfin_navier_scipy.residual_checks import get_steady_state_res
+
 geodata = 'mesh/karman2D-rotcyl-bm_geo_cntrlbc.json'
 proutdir = 'results/'
 rhosolid = 10.
@@ -51,7 +53,10 @@ def testit(problem=None, nu=None, ininu=None, charvel=None,
     phionevec[femp['mvwbcinds'], :] = 1.
     phione = dolfin.Function(femp['V'])
     phione.vector().set_local(phionevec)
-    phionex = phione.sub(0)
+    pickx = dolfin.as_matrix([[1., 0.], [0., 0.]])
+    picky = dolfin.as_matrix([[0., 0.], [0., 1.]])
+    pox = pickx*phione
+    poy = picky*phione
 
     phitwovec = np.zeros((femp['V'].dim(), 1))
     phitwovec[femp['mvwbcinds'], 0] = femp['mvwbcvals']
@@ -61,9 +66,14 @@ def testit(problem=None, nu=None, ininu=None, charvel=None,
         phifile = dolfin.File('results/phione.pvd')
         phifile << phitwo
 
-    getld = dnsps.LiftDragSurfForce(V=femp['V'], nu=nu,
-                                    phione=phionex, phitwo=phitwo,
-                                    ldds=femp['liftdragds'])
+    # getld = dnsps.LiftDragSurfForce(V=femp['V'], nu=nu,
+    #                                 phione=phione, phitwo=phitwo,
+    #                                 outflowds=femp['outflowds'],
+    #                                 ldds=femp['liftdragds'])
+
+    steady_state_res = \
+        get_steady_state_res(V=femp['V'], gradvsymmtrc=True,
+                             outflowds=femp['outflowds'], nu=nu)
 
     def comptorque(rotval, thingdict=None, returnitall=False):
 
@@ -98,34 +108,42 @@ def testit(problem=None, nu=None, ininu=None, charvel=None,
             vfun, pfun = dts.\
                 expand_vp_dolfunc(vc=vp_ss_nse[0], pc=vp_ss_nse[1],
                                   V=femp['V'], Q=femp['Q'])
-            lift, drag = getld.evaliftdragforce(u=vfun, p=pfun)
+            # lift, drag = getld.evaliftdragforce(u=vfun, p=pfun)
 
-            trqe = getld.evatorqueSphere2D(u=vfun, p=pfun)
+            drag = steady_state_res(vfun, pfun, phi=pox)
+            lift = steady_state_res(vfun, pfun, phi=poy)
+            # phionex = phione.sub(0)
+
+            trqe = steady_state_res(vfun, pfun, phi=phitwo)
+            # trqe = getld.evatorqueSphere2D(u=vfun, p=pfun)
             a_1 = dolfin.Point(0.15, 0.2)
             a_2 = dolfin.Point(0.25, 0.2)
-            pdiff = rho*pfun(a_1) - rho*pfun(a_2)
+            pdiff = rho*pfun(a_2) - rho*pfun(a_1)
             return trqe, lift, drag, pdiff
         else:
             vfun, pfun = dts.\
                 expand_vp_dolfunc(vc=vp_ss_nse[0], pc=vp_ss_nse[1],
                                   V=femp['V'], Q=femp['Q'])
-            trqe = getld.evatorqueSphere2D(u=vfun, p=pfun)
+            # trqe = getld.evatorqueSphere2D(u=vfun, p=pfun)
+            trqe = steady_state_res(vfun, pfun, phi=phitwo)
+
             print('omeg: {0:.3e} -- trqe: {1:.3e}'.format(rotval, trqe))
             return np.abs(trqe)
 
     Um = charvel
     thingdict = dict(vel_start_nwtn=None)
 
-    testrot = 0.  # mol opti val from henry
+    testrot = 0.
     trqe, lift, drag, pdif = comptorque(testrot, thingdict, returnitall=True)
     print('\n\n# ## Nonrotating Cylinder ')
 
     cdclfac = 2./(rho*L*Um**2)
     trqefac = 4/(Um**2*rho*L**2)
-    print('Cl: {0:.8f}'.format(cdclfac*lift))
-    print('Cd: {0:.8f}'.format(cdclfac*drag))
-    print('Ct: {0:.4e}'.format(trqefac*trqe))
-    print('Delta P: {0:.8f}'.format(pdif))
+    print('Cl: {0:.9f}'.format(cdclfac*lift))
+    print('Cd: {0:.9f}'.format(cdclfac*drag))
+    print('Ct: {0:.5e}'.format(trqefac*trqe))
+    print('Delta P: {0:.9f}'.format(pdif))
+
     if charvel == 0.2:
         print('\n cp. values from Schaefer/Turek as in')
         print('www.featflow.de/en/benchmarks/cfdbenchmarking/flow/' +

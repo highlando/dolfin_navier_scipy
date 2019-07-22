@@ -8,4 +8,6 @@ __all__ = ["dolfin_to_sparrays",
            "data_output_utils",
            "stokes_navier_utils",
            "problem_setups",
-           "lin_alg_utils"]
+           "lin_alg_utils",
+           "time_step_schemes",
+           "residual_checks"]
