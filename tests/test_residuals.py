@@ -10,7 +10,7 @@ from dolfin_navier_scipy.residual_checks import get_imex_res
 
 def testit(problem='gen_bccont', nu=1e-3, charvel=0.2,
            t0=0.0, tE=.1, Nts=2,
-           rho=1., meshlvl=1, meshparams=1, nonltrt=True,
+           rho=1., meshlvl=1, meshparams=None, nonltrt=True,
            scheme=None):
 
     femp, stokesmatsc, rhsd = \
