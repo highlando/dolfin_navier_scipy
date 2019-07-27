@@ -102,3 +102,41 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
             fv_c = fv_n
 
     return v_new, p_new
+
+
+def get_cnab_linear_dynamic_fb(hb=None, ha=None, hc=None,
+                               inihx=None, drift=None):
+    """ realizes the heun/AB2 discretization of a linear observer """
+    def cnab_dynamic_fb(t, cv=None, memory={}, mode='abtwo'):
+        if mode == 'init':
+            chx = inihx
+            hcchx = hc.dot(chx)
+            memory.update(dict(lastt=t))
+            return hcchx, memory
+
+        if mode == 'heunpred' or mode == 'heuncorr':
+            curdt = t - memory['lastt']
+            if mode == 'heunpred':
+                currhs = ha.dot(inihx) + hb.dot(cv) + drift(memory['lastt'])
+                chx = inihx + curdt*currhs
+                hcchx = hc.dot(chx)
+                memory.update(dict(lastrhs=currhs))
+                memory.update(dict(hphx=chx))
+
+            elif mode == 'heuncorr':
+                currhs = ha.dot(memory['hphx']) + hb.dot(cv) + drift(t)
+                chx = inihx + .5*curdt*(currhs + memory['lastrhs'])
+                hcchx = hc.dot(chx)
+                memory.update(dict(lastt=t, lasthx=chx, lastdt=curdt))
+                return hcchx, memory
+
+        elif mode == 'abtwo':
+            curdt = t - memory['lastt']
+            currhs = ha.dot(memory['lasthx']) + hb.dot(cv) \
+                + drift(memory['lastt'])
+            chx = memory['lasthx'] + 1.5*curdt*currhs \
+                - .5*memory['lastdt']*memory['lastrhs']
+            memory.update(dict(lastt=t, lasthx=chx, lastrhs=currhs,
+                               lastdt=curdt))
+            hcchx = hc.dot(chx)
+            return hcchx, memory
