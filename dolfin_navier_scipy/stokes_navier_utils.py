@@ -548,7 +548,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               # output_includes_bcs=False,
               N=None, nu=None,
               ppin=-1,
-              closed_loop=False, static_feedback=False,
+              closed_loop=False,
+              static_feedback=False,
+              dynamic_feedback=False, dyn_fb_dict={},
               feedbackthroughdict=None,
               return_vp=False,
               tb_mat=None, cv_mat=None,
@@ -944,6 +946,13 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                       diricontfuncs=diricontfuncs,
                                       diricontfuncmems=diricontfuncmems,
                                       mode=mode)
+        if closed_loop:
+            if dynamic_feedback:
+                heunab_lti = get_heu(hb=None, ha=None, hc=None, inihx=None, drift=None):
+
+        else:
+            dynamic_rhs = None
+
 
         listofvstrings, listofpstrings = [], []
         expnlveldct = {}
