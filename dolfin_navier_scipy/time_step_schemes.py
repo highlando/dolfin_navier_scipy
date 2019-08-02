@@ -113,10 +113,18 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
     return v_new, p_new
 
 
-def get_cnab_linear_dynamic_fb(hb=None, ha=None, hc=None,
-                               inihx=None, drift=None):
-    """ realizes the Heun/AB2 discretization of a linear observer """
-    def cnab_dynamic_fb(t, cv=None, memory={}, mode='abtwo'):
+def get_heunab_lti(hb=None, ha=None, hc=None, inihx=None, drift=None):
+    """ realizes the Heun/AB2 discretization of a linear observer
+
+    ```
+    hx' = hA*hx + hb*y
+     u  = hc*hx
+    ```
+
+    e.g. with `hb=C*C` and `hc=BB*X` to get output based feedback actuation
+    """
+
+    def heunab_lti(t, cv=None, memory={}, mode='abtwo'):
         if mode == 'init':
             chx = inihx
             hcchx = hc.dot(chx)
