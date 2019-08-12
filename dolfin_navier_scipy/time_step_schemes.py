@@ -124,7 +124,7 @@ def get_heunab_lti(hb=None, ha=None, hc=None, inihx=None, drift=None):
     e.g. with `hb=C*C` and `hc=BB*X` to get output based feedback actuation
     """
 
-    def heunab_lti(t, cv=None, memory={}, mode='abtwo'):
+    def heunab_lti(t, vc=None, memory={}, mode='abtwo'):
         if mode == 'init':
             chx = inihx
             hcchx = hc.dot(chx)
@@ -134,14 +134,14 @@ def get_heunab_lti(hb=None, ha=None, hc=None, inihx=None, drift=None):
         if mode == 'heunpred' or mode == 'heuncorr':
             curdt = t - memory['lastt']
             if mode == 'heunpred':
-                currhs = ha.dot(inihx) + hb.dot(cv) + drift(memory['lastt'])
+                currhs = ha.dot(inihx) + hb.dot(vc) + drift(memory['lastt'])
                 chx = inihx + curdt*currhs
                 hcchx = hc.dot(chx)
                 memory.update(dict(lastrhs=currhs))
                 memory.update(dict(hphx=chx))
 
             elif mode == 'heuncorr':
-                currhs = ha.dot(memory['hphx']) + hb.dot(cv) + drift(t)
+                currhs = ha.dot(memory['hphx']) + hb.dot(vc) + drift(t)
                 chx = inihx + .5*curdt*(currhs + memory['lastrhs'])
                 hcchx = hc.dot(chx)
                 memory.update(dict(lastt=t, lasthx=chx, lastdt=curdt))
@@ -149,7 +149,7 @@ def get_heunab_lti(hb=None, ha=None, hc=None, inihx=None, drift=None):
 
         elif mode == 'abtwo':
             curdt = t - memory['lastt']
-            currhs = ha.dot(memory['lasthx']) + hb.dot(cv) \
+            currhs = ha.dot(memory['lasthx']) + hb.dot(vc) \
                 + drift(memory['lastt'])
             chx = memory['lasthx'] + 1.5*curdt*currhs \
                 - .5*memory['lastdt']*memory['lastrhs']
@@ -157,3 +157,5 @@ def get_heunab_lti(hb=None, ha=None, hc=None, inihx=None, drift=None):
                                lastdt=curdt))
             hcchx = hc.dot(chx)
             return hcchx, memory
+
+    return heunab_lti

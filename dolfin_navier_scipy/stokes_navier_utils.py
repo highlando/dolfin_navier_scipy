@@ -553,7 +553,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               dynamic_feedback=False, dyn_fb_dict={},
               feedbackthroughdict=None,
               return_vp=False,
-              tb_mat=None, cv_mat=None,
+              b_mat=None, cv_mat=None,
               vel_nwtn_stps=20, vel_nwtn_tol=5e-15,
               nsects=1, loc_nwtn_tol=5e-15, loc_pcrd_stps=True,
               addfullsweep=False,
@@ -666,6 +666,15 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     cv_mat: (Ny, Nv) sparse array, optional
         output matrix for velocity outputs, needed, e.g., for output dependent
         feedback control, defaults to `None`
+    dynamic_feedback: boolean
+        whether to apply dynamic feedback, defaults to `False`
+    dyn_fb_dict, dictionary
+        that defines the dynamic observer via the keys
+          * `ha` observer dynamic matrix
+          * `hb` observer input matrix
+          * `hc` observer output matrix
+          * `drift` observer drift term, e.g., for nonzero setpoints
+
 
     Returns
     -------
@@ -948,11 +957,21 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                       mode=mode)
         if closed_loop:
             if dynamic_feedback:
-                heunab_lti = get_heu(hb=None, ha=None, hc=None, inihx=None, drift=None):
+                from dolfin_navier_scipy.time_step_schemes \
+                    import get_heunab_lti
+                dfb = dyn_fb_dict
+                dyn_obs_fbk = get_heunab_lti(hb=dfb['hb'], ha=dfb['ha'],
+                                             hc=dfb['hc'], inihx=dfb['inihx'],
+                                             drift=dfb['drift'])
+
+                def dynamic_rhs(t, vc=None, memory={}, mode='abtwo'):
+                    cy = cv_mat.dot(vc)
+                    curu, memory = dyn_obs_fbk(t, vc=cy,
+                                               memory=memory, mode=mode)
+                    return b_mat.dot(curu), memory
 
         else:
             dynamic_rhs = None
-
 
         listofvstrings, listofpstrings = [], []
         expnlveldct = {}
@@ -983,6 +1002,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                             bcs_ini=inicdbcvals,
                             M=cmmat, A=camat, J=cj, nonlvfunc=nonlvfunc,
                             fv=rhsv, fp=rhsp, scalep=-1.,
+                            dynamic_rhs=dynamic_rhs,
                             getbcs=getbcs, applybcs=applybcs, appndbcs=_appbcs,
                             savevp=_svpplz)
 
@@ -1087,12 +1107,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     mtxtb_c = dou.load_npa(feedbackthroughdict[0]['mtxtb'])
                     w_c = dou.load_npa(feedbackthroughdict[0]['w'])
 
-                fvn_c = fvn_c + tb_mat * (tb_mat.T * w_c)
+                fvn_c = fvn_c + b_mat * (b_mat.T * w_c)
                 vmat_c = mtxtb_c.T
                 try:
-                    umat_c = np.array(tb_mat.todense())
+                    umat_c = np.array(b_mat.todense())
                 except AttributeError:
-                    umat_c = tb_mat
+                    umat_c = b_mat
 
             else:
                 vmat_c = None
@@ -1185,12 +1205,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                         mtxtb_n = dou.load_npa(feedbackthroughdict[t]['mtxtb'])
                         w_n = dou.load_npa(feedbackthroughdict[t]['w'])
 
-                    fvn_n = fvn_n + tb_mat * (tb_mat.T * w_n)
+                    fvn_n = fvn_n + b_mat * (b_mat.T * w_n)
                     vmat_n = mtxtb_n.T
                     try:
-                        umat_n = np.array(tb_mat.todense())
+                        umat_n = np.array(b_mat.todense())
                     except AttributeError:
-                        umat_n = tb_mat
+                        umat_n = b_mat
 
                 else:
                     vmat_n = None
