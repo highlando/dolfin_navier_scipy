@@ -58,7 +58,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
     savevp(appndbcs(tv_new, tbcs), tp_new, time=(trange[1], 'heunpred'))
 
     # Corrector Step
-    dfv_n, drm = dynamic_rhs(trange[1], vc=tv_new, memory=drm, mode='heunpred')
+    dfv_n, drm = dynamic_rhs(trange[1], vc=tv_new, memory=drm, mode='heuncorr')
     nfc_n = nonlvfunc(appndbcs(tv_new, tbcs))
     bcs_n = getbcs(trange[1], appndbcs(tv_new, tbcs), tp_new, mode='heuncorr')
     bfv_n, bfp_n, mbc_n = applybcs(bcs_n)
@@ -128,7 +128,7 @@ def get_heunab_lti(hb=None, ha=None, hc=None, inihx=None, drift=None):
         if mode == 'init':
             chx = inihx
             hcchx = hc.dot(chx)
-            memory.update(dict(lastt=t))
+            memory.update(dict(lastt=t, lasthx=inihx))
             return hcchx, memory
 
         if mode == 'heunpred' or mode == 'heuncorr':
@@ -139,6 +139,7 @@ def get_heunab_lti(hb=None, ha=None, hc=None, inihx=None, drift=None):
                 hcchx = hc.dot(chx)
                 memory.update(dict(lastrhs=currhs))
                 memory.update(dict(hphx=chx))
+                return hcchx, memory
 
             elif mode == 'heuncorr':
                 currhs = ha.dot(memory['hphx']) + hb.dot(vc) + drift(t)
