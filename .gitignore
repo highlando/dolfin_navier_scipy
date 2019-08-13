@@ -3,3 +3,6 @@ results/
 mesh/
 *.npy
 *.pyc
+
+md/
+html/
