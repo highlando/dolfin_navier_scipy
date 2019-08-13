@@ -569,8 +569,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               return_dictofvelstrs=False,
               return_dictofpstrs=False,
               dictkeysstr=False,
-              treat_nonl_explct=False,
-              no_data_caching=False, return_final_vp=False,
+              treat_nonl_explct=False, no_data_caching=True,
+              return_final_vp=False,
               return_as_list=False, return_vp_dict=False,
               verbose=True,
               start_ssstokes=False,
@@ -795,11 +795,18 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         for fname in glob.glob(cdatstr + '__p*'):
             os.remove(fname)
 
-    def _atdct(cdict, t, thing):
-        if dictkeysstr:
-            cdict.update({'{0}'.format(t): thing})
-        else:
-            cdict.update({t: thing})
+    if return_dictofvelstrs or return_dictofpstrs:
+        no_data_caching = False  # need to cache data if we want it
+
+    if return_dictofpstrs or return_dictofvelstrs:
+        def _atdct(cdict, t, thing):
+            if dictkeysstr:
+                cdict.update({'{0}'.format(t): thing})
+            else:
+                cdict.update({t: thing})
+    else:
+        def _atdct(cdict, t, thing):
+            pass
 
     def _gfdct(cdict, t):
         if dictkeysstr:
@@ -827,7 +834,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if treat_nonl_explct and no_data_caching:
         def _savevp(vvec, pvec, ccntrlldbcvals, cdatstr):
             pass
-
     else:
         def _savevp(vvec, pvec, ccntrlldbcvals, cdatstr):
             vpbc = _appbcs(vvec, ccntrlldbcvals)
@@ -973,30 +979,30 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         else:
             dynamic_rhs = None
 
-        listofvstrings, listofpstrings = [], []
         expnlveldct = {}
 
-        vp_dict = {}
+        if return_vp_dict:
+            vp_dict = {}
 
-        def _svpplz(vvec, pvec, time=None):
-            if return_vp_dict:
+            def _svpplz(vvec, pvec, time=None):
                 vp_dict.update({time: dict(p=pvec, v=vvec)})
+                prvoutdict.update(dict(vc=vvec, pc=pvec, t=time))
+                dou.output_paraview(**prvoutdict)
 
-            if no_data_caching and treat_nonl_explct:
-                pass
-            else:
+        elif no_data_caching and treat_nonl_explct:
+            def _svpplz(vvec, pvec, time=None):
+                prvoutdict.update(dict(vc=vvec, pc=pvec, t=time))
+                dou.output_paraview(**prvoutdict)
+
+        elif return_dictofvelstrs:
+            def _svpplz(vvec, pvec, time=None):
                 cfvstr = data_prfx + '_prs_t{0}'.format(time)
                 cfpstr = data_prfx + '_vel_t{0}'.format(time)
                 dou.save_npa(pvec, fstring=cfpstr)
                 dou.save_npa(vvec, fstring=cfvstr)
-                listofvstrings.append(cfvstr)
-                listofpstrings.append(cfpstr)
                 _atdct(expnlveldct, time, cfvstr)
-            if paraviewoutput:
                 prvoutdict.update(dict(vc=vvec, pc=pvec, t=time))
                 dou.output_paraview(**prvoutdict)
-            else:
-                pass
 
         v_end, p_end = cnab(trange=trange, inivel=iniv, inip=inip,
                             bcs_ini=inicdbcvals,
@@ -1006,29 +1012,13 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                             getbcs=getbcs, applybcs=applybcs, appndbcs=_appbcs,
                             savevp=_svpplz)
 
-        # vplus = v_end[invinds]
-        # pplus = p_end
-        # vcur = _appbcs(iniv, inicdbcvals)
-
-        # _, convvec, _ = \
-        #     get_v_conv_conts(vvec=vcur, V=V,
-        #                      invinds=invinds, semi_explicit=True)
-        # print(np.linalg.norm(convvec), convvec[0])
-        # print(convvec.size)
-
-        # vcur = vcur[invinds]
-        # dt = trange[1] - trange[0]
-        # res = M*(vplus-vcur) + .5*dt*A*(vplus+vcur) - dt*convvec \
-        #     + J.T*pplus - dt*fv
-        # print(np.linalg.norm(res[locinvinds]))
-
-        # import ipdb; ipdb.set_trace()
-
         if treat_nonl_explct:
             if return_vp_dict:
                 return vp_dict
             elif return_final_vp:
                 return (v_end, p_end)
+            elif return_dictofvelstrs:
+                return expnlveldct
             else:
                 return
 
