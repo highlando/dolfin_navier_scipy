@@ -180,9 +180,8 @@ def _comp_cntrl_bcvals(diricontbcvals=[], diricontfuncs=[], mode=None,
     return cntrlldbcvals
 
 
-def _upd_stffnss_rhs(loccntbcinds=None, cntrlldbcvals=None,
-                     vvec=None,
-                     A=None, J=None, fv=None, fp=None, **kw):
+def _cntrl_stffnss_rhs(loccntbcinds=None, cntrlldbcvals=None,
+                       vvec=None, A=None, J=None, **kw):
 
     if vvec is not None:
         ccfv = dts.condense_velmatsbybcs(A, invinds=loccntbcinds,
@@ -190,13 +189,12 @@ def _upd_stffnss_rhs(loccntbcinds=None, cntrlldbcvals=None,
         ccfp = dts.condense_velmatsbybcs(J, invinds=loccntbcinds,
                                          vwithbcs=vvec, get_rhs_only=True,
                                          columnsonly=True)
-        return fv[loccntbcinds, :]+ccfv, fp+ccfp
+        return ccfv, ccfp
 
     crhsdct = dts.condense_sysmatsbybcs(dict(A=A, J=J),
                                         dbcvals=cntrlldbcvals,
                                         dbcinds=loccntbcinds,
-                                        rhsdict=dict(fv=fv, fp=fp),
-                                        mergerhs=True, get_rhs_only=True)
+                                        get_rhs_only=True)
     return crhsdct['fv'], crhsdct['fp']
 
 
@@ -374,8 +372,10 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         cjt = JT[locdbcntinvinds, :]
         cj = J[:, locdbcntinvinds]
         cnv = cmmat.shape[0]
+        cfp = fp
+        cfv = fv[locdbcntinvinds]
 
-    cntrlmatrhsdict = {'A': A, 'J': J, 'fv': fv, 'fp': fp,
+    cntrlmatrhsdict = {'A': A, 'J': J,  # 'fv': fv, 'fp': fp,
                        'loccntbcinds': loccntbcinds,
                        'diricontbcvals': diricontbcvals,
                        'diricontfuncs': diricontfuncs,
@@ -391,11 +391,11 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         cdbcvals_c = _comp_cntrl_bcvals(time=None, vel=None, p=None,
                                         mode='init',
                                         **cntrlmatrhsdict)
-        cfv, cfp = _upd_stffnss_rhs(cntrlldbcvals=cdbcvals_c,
-                                    **cntrlmatrhsdict)
+        ccfv, ccfp = _cntrl_stffnss_rhs(cntrlldbcvals=cdbcvals_c,
+                                        **cntrlmatrhsdict)
 
         vp_stokes = lau.solve_sadpnt_smw(amat=camat, jmat=cj, jmatT=cjt,
-                                         rhsv=cfv, rhsp=cfp)
+                                         rhsv=cfv+ccfv, rhsp=cfp+ccfp)
         vp_stokes[cnv:] = -vp_stokes[cnv:]
         # pressure was flipped for symmetry
 
@@ -534,9 +534,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
 def solve_nse(A=None, M=None, J=None, JT=None,
               fv=None, fp=None,
-              fvc=None, fpc=None,  # TODO: this is to catch deprecated calls
-              fv_tmdp=None, fv_tmdp_params={},
-              fv_tmdp_memory=None,
+              fvtd=None,
+              # TODO: fv_tmdp=None, fv_tmdp_params={}, fv_tmdp_memory=None,
               iniv=None, inip=None, lin_vel_point=None,
               stokes_flow=False,
               trange=None,
@@ -545,7 +544,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               dbcinds=None, dbcvals=None,
               diricontbcinds=None, diricontbcvals=None,
               diricontfuncs=None, diricontfuncmems=None,
-              # output_includes_bcs=False,
               N=None, nu=None,
               ppin=-1,
               closed_loop=False,
@@ -579,8 +577,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     solution of the time-dependent nonlinear Navier-Stokes equation
 
     .. math::
-        M\\dot v + Av + N(v)v + J^Tp = f \n
-        Jv =g
+        M\\dot v + Av + N(v)v + J^Tp = f_v \n
+        Jv = f_p
 
     using a Newton scheme in function space, i.e. given :math:`v_k`,
     we solve for the update like
@@ -605,6 +603,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     dictkeysstr : boolean, optional
         whether the `keys` of the result dictionaries are strings instead \
         of floats, defaults to `False`
+    fvtmdp : callable f(t), optional
+        time dependend right hand side in momentum equation
     fv_tmdp : callable f(t, v, dict), optional
         time-dependent part of the right-hand side, set to zero if None
     fv_tmdp_params : dictionary, optional
@@ -690,9 +690,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     """
     import sadptprj_riclyap_adi.lin_alg_utils as lau
 
-    if fvc is not None or fpc is not None:  # TODO: this is for catching calls
-        raise UserWarning('deprecated use of `rhsd_vfrc`, use only `fv`, `fp`')
-
     if get_datastring is None:
         get_datastring = get_datastr_snu
 
@@ -734,6 +731,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     fv = np.zeros((cnv, 1)) if fv is None else fv
     fp = np.zeros((NP, 1)) if fp is None else fp
 
+    if fvtd is None:
+        def fvtd(t):
+            return 0.
+
     prvoutdict = dict(V=V, Q=Q, vp=None, t=None,
                       dbcinds=[dbcinds, glbcntbcinds],
                       dbcvals=[dbcvals],
@@ -745,9 +746,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     #     gpfvd = dict(V=V, M=M, A=A, J=J, fv=fv, fp=fp,
     #                  dbcinds=dbcinds, dbcvals=dbcvals, invinds=invinds)
 
-    if fv_tmdp is None:
-        def fv_tmdp(time=None, curvel=None, **kw):
-            return np.zeros((cnv, 1)), None
+    # if fv_tmdp is None:
+    #     def fv_tmdp(time=None, curvel=None, **kw):
+    #         return np.zeros((cnv, 1)), None
 
 # ----- #
 # chap: # the initial value
@@ -1080,14 +1081,14 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                      dbcvals=[dbcvals, cdbcvals_c],
                                      Picard=pcrd_anyone)
 
-            cury = None if cv_mat is None else cv_mat.dot(v_old)
-            (fv_tmdp_cont,
-             fv_tmdp_memory) = fv_tmdp(time=0, curvel=v_old, cury=cury,
-                                       memory=fv_tmdp_memory,
-                                       **fv_tmdp_params)
+            # cury = None if cv_mat is None else cv_mat.dot(v_old)
+            # (fv_tmdp_cont,
+            #  fv_tmdp_memory) = fv_tmdp(time=0, curvel=v_old, cury=cury,
+            #                            memory=fv_tmdp_memory,
+            #                            **fv_tmdp_params)
 
             _rhsconvc = 0. if pcrd_anyone else rhs_con_c
-            fvn_c = cfv_c + rhsv_conbc_c + _rhsconvc + fv_tmdp_cont
+            fvn_c = cfv_c + rhsv_conbc_c + _rhsconvc  # + fv_tmdp_cont
 
             if closed_loop:
                 if static_feedback:
@@ -1172,16 +1173,16 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                      dbcvals=[dbcvals, cdbcvals_n],
                                      Picard=pcrd_anyone)
 
-                cury = None if cv_mat is None else cv_mat.dot(prev_v)
-                (fv_tmdp_cont,
-                 fv_tmdp_memory) = fv_tmdp(time=t,
-                                           curvel=prev_v,
-                                           cury=cury,
-                                           memory=fv_tmdp_memory,
-                                           **fv_tmdp_params)
+                # cury = None if cv_mat is None else cv_mat.dot(prev_v)
+                # (fv_tmdp_cont,
+                #  fv_tmdp_memory) = fv_tmdp(time=t,
+                #                            curvel=prev_v,
+                #                            cury=cury,
+                #                            memory=fv_tmdp_memory,
+                #                            **fv_tmdp_params)
 
                 _rhsconvn = 0. if pcrd_anyone else rhs_con_n
-                fvn_n = cfv_n + rhsv_conbc_n + _rhsconvn + fv_tmdp_cont
+                fvn_n = cfv_n + rhsv_conbc_n + _rhsconvn  # + fv_tmdp_cont
 
                 if closed_loop:
                     if static_feedback:
