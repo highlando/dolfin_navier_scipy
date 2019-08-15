@@ -27,8 +27,9 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
     zerorhs = np.zeros((NV, 1))
 
     if dynamic_rhs is None:
-        def dynamic_rhs(t, cv=None, memory={}):
+        def dynamic_rhs(t, vc=None, memory={}, mode=None):
             return zerorhs, memory
+
     drm = dynamic_rhs_memory
 
     savevp(appndbcs(inivel, bcs_ini), inip, time=trange[0])

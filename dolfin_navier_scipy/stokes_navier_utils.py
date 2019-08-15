@@ -434,8 +434,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         cdbcvals_n = _comp_cntrl_bcvals(vel=_appbcs(vel_k, cdbcvals_c),
                                         p=p_k, **cntrlmatrhsdict)
 
-        cfv_n, cfp_n = _upd_stffnss_rhs(cntrlldbcvals=cdbcvals_n,
-                                        **cntrlmatrhsdict)
+        ccfv_n, ccfp_n = _cntrl_stffnss_rhs(cntrlldbcvals=cdbcvals_n,
+                                            **cntrlmatrhsdict)
 
         # use the old v-bcs to compute the convection
         # TODO: actually we only need Picard -- do some fine graining in dts
@@ -449,7 +449,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                                   dbcvals=[dbcvals, cdbcvals_n])
 
         vp_k = lau.solve_sadpnt_smw(amat=camat+pcrdcnvmat, jmat=cj, jmatT=cjt,
-                                    rhsv=cfv_n+rhsv_conbc, rhsp=cfp_n)
+                                    rhsv=cfv+ccfv_n+rhsv_conbc,
+                                    rhsp=cfp+ccfp_n)
 
         normpicupd = np.sqrt(m_innerproduct(cmmat, vel_k-vp_k[:cnv, ]))[0]
 
@@ -473,8 +474,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         cdbcvals_n = _comp_cntrl_bcvals(vel=_appbcs(vel_k, cdbcvals_c),
                                         p=p_k, **cntrlmatrhsdict)
 
-        cfv_n, cfp_n = _upd_stffnss_rhs(cntrlldbcvals=cdbcvals_n,
-                                        **cntrlmatrhsdict)
+        ccfv_n, ccfp_n = _cntrl_stffnss_rhs(cntrlldbcvals=cdbcvals_n,
+                                            **cntrlmatrhsdict)
         (convc_mat, rhs_con, rhsv_conbc) = \
             get_v_conv_conts(vvec=_appbcs(vel_k, cdbcvals_c), V=V,
                              invinds=dbcntinvinds,
@@ -482,8 +483,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                              dbcvals=[dbcvals, cdbcvals_n])
 
         vp_k = lau.solve_sadpnt_smw(amat=camat+convc_mat, jmat=cj, jmatT=cjt,
-                                    rhsv=cfv_n+rhs_con+rhsv_conbc,
-                                    rhsp=cfp_n)
+                                    rhsv=cfv+ccfv_n+rhs_con+rhsv_conbc,
+                                    rhsp=cfp+ccfp_n)
 
         norm_nwtnupd = np.sqrt(m_innerproduct(cmmat, vel_k - vp_k[:cnv, :]))[0]
         vel_k = vp_k[:cnv, ]
@@ -603,7 +604,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     dictkeysstr : boolean, optional
         whether the `keys` of the result dictionaries are strings instead \
         of floats, defaults to `False`
-    fvtmdp : callable f(t), optional
+    fvtd : callable f(t), optional
         time dependend right hand side in momentum equation
     fv_tmdp : callable f(t, v, dict), optional
         time-dependent part of the right-hand side, set to zero if None
@@ -718,8 +719,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     camat = A[locinvinds, :][:, locinvinds]
     cjt = JT[locinvinds, :]
     cj = J[:, locinvinds]
+    cfv = fv[locinvinds]
+    cfp = fp
 
-    cntrlmatrhsdict = {'A': A, 'J': J, 'fv': fv, 'fp': fp,
+    cntrlmatrhsdict = {'A': A, 'J': J,
                        'loccntbcinds': loccntbcinds,
                        'diricontbcvals': diricontbcvals,
                        'diricontfuncs': diricontfuncs,
@@ -758,27 +761,28 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         if start_ssstokes:
             inicdbcvals = _comp_cntrl_bcvals(time=trange[0], vel=None, p=None,
                                              mode='init', **cntrlmatrhsdict)
-            cfv, cfp = _upd_stffnss_rhs(cntrlldbcvals=inicdbcvals,
-                                        **cntrlmatrhsdict)
+            ccfv, ccfp = _cntrl_stffnss_rhs(cntrlldbcvals=inicdbcvals,
+                                            **cntrlmatrhsdict)
             # Stokes solution as starting value
             vp_stokes =\
                 lau.solve_sadpnt_smw(amat=camat, jmat=cj, jmatT=cjt,
-                                     rhsv=cfv,  # + fv_tmdp_cont,
+                                     rhsv=cfv+ccfv,  # + fv_tmdp_cont,
                                      krylov=krylov, krpslvprms=krpslvprms,
-                                     krplsprms=krplsprms, rhsp=cfp)
+                                     krplsprms=krplsprms, rhsp=cfp+ccfp)
             iniv = vp_stokes[:cnv]
         else:
             raise ValueError('No initial value given')
     else:
         inicdbcvals = (iniv[glbcntbcinds].flatten()).tolist()
         iniv = iniv[dbcntinvinds]
-        cfv, cfp = _upd_stffnss_rhs(cntrlldbcvals=inicdbcvals,
-                                    **cntrlmatrhsdict)
+        ccfv, ccfp = _cntrl_stffnss_rhs(cntrlldbcvals=inicdbcvals,
+                                        **cntrlmatrhsdict)
         # initialization
         _comp_cntrl_bcvals(time=trange[0], vel=iniv, p=inip,
                            mode='init', **cntrlmatrhsdict)
     if inip is None:
-        inip = get_pfromv(v=iniv, V=V, M=cmmat, A=cmmat, J=cj, fv=cfv, fp=cfp,
+        inip = get_pfromv(v=iniv, V=V, M=cmmat, A=cmmat, J=cj,
+                          fv=cfv+ccfv, fp=cfp+ccfp,
                           dbcinds=[dbcinds, glbcntbcinds],
                           dbcvals=[dbcvals, inicdbcvals], invinds=dbcntinvinds)
 
@@ -1034,8 +1038,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                   format(loctrng[0], loctrng[-1]))
             v_old = iniv  # start vector for time integration in every Newtonit
             p_old = inip
-            cfv_c, cfp_c = _upd_stffnss_rhs(cntrlldbcvals=cdbcvals_c,
-                                            **cntrlmatrhsdict)
+            ccfv_c, ccfp_c = _cntrl_stffnss_rhs(cntrlldbcvals=cdbcvals_c,
+                                                **cntrlmatrhsdict)
 
             if vel_pcrd_stps > 0:
                 vel_pcrd_stps -= 1
@@ -1088,7 +1092,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             #                            **fv_tmdp_params)
 
             _rhsconvc = 0. if pcrd_anyone else rhs_con_c
-            fvn_c = cfv_c + rhsv_conbc_c + _rhsconvc  # + fv_tmdp_cont
+            fvn_c = cfv + ccfv_c + rhsv_conbc_c + _rhsconvc  # + fv_tmdp_cont
 
             if closed_loop:
                 if static_feedback:
@@ -1159,8 +1163,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
                 cdbcvals_n = _comp_cntrl_bcvals(vel=prev_v, p=prev_p, time=t,
                                                 **cntrlmatrhsdict)
-                cfv_n, cfp_n = _upd_stffnss_rhs(cntrlldbcvals=cdbcvals_n,
-                                                **cntrlmatrhsdict)
+                ccfv_n, ccfp_n = _cntrl_stffnss_rhs(cntrlldbcvals=cdbcvals_n,
+                                                    **cntrlmatrhsdict)
                 mbcs_n = dts.condense_velmatsbybcs(M, invinds=locinvinds,
                                                    dbcinds=loccntbcinds,
                                                    dbcvals=cdbcvals_n,
@@ -1182,7 +1186,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 #                            **fv_tmdp_params)
 
                 _rhsconvn = 0. if pcrd_anyone else rhs_con_n
-                fvn_n = cfv_n + rhsv_conbc_n + _rhsconvn  # + fv_tmdp_cont
+                fvn_n = cfv + ccfv_n + rhsv_conbc_n + _rhsconvn  # + fv_tmdp
 
                 if closed_loop:
                     if static_feedback:
@@ -1231,7 +1235,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 vp_new = lau.solve_sadpnt_smw(amat=solvmat,
                                               jmat=cj, jmatT=cjt,
                                               rhsv=rhsv,
-                                              rhsp=fp,
+                                              rhsp=cfp+ccfp_n,
                                               krylov=krylov,
                                               krpslvprms=krpslvprms,
                                               krplsprms=krplsprms,
