@@ -535,7 +535,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
 def solve_nse(A=None, M=None, J=None, JT=None,
               fv=None, fp=None,
-              fvtd=None,
+              fvtd=None, fvss=0.,
               # TODO: fv_tmdp=None, fv_tmdp_params={}, fv_tmdp_memory=None,
               iniv=None, inip=None, lin_vel_point=None,
               stokes_flow=False,
@@ -606,6 +606,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         of floats, defaults to `False`
     fvtd : callable f(t), optional
         time dependend right hand side in momentum equation
+    fvss : array, optional
+        right hand side in momentum for steady state computation
     fv_tmdp : callable f(t, v, dict), optional
         time-dependent part of the right-hand side, set to zero if None
     fv_tmdp_params : dictionary, optional
@@ -734,10 +736,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     fv = np.zeros((cnv, 1)) if fv is None else fv
     fp = np.zeros((NP, 1)) if fp is None else fp
 
-    if fvtd is None:
-        def fvtd(t):
-            return 0.
-
     prvoutdict = dict(V=V, Q=Q, vp=None, t=None,
                       dbcinds=[dbcinds, glbcntbcinds],
                       dbcvals=[dbcvals],
@@ -759,14 +757,14 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     if iniv is None:
         if start_ssstokes:
-            inicdbcvals = _comp_cntrl_bcvals(time=trange[0], vel=None, p=None,
-                                             mode='init', **cntrlmatrhsdict)
+            inicdbcvals = _comp_cntrl_bcvals(time=None, vel=None, p=None,
+                                             mode='stst', **cntrlmatrhsdict)
             ccfv, ccfp = _cntrl_stffnss_rhs(cntrlldbcvals=inicdbcvals,
                                             **cntrlmatrhsdict)
             # Stokes solution as starting value
             vp_stokes =\
                 lau.solve_sadpnt_smw(amat=camat, jmat=cj, jmatT=cjt,
-                                     rhsv=cfv+ccfv,  # + fv_tmdp_cont,
+                                     rhsv=cfv+ccfv+fvss,
                                      krylov=krylov, krpslvprms=krpslvprms,
                                      krplsprms=krplsprms, rhsp=cfp+ccfp)
             iniv = vp_stokes[:cnv]
@@ -777,12 +775,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         iniv = iniv[dbcntinvinds]
         ccfv, ccfp = _cntrl_stffnss_rhs(cntrlldbcvals=inicdbcvals,
                                         **cntrlmatrhsdict)
-        # initialization
-        _comp_cntrl_bcvals(time=trange[0], vel=iniv, p=inip,
-                           mode='init', **cntrlmatrhsdict)
+        # # initialization
+        # _comp_cntrl_bcvals(time=trange[0], vel=iniv, p=inip,
+        #                    mode='init', **cntrlmatrhsdict)
     if inip is None:
         inip = get_pfromv(v=iniv, V=V, M=cmmat, A=cmmat, J=cj,
-                          fv=cfv+ccfv, fp=cfp+ccfp,
+                          fv=cfv+ccfv+fvss, fp=cfp+ccfp,
                           dbcinds=[dbcinds, glbcntbcinds],
                           dbcvals=[dbcvals, inicdbcvals], invinds=dbcntinvinds)
 
@@ -932,13 +930,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         from dolfin_navier_scipy.time_step_schemes import cnab
 
         if loccntbcinds == []:
-            fvin = fv
-
             def applybcs(bcs_n):
                 return 0., 0., 0.
 
         else:
-            fvin = fv[locinvinds, :]
             NV = J.shape[1]
             cauxvec = np.zeros((NV, 1))
 
@@ -948,8 +943,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                         -(J.dot(cauxvec)),
                         (M.dot(cauxvec))[locinvinds, :])
 
-        def rhsv(t):
-            return fvin
+        if fvtd is None:
+            def rhsv(t):
+                return cfv
+        else:
+            def rhsv(t):
+                return cfv + fvtd(t)
 
         def rhsp(t):
             return fp
