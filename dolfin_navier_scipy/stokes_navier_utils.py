@@ -548,7 +548,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               N=None, nu=None,
               ppin=-1,
               closed_loop=False,
-              static_feedback=False,
+              static_feedback=False, stat_fb_dict={},
               dynamic_feedback=False, dyn_fb_dict={},
               feedbackthroughdict=None,
               return_vp=False,
@@ -979,6 +979,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     curu, memory = dyn_obs_fbk(t, vc=cy,
                                                memory=memory, mode=mode)
                     return b_mat.dot(curu), memory
+            elif static_feedback:
+                pass
 
         else:
             dynamic_rhs = None
@@ -1010,8 +1012,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
         v_end, p_end = cnab(trange=trange, inivel=iniv, inip=inip,
                             bcs_ini=inicdbcvals,
-                            M=cmmat, A=camat, J=cj, nonlvfunc=nonlvfunc,
-                            fv=rhsv, fp=rhsp, scalep=-1.,
+                            M=cmmat, A=camat, J=cj, scalep=-1.,
+                            f_vdp=nonlvfunc,
+                            f_tdp=rhsv, g_tdp=rhsp,
                             dynamic_rhs=dynamic_rhs,
                             getbcs=getbcs, applybcs=applybcs, appndbcs=_appbcs,
                             savevp=_svpplz)

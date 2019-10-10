@@ -7,8 +7,10 @@ import sadptprj_riclyap_adi.lin_alg_utils as lau
 
 
 def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
-         M=None, A=None, J=None, nonlvfunc=None,
-         fv=None, fp=None, scalep=-1.,
+         M=None, A=None, J=None,
+         f_vdp=None,
+         f_tdp=None, g_tdp=None,
+         scalep=-1.,
          getbcs=None, applybcs=None, appndbcs=None,
          savevp=None, dynamic_rhs=None, dynamic_rhs_memory={},
          ntimeslices=10, verbose=True):
@@ -36,14 +38,14 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
 
     bcs_c = bcs_ini  # getbcs(trange[0], inivel, inip)
     bfv_c, bfp_c, mbc_c = applybcs(bcs_c)
-    fv_c = fv(trange[0])
-    nfc_c = nonlvfunc(appndbcs(inivel, bcs_ini))
+    fv_c = f_tdp(trange[0])
+    nfc_c = f_vdp(appndbcs(inivel, bcs_ini))
     dfv_c, drm = dynamic_rhs(trange[0], vc=inivel, memory=drm, mode='init')
     tdfv, drm = dynamic_rhs(trange[0], vc=inivel, memory=drm, mode='heunpred')
 
     tbcs = getbcs(trange[1], appndbcs(inivel, bcs_ini), inip, mode='heunpred')
     tbfv, tbfp, tmbc = applybcs(tbcs)
-    fv_n, fp_n = fv(trange[1]), fp(trange[1])
+    fv_n, fp_n = f_tdp(trange[1]), g_tdp(trange[1])
 
     # Predictor Step -- CN + explicit Euler
     tfv = M*inivel - .5*dt*A*inivel + .5*dt*(fv_c+fv_n + tbfv+bfv_c + tdfv+dfv_c) \
@@ -60,7 +62,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
 
     # Corrector Step
     dfv_n, drm = dynamic_rhs(trange[1], vc=tv_new, memory=drm, mode='heuncorr')
-    nfc_n = nonlvfunc(appndbcs(tv_new, tbcs))
+    nfc_n = f_vdp(appndbcs(tv_new, tbcs))
     bcs_n = getbcs(trange[1], appndbcs(tv_new, tbcs), tp_new, mode='heuncorr')
     bfv_n, bfp_n, mbc_n = applybcs(bcs_n)
     rhs_n = M*inivel - .5*dt*A*inivel - (mbc_n-mbc_c) +\
@@ -92,12 +94,12 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
             dfv_c = dfv_n
 
             nfc_o = nfc_c
-            nfc_c = nonlvfunc(appndbcs(v_old, bcs_c))
+            nfc_c = f_vdp(appndbcs(v_old, bcs_c))
 
             bcs_n = getbcs(ctime, appndbcs(v_old, bcs_c), p_old, mode='abtwo')
             bfv_n, bfp_n, mbc_n = applybcs(bcs_n)
-            fv_n, fp_n = fv(ctime), fp(ctime)
-            dfv_n, drm = dynamic_rhs(trange[1], vc=v_old, memory=drm,
+            fv_n, fp_n = f_tdp(ctime), g_tdp(ctime)
+            dfv_n, drm = dynamic_rhs(ctime, vc=v_old, memory=drm,
                                      mode='abtwo')
 
             rhs_n = M*v_old - .5*dt*A*v_old + 1.5*dt*nfc_c-.5*dt*nfc_o \

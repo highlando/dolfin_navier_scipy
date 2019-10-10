@@ -4,11 +4,6 @@ import scipy.sparse as sps
 
 from dolfin import dx, grad, div, inner
 
-# try:
-#     dolfin.parameters.linear_algebra_backend = "Eigen"
-# except RuntimeError:
-#     dolfin.parameters.linear_algebra_backend = "uBLAS"
-
 __all__ = ['ass_convmat_asmatquad',
            'unroll_dlfn_dbcs',
            'get_stokessysmats',
