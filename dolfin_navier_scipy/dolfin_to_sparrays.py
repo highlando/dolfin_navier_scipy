@@ -14,6 +14,7 @@ __all__ = ['ass_convmat_asmatquad',
            'condense_sysmatsbybcs',
            'condense_velmatsbybcs',
            'expand_vp_dolfunc',
+           'expand_dolfunc',
            'expand_vecnbc_dolfunc',
            'append_bcs_vec',
            'mat_dolfin2sparse']
@@ -810,3 +811,12 @@ def get_dof_coors(V, invinds=None):
     coors = np.vstack([xcoors, ycoors]).T
 
     return coors, xinds, yinds, coorfunvec
+
+
+def expand_dolfunc(vinner, bcinds=None, bcvals=None, ininds=None, V=None):
+    v = dolfin.Function(V)
+    ve = np.zeros((V.dim(), 1))
+    ve[ininds, ] = vinner
+    ve[bcinds, 0] = bcvals
+    v.vector().set_local(ve)
+    return v
