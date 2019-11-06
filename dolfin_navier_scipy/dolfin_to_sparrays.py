@@ -160,7 +160,8 @@ def ass_convmat_asmatquad(W=None, invindsw=None):
 
 
 def get_stokessysmats(V, Q, nu=None, bccontrol=False, gradvsymmtrc=True,
-                      outflowds=None, cbclist=None, cbshapefuns=None):
+                      outflowds=None,
+                      cbclist=None, cbds=None, cbshapefuns=None):
     """ Assembles the system matrices for Stokes equation
 
     in mixed FEM formulation, namely
@@ -271,25 +272,31 @@ def get_stokessysmats(V, Q, nu=None, bccontrol=False, gradvsymmtrc=True,
     if bccontrol:
         amatrobl, bmatrobl = [], []
         mesh = V.mesh()
-        for bc, bcfun in zip(cbclist, cbshapefuns):
+        for ncb, bcfun in enumerate(cbshapefuns):
             # get an instance of the subdomain class
-            Gamma = bc()
+            try:
+                bc = cbclist[ncb]
+                Gamma = bc()
 
-            # bparts = dolfin.MeshFunction('size_t', mesh,
-            #                              mesh.topology().dim() - 1)
+                # bparts = dolfin.MeshFunction('size_t', mesh,
+                #                              mesh.topology().dim() - 1)
 
-            boundaries = dolfin.MeshFunction("size_t", mesh,
-                                             mesh.topology().dim()-1)
-            boundaries.set_all(0)
-            Gamma.mark(boundaries, 1)
+                boundaries = dolfin.MeshFunction("size_t", mesh,
+                                                 mesh.topology().dim()-1)
+                boundaries.set_all(0)
+                Gamma.mark(boundaries, 1)
 
-            ds = dolfin.Measure('ds', domain=mesh, subdomain_data=boundaries)
+                ds = dolfin.Measure('ds', domain=mesh,
+                                    subdomain_data=boundaries)
+                cds = ds(1)
+            except TypeError:
+                cds = cbds[ncb]
 
             # Gamma.mark(bparts, 0)
 
             # Robin boundary form
-            arob = dolfin.inner(u, v) * ds(1)  # , subdomain_data=bparts)
-            brob = dolfin.inner(v, bcfun) * ds(1)  # , subdomain_data=bparts)
+            arob = dolfin.inner(u, v) * cds  # , subdomain_data=bparts)
+            brob = dolfin.inner(v, bcfun) * cds  # , subdomain_data=bparts)
 
             amatrob = dolfin.assemble(arob)  # , exterior_facet_domains=bparts)
             bmatrob = dolfin.assemble(brob)  # , exterior_facet_domains=bparts)
