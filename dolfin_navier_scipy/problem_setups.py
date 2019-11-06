@@ -826,17 +826,20 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
 
     mvwdbcs = []
     mvwtvs = []
-    for cntbc in cntbcsdata['moving walls']:
-        center = np.array(cntbc['geometry']['center'])
-        radius = cntbc['geometry']['radius']
-        if cntbc['type'] == 'circle':
-            omega = 1. if movingwallcntrl else 0.
-            rotcyl = RotatingCircle(degree=2, radius=radius,
-                                    xcenter=center, omega=omega)
-        else:
-            raise NotImplementedError()
-        mvwdbcs.append(dolfin.DirichletBC(V, rotcyl, boundaries,
-                                          cntbc['physical entity']))
+    try:
+        for cntbc in cntbcsdata['moving walls']:
+            center = np.array(cntbc['geometry']['center'])
+            radius = cntbc['geometry']['radius']
+            if cntbc['type'] == 'circle':
+                omega = 1. if movingwallcntrl else 0.
+                rotcyl = RotatingCircle(degree=2, radius=radius,
+                                        xcenter=center, omega=omega)
+            else:
+                raise NotImplementedError()
+            mvwdbcs.append(dolfin.DirichletBC(V, rotcyl, boundaries,
+                                              cntbc['physical entity']))
+    except KeyError:
+        pass  # no moving walls defined
     if not movingwallcntrl:
         diribcu.extend(mvwdbcs)  # add the moving walls to the diri bcs
         mvwdbcs = []
