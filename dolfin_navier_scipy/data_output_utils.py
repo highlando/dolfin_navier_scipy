@@ -16,12 +16,13 @@ def output_paraview(V=None, Q=None, VS=None, fstring='nn',
                     dbcinds=None, dbcvals=None,
                     vp=None, vc=None, pc=None, sc=None,
                     sname='nn',
-                    ppin=-1, t=None, tfilter=None, writeoutput=True,
+                    ppin=None, t=None, tfilter=None, writeoutput=True,
                     vfile=None, pfile=None, sfile=None):
     """write the paraview output for a solution `(v,p)` or a scalar `s`
 
     given as coefficients
     """
+
     if not writeoutput:
         return
     else:
@@ -45,6 +46,11 @@ def output_paraview(V=None, Q=None, VS=None, fstring='nn',
                                  diribcs=diribcs)
 
         v.rename('v', 'velocity')
+        # import matplotlib.pyplot as plt
+        # dolfin.plot(v)
+        # plt.show()
+        # dolfin.plot(p)
+        # plt.show()
         if vfile is None:
             vfile = dolfin.File(fstring+'_vel.pvd')
         vfile << v, t

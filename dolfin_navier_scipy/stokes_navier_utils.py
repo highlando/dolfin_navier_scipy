@@ -212,7 +212,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           dbcvals=None, dbcinds=None,
                           diricontbcinds=None, diricontbcvals=None,
                           diricontfuncs=None, diricontfuncmems=None,
-                          return_vp=False, ppin=-1,
+                          return_vp=False, ppin=None,
                           return_nwtnupd_norms=False,
                           N=None, nu=None,
                           vel_pcrd_stps=10, vel_pcrd_tol=1e-4,
@@ -249,7 +249,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         right hand sides restricted via removing the boundary nodes in the
         momentum and the pressure freedom in the continuity equation
     ppin : {int, None}, optional
-        which dof of `p` is used to pin the pressure, defaults to `-1`
+        which dof of `p` is used to pin the pressure, defaults to `None`
     dbcinds: list, optional
         indices of the Dirichlet boundary conditions
     dbcvals: list, optional
@@ -546,7 +546,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               diricontbcinds=None, diricontbcvals=None,
               diricontfuncs=None, diricontfuncmems=None,
               N=None, nu=None,
-              ppin=-1,
+              ppin=None,
               closed_loop=False,
               static_feedback=False, stat_fb_dict={},
               dynamic_feedback=False, dyn_fb_dict={},
@@ -644,7 +644,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
           * preconditioner
 
     ppin : {int, None}, optional
-        which dof of `p` is used to pin the pressure, defaults to `-1`
+        which dof of `p` is used to pin the pressure, defaults to `None`
     stokes_flow : boolean, optional
         whether to consider the Stokes linearization, defaults to `False`
     start_ssstokes : boolean, optional

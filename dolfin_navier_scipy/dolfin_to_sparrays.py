@@ -615,7 +615,7 @@ def condense_velmatsbybcs(A, velbcs=None, return_bcinfo=False,
 def expand_vp_dolfunc(V=None, Q=None, invinds=None,
                       dbcinds=[], dbcvals=None,
                       diribcs=None, zerodiribcs=False,
-                      vp=None, vc=None, pc=None, ppin=-1, **kwargs):
+                      vp=None, vc=None, pc=None, ppin=None, **kwargs):
     """expand v [and p] to the dolfin function representation
 
     Parameters
@@ -642,7 +642,7 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None,
     pc : (M,1) array, optional
         solution vector of pressure
     ppin : {int, None}, optional
-        which dof of `p` is used to pin the pressure, defaults to `-1`
+        which dof of `p` is used to pin the pressure, defaults to `None`
 
     Returns
     -------

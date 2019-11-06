@@ -901,7 +901,7 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
     except KeyError:
         outflowds = None  # no domain specified for outflow
 
-    cylfems = dict(V=V,
+    gbcfems = dict(V=V,
                    Q=Q,
                    dbcinds=dbcinds,
                    dbcvals=dbcvals,
@@ -921,7 +921,7 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
                    charlen=cntbcsdata['characteristic length'],
                    mesh=mesh)
 
-    return cylfems
+    return gbcfems
 
 
 def _get_cont_shape_fun2D(xi=None, xii=None, element=None, shape='parabola'):
