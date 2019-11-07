@@ -909,6 +909,11 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
     except KeyError:
         outflowds = None  # no domain specified for outflow
 
+    try:
+        odcoo = cntbcsdata['observation-domain-coordinates']
+    except KeyError:
+        odcoo = None
+
     gbcfems = dict(V=V,
                    Q=Q,
                    dbcinds=dbcinds,
@@ -925,6 +930,7 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
                    contrbcspes=bcpes,
                    contrbcsshapefuns=bcshapefuns,
                    cntrbcsds=bcds,
+                   odcoo=odcoo,
                    fv=fv,
                    fp=fp,
                    charlen=cntbcsdata['characteristic length'],
