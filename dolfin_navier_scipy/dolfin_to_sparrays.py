@@ -4,6 +4,9 @@ import scipy.sparse as sps
 
 from dolfin import dx, grad, div, inner
 
+dolfin.parameters['linear_algebra_backend'] = 'Eigen'
+
+
 __all__ = ['ass_convmat_asmatquad',
            'unroll_dlfn_dbcs',
            'get_stokessysmats',

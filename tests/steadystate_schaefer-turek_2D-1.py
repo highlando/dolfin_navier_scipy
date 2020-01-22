@@ -113,6 +113,7 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     print('Cd: {0}'.format(5.57953523384))
     print('Delta P: {0}'.format(0.11752016697))
 
+
 if __name__ == '__main__':
     meshlvl = 1
     nu = 1e-3
@@ -126,5 +127,5 @@ if __name__ == '__main__':
 
     scheme = 'TH'
     testit(problem='gen_bccont', nu=nu, charvel=charvel,
-           rho=rho, meshlvl=meshlvl,
+           rho=rho, meshlvl=meshlvl,  # gradvsymmtrc=False,
            scheme=scheme, ParaviewOutput=True)

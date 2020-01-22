@@ -141,7 +141,7 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
             cbclist = None
             cbds = femp['cntrbcsds']
     else:
-        cbclist, cbshapefuns = None, None
+        cbclist, cbshapefuns, cbds = None, None, None
 
     try:
         outflowds = femp['outflowds']

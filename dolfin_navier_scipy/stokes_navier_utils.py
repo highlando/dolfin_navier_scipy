@@ -757,8 +757,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     if iniv is None:
         if start_ssstokes:
-            inicdbcvals = _comp_cntrl_bcvals(time=None, vel=None, p=None,
-                                             mode='stst', **cntrlmatrhsdict)
+            inicdbcvals = _comp_cntrl_bcvals(time=trange[0], vel=None, p=None,
+                                             mode='stokes', **cntrlmatrhsdict)
             ccfv, ccfp = _cntrl_stffnss_rhs(cntrlldbcvals=inicdbcvals,
                                             **cntrlmatrhsdict)
             # Stokes solution as starting value
