@@ -1,0 +1,22 @@
+{"info": "data taken from karman2D.geo_unrolled",
+	"characteristic length": 0.05,
+	"walls": {"physical entity": [3, 4, 5, 6]},
+	"outflow": {"physical entity": 2},
+	"inflow": {"physical entity": 1,
+		"inward normal": [1.0, 0.0],
+		"xone": [0.0, 0.0],
+		"xtwo": [0.0, 1.0]},
+	"controlbcs": [{"physical entity": 6,
+					"xone": [0.702022005725994, 0.5353553390593274],
+					"xtwo": [0.6916666666666667, 0.5433012701892219]
+				   },
+				   {"physical entity": 7,
+					"xone": [0.6916666666666667, 0.456698729810778],
+					"xtwo": [0.702022005725994, 0.4646446609406726]
+				   }
+				  ],
+    "observation-domain-coordinates": {"xmin": 2.0,
+        "xmax": 2.1,
+        "ymin": 0.3,
+        "ymax": 0.7}
+}
