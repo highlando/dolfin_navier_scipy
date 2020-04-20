@@ -5,7 +5,7 @@ import dolfin_navier_scipy.stokes_navier_utils as snu
 import dolfin_navier_scipy.problem_setups as dnsps
 
 meshprfx = 'mesh/karman2D-outlets'
-meshlevel = 2
+meshlevel = 1
 meshfile = meshprfx + '_lvl{0}.xml.gz'.format(meshlevel)
 physregs = meshprfx + '_lvl{0}_facet_region.xml.gz'.format(meshlevel)
 geodata = meshprfx + '_geo_cntrlbc.json'
@@ -62,7 +62,7 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None,
 
 if __name__ == '__main__':
     scheme = 'TH'
-    Re = 80
+    Re = 100
     t0, tE, Nts = 0., 5., 4*2048
     scaletest = .1
 
