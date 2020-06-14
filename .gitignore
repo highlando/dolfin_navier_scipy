@@ -3,6 +3,7 @@ results/
 mesh/
 *.npy
 *.pyc
+tests/paraviewplots/
 
 md/
 html/
