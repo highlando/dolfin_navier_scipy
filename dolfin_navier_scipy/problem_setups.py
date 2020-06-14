@@ -995,6 +995,45 @@ class InflowParabola(dolfin.UserExpression):
         return (2,)
 
 
+class InflowParabola3D(dolfin.UserExpression):
+    '''Create inflow boundary condition
+
+    a parabola g with `int g(s)ds = s1-s0 == int 1 ds`
+    if on [0,1]: `g(s) = s*(1-s)*4*3/2`
+    if on [s0,s1]: `g(s) = ((s-s0)/(s1-s0))*(1-(s-s0)/(s1-s0))*6`
+    since then `g((s0+s1)/2)=3/2` and  `g(s0)=0=g(s1)`'''
+
+    def __init__(self, degree=2, xone=None, xtwo=None, xfour=None,
+                 inflowvel=1., normalvec=None):
+        self.degree = degree
+        self.xone = xone
+        self.normalvec = normalvec
+        self.inflowvel = inflowvel
+        self.xvec = xtwo-xone
+        self.yvec = xfour-xone
+        self.lenxsqrd = np.inner(self.xvec, self.xvec)
+        self.lenysqrd = np.inner(self.yvec, self.yvec)
+        try:
+            super().__init__()
+        except RuntimeError():
+            pass  # had trouble with this call to __init__ in 'dolfin:2017.2.0'
+
+    def eval(self, value, x):
+        xclean = x - self.xone
+        cursx = np.inner(xclean, self.xvec)/self.lenxsqrd
+        cursy = np.inner(xclean, self.yvec)/self.lenysqrd
+        # print(x, cursx, cursy)
+        # gin = dolfin.Expression(('6*(x[1]*(ymax-x[1]))/(ymax*ymax)',
+        #                          '0.0', '0.0'),
+        #                          ymax=ymax, element=V.ufl_element())
+        curvel = self.inflowvel*36*cursx*(1-cursx) * \
+            cursy*(1-cursy)*self.normalvec
+        value[0], value[1], value[2] = curvel[0], curvel[1], curvel[2]
+
+    def value_shape(self):
+        return (3,)
+
+
 class RotatingCircle(dolfin.UserExpression):
     '''Create the boundary condition of a rotating circle
 
@@ -1025,7 +1064,7 @@ class LiftDragSurfForce():
                  outflowds=None, phione=None, phitwo=None):
         self.mesh = V.mesh()
         self.n = dolfin.FacetNormal(self.mesh)
-        self.I = dolfin.Identity(self.mesh.geometry().dim())
+        # self.Id = dolfin.Identity(self.mesh.geometry().dim())
         self.ldds = ldds
         self.outflowds = outflowds
         self.nu = nu
@@ -1053,7 +1092,7 @@ class LiftDragSurfForce():
         # L = (inner(self.nu*grad(uy), grad(self.phione))
         #      + inner(u, grad(uy))*self.phione
         #      - p*self.phione.dx(1))*dolfin.dx
-        # T = -p*self.I + 2.0*self.nu*self.epsilon(u)
+        # T = -p*self.Id + 2.0*self.nu*self.epsilon(u)
         # force = dolfin.dot(T, self.n)
         # D = force[0]*self.ldds
         # L = force[1]*self.ldds
@@ -1163,30 +1202,28 @@ def gen_bccont_fems_3D(scheme='TH', bccontrol=True, verbose=False,
     inflwin = np.array(inflowgeodata['inward normal'])
     inflwxi = np.array(inflowgeodata['xone'])
     inflwxii = np.array(inflowgeodata['xtwo'])
-    inflwxiii = np.array(inflowgeodata['xthree'])
+    # inflwxiii = np.array(inflowgeodata['xthree'])
     inflwxiv = np.array(inflowgeodata['xfour'])
 
-    areainflwb = np.linalg.norm(inflwxi-inflwxii) * \
-        np.linalg.norm(inflwxi-inflwxiv)
-
     if inflowprofile == 'block':
+        raise NotImplementedError()
         inflwprfl = dolfin.\
             Expression(('cv*no', 'cv*nt'), cv=inflowvel,
                        no=inflwin[0], nt=inflwin[1],
                        element=V.ufl_element())
     elif inflowprofile == 'parabola':
-        inflwprfl = InflowParabola3D(degree=2, facearea=areainflwb,
-                                     xone=inflwxi, normalvec=inflwin,
-                                     inflowvel=inflowvel)
+        inflwprfl = InflowParabola3D(degree=2, xone=inflwxi, xtwo=inflwxii,
+                                     xfour=inflwxiv,
+                                     normalvec=inflwin, inflowvel=inflowvel)
     bcin = dolfin.DirichletBC(V, inflwprfl, boundaries, inflwpe)
     diribcu = [bcin]
 
     # ## THE WALLS
     wallspel = cntbcsdata['walls']['physical entity']
-    gzero = dolfin.Constant((0, 0))
+    gzero = dolfin.Constant((0, 0, 0))
     for wpe in wallspel:
         diribcu.append(dolfin.DirichletBC(V, gzero, boundaries, wpe))
-        bcdict = diribcu[-1].get_boundary_values()
+        # bcdict = diribcu[-1].get_boundary_values()
 
     if not bccontrol:  # treat the control boundaries as walls
         try:
@@ -1196,10 +1233,27 @@ def gen_bccont_fems_3D(scheme='TH', bccontrol=True, verbose=False,
         except KeyError:
             pass  # no control boundaries
 
+    # yes-slip walls
+    try:
+        slipwallspel = cntbcsdata['slipwalls']['physical entity']
+        slipwallsnvs = cntbcsdata['slipwalls']['inward normals']
+        gscalzero = dolfin.Constant(0)
+        for kk, swpe in enumerate(slipwallspel):
+            cinwnrml = np.array(slipwallsnvs[kk])
+            if np.abs(np.inner(cinwnrml, np.array([0, 0, 1.]))) == 1:
+                cbcsw = dolfin.DirichletBC(V.sub(2), gscalzero,
+                                           boundaries, swpe)
+                diribcu.append(cbcsw)
+            else:
+                raise NotImplementedError()
+    except KeyError:
+        pass  # no control boundaries
+
     mvwdbcs = []
     mvwtvs = []
     try:
         for cntbc in cntbcsdata['moving walls']:
+            raise NotImplementedError()
             center = np.array(cntbc['geometry']['center'])
             radius = cntbc['geometry']['radius']
             if cntbc['type'] == 'circle':
@@ -1226,11 +1280,11 @@ def gen_bccont_fems_3D(scheme='TH', bccontrol=True, verbose=False,
     bcp = [bc2]
 
     # Create right-hand side function
-    fv = dolfin.Constant((0, 0))
+    fv = dolfin.Constant((0, 0, 0))
     fp = dolfin.Constant(0)
 
     def initial_conditions(self, V, Q):
-        u0 = dolfin.Constant((0, 0))
+        u0 = dolfin.Constant((0, 0, 0))
         p0 = dolfin.Constant(0)
         return u0, p0
 
@@ -1249,6 +1303,7 @@ def gen_bccont_fems_3D(scheme='TH', bccontrol=True, verbose=False,
     # ## Control boundaries
     bcpes, bcshapefuns, bcds = [], [], []
     if bccontrol:
+        raise NotImplementedError()
         for cbc in cntbcsdata['controlbcs']:
             cpe = cbc['physical entity']
             cxi, cxii = np.array(cbc['xone']), np.array(cbc['xtwo'])
@@ -1261,6 +1316,7 @@ def gen_bccont_fems_3D(scheme='TH', bccontrol=True, verbose=False,
     # ## Lift Drag Computation
     try:
         ldsurfpe = cntbcsdata['lift drag surface']['physical entity']
+        raise NotImplementedError()
         liftdragds = dolfin.Measure("ds", subdomain_data=boundaries)(ldsurfpe)
         bclds = dolfin.DirichletBC(V, gzero, boundaries, ldsurfpe)
         bcldsdict = bclds.get_boundary_values()
@@ -1270,12 +1326,14 @@ def gen_bccont_fems_3D(scheme='TH', bccontrol=True, verbose=False,
         ldsbcinds = None
     try:
         outflwpe = cntbcsdata['outflow']['physical entity']
+        raise NotImplementedError()
         outflowds = dolfin.Measure("ds", subdomain_data=boundaries)(outflwpe)
     except KeyError:
         outflowds = None  # no domain specified for outflow
 
     try:
         odcoo = cntbcsdata['observation-domain-coordinates']
+        raise NotImplementedError()
     except KeyError:
         odcoo = None
 
