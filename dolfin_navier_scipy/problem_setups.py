@@ -607,6 +607,8 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
 
 
 def cyl3D_fems(refinement_level=2, scheme='TH',
+               strtobcsobs='',
+               strtomeshfile='', strtophysicalregions='',
                bccontrol=False, verbose=False):
     """
     dictionary for the fem items for the 3D cylinder wake
@@ -666,8 +668,14 @@ def cyl3D_fems(refinement_level=2, scheme='TH',
     # radius = 0.15
 
     # Load mesh
-    mesh = dolfin.\
-        Mesh("mesh/3d-cyl/karman3D_lvl{0}.xml.gz".format(refinement_level))
+    if not strtomeshfile == '':
+        mesh = dolfin.Mesh(strtomeshfile)
+        meshfile = strtophysicalregions
+    else:
+        mesh = dolfin.\
+            Mesh("mesh/3d-cyl/karman3D_lvl{0}.xml.gz".format(refinement_level))
+        meshfile = 'mesh/3d-cyl/karman3D_lvl{0}_facet_region.xml.gz'.\
+            format(refinement_level)
 
     # scheme = 'CR'
     if scheme == 'CR':
@@ -679,8 +687,6 @@ def cyl3D_fems(refinement_level=2, scheme='TH',
         Q = dolfin.FunctionSpace(mesh, "CG", 1)
 
     # get the boundaries from the gmesh file
-    meshfile = 'mesh/3d-cyl/karman3D_lvl{0}_facet_region.xml.gz'.\
-        format(refinement_level)
     boundaries = dolfin.\
         MeshFunction('size_t', mesh, meshfile)
 
@@ -1272,12 +1278,12 @@ def gen_bccont_fems_3D(scheme='TH', bccontrol=True, verbose=False,
 
     # Create outflow boundary condition for pressure
     # TODO XXX why zero pressure?? is this do-nothing???
-    outflwpe = cntbcsdata['outflow']['physical entity']
-    g2 = dolfin.Constant(0)
-    bc2 = dolfin.DirichletBC(Q, g2, boundaries, outflwpe)
+    # outflwpe = cntbcsdata['outflow']['physical entity']
+    # g2 = dolfin.Constant(0)
+    # bc2 = dolfin.DirichletBC(Q, g2, boundaries, outflwpe)
 
     # Collect boundary conditions
-    bcp = [bc2]
+    # bcp = [bc2]
 
     # Create right-hand side function
     fv = dolfin.Constant((0, 0, 0))
@@ -1326,7 +1332,6 @@ def gen_bccont_fems_3D(scheme='TH', bccontrol=True, verbose=False,
         ldsbcinds = None
     try:
         outflwpe = cntbcsdata['outflow']['physical entity']
-        raise NotImplementedError()
         outflowds = dolfin.Measure("ds", subdomain_data=boundaries)(outflwpe)
     except KeyError:
         outflowds = None  # no domain specified for outflow
@@ -1344,7 +1349,7 @@ def gen_bccont_fems_3D(scheme='TH', bccontrol=True, verbose=False,
                    mvwbcinds=mvwbcinds,
                    mvwbcvals=mvwbcvals,
                    mvwtvs=mvwtvs,
-                   dirip=bcp,
+                   # dirip=bcp,
                    outflowds=outflowds,
                    # contrbcssubdomains=bcsubdoms,
                    liftdragds=liftdragds,
