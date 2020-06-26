@@ -1,6 +1,7 @@
 # dolfin_navier_scipy
 
 [![DOI](https://zenodo.org/badge/15728657.svg)](https://zenodo.org/badge/latestdoi/15728657)
+[![PyPI version](https://badge.fury.io/py/dolfin-navier-scipy.png)](https://badge.fury.io/py/dolfin-navier-scipy)
 
 This python module `dns` provides an interface between the FEM toolbox [`FEniCS`](www.fenicsproject.org) and [`SciPy`](www.scipy.org) in view of simulation and control of incompressible flows. Basically, `FEniCS` is used to discretize the *incompressible Navier-Stokes equations* in space. Then `dns` makes the discretized operators available in `SciPy` for use in model reduction, simulation, or control and optimization. 
 
