@@ -4,12 +4,11 @@ import scipy.sparse as sps
 
 from dolfin import dx, grad, div, inner
 
-# try:
-#     dolfin.parameters.linear_algebra_backend = "Eigen"
-# except RuntimeError:
-#     dolfin.parameters.linear_algebra_backend = "uBLAS"
+dolfin.parameters['linear_algebra_backend'] = 'Eigen'
+
 
 __all__ = ['ass_convmat_asmatquad',
+           'unroll_dlfn_dbcs',
            'get_stokessysmats',
            'get_convmats',
            'setget_rhs',
@@ -18,6 +17,7 @@ __all__ = ['ass_convmat_asmatquad',
            'condense_sysmatsbybcs',
            'condense_velmatsbybcs',
            'expand_vp_dolfunc',
+           'expand_dolfunc',
            'expand_vecnbc_dolfunc',
            'append_bcs_vec',
            'mat_dolfin2sparse']
@@ -163,7 +163,8 @@ def ass_convmat_asmatquad(W=None, invindsw=None):
 
 
 def get_stokessysmats(V, Q, nu=None, bccontrol=False, gradvsymmtrc=True,
-                      outflowds=None, cbclist=None, cbshapefuns=None):
+                      outflowds=None,
+                      cbclist=None, cbds=None, cbshapefuns=None):
     """ Assembles the system matrices for Stokes equation
 
     in mixed FEM formulation, namely
@@ -274,25 +275,31 @@ def get_stokessysmats(V, Q, nu=None, bccontrol=False, gradvsymmtrc=True,
     if bccontrol:
         amatrobl, bmatrobl = [], []
         mesh = V.mesh()
-        for bc, bcfun in zip(cbclist, cbshapefuns):
+        for ncb, bcfun in enumerate(cbshapefuns):
             # get an instance of the subdomain class
-            Gamma = bc()
+            try:
+                bc = cbclist[ncb]
+                Gamma = bc()
 
-            # bparts = dolfin.MeshFunction('size_t', mesh,
-            #                              mesh.topology().dim() - 1)
+                # bparts = dolfin.MeshFunction('size_t', mesh,
+                #                              mesh.topology().dim() - 1)
 
-            boundaries = dolfin.MeshFunction("size_t", mesh,
-                                             mesh.topology().dim()-1)
-            boundaries.set_all(0)
-            Gamma.mark(boundaries, 1)
+                boundaries = dolfin.MeshFunction("size_t", mesh,
+                                                 mesh.topology().dim()-1)
+                boundaries.set_all(0)
+                Gamma.mark(boundaries, 1)
 
-            ds = dolfin.Measure('ds', domain=mesh, subdomain_data=boundaries)
+                ds = dolfin.Measure('ds', domain=mesh,
+                                    subdomain_data=boundaries)
+                cds = ds(1)
+            except TypeError:
+                cds = cbds[ncb]
 
             # Gamma.mark(bparts, 0)
 
             # Robin boundary form
-            arob = dolfin.inner(u, v) * ds(1)  # , subdomain_data=bparts)
-            brob = dolfin.inner(v, bcfun) * ds(1)  # , subdomain_data=bparts)
+            arob = dolfin.inner(u, v) * cds  # , subdomain_data=bparts)
+            brob = dolfin.inner(v, bcfun) * cds  # , subdomain_data=bparts)
 
             amatrob = dolfin.assemble(arob)  # , exterior_facet_domains=bparts)
             bmatrob = dolfin.assemble(brob)  # , exterior_facet_domains=bparts)
@@ -618,7 +625,7 @@ def condense_velmatsbybcs(A, velbcs=None, return_bcinfo=False,
 def expand_vp_dolfunc(V=None, Q=None, invinds=None,
                       dbcinds=[], dbcvals=None,
                       diribcs=None, zerodiribcs=False,
-                      vp=None, vc=None, pc=None, ppin=-1, **kwargs):
+                      vp=None, vc=None, pc=None, ppin=None, **kwargs):
     """expand v [and p] to the dolfin function representation
 
     Parameters
@@ -645,7 +652,7 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None,
     pc : (M,1) array, optional
         solution vector of pressure
     ppin : {int, None}, optional
-        which dof of `p` is used to pin the pressure, defaults to `-1`
+        which dof of `p` is used to pin the pressure, defaults to `None`
 
     Returns
     -------
@@ -679,15 +686,18 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None,
         # we assume that the boundary conditions are already contained in vc
         ve = vc
     else:
-        ve = np.zeros((V.dim(), 1))
         # print('ve w/o bcvals: ', np.linalg.norm(ve))
         # fill in the boundary values
         if not zerodiribcs:
+            ve = np.full((V.dim(), 1), np.nan)
             urbcinds, urbcvals = unroll_dlfn_dbcs(diribcs, bcinds=dbcinds,
                                                   bcvals=dbcvals)
             ve[urbcinds, 0] = urbcvals
             # print('ve with bcvals :', np.linalg.norm(ve))
             # print('norm of bcvals :', np.linalg.norm(bcvals))
+
+        else:
+            ve = np.zeros((V.dim(), 1))
 
         ve = ve.flatten()
         ve[invinds] = vc.flatten()
@@ -811,3 +821,12 @@ def get_dof_coors(V, invinds=None):
     coors = np.vstack([xcoors, ycoors]).T
 
     return coors, xinds, yinds, coorfunvec
+
+
+def expand_dolfunc(vinner, bcinds=None, bcvals=None, ininds=None, V=None):
+    v = dolfin.Function(V)
+    ve = np.zeros((V.dim(), 1))
+    ve[ininds, ] = vinner
+    ve[bcinds, 0] = bcvals
+    v.vector().set_local(ve)
+    return v

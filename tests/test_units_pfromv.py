@@ -3,6 +3,7 @@ import numpy as np
 
 import dolfin_navier_scipy.problem_setups as dnsps
 import dolfin_navier_scipy.stokes_navier_utils as snu
+import dolfin_navier_scipy.dolfin_to_sparrays as dts
 
 
 class StokNavUtsFunctions(unittest.TestCase):
@@ -19,7 +20,8 @@ class StokNavUtsFunctions(unittest.TestCase):
         """
 
         femp, stokesmatsc, rhsd = \
-            dnsps.get_sysmats(problem='cylinderwake', N=self.N,
+            dnsps.get_sysmats(problem='cylinderwake',
+                              meshparams=dict(refinement_level=self.N),
                               Re=self.Re, scheme=self.scheme, mergerhs=True)
 
         Mc, Ac = stokesmatsc['M'], stokesmatsc['A']
@@ -35,9 +37,9 @@ class StokNavUtsFunctions(unittest.TestCase):
                         invinds=invinds, diribcs=femp['diribcs'])
         vp_init = snu.solve_steadystate_nse(**inivdict)
 
-        NV = Bc.shape[1]
-
-        pfv = snu.get_pfromv(v=vp_init[0], V=femp['V'],
+        dbcinds, dbcvals = dts.unroll_dlfn_dbcs(femp['diribcs'])
+        pfv = snu.get_pfromv(v=vp_init[0][invinds], V=femp['V'],
                              M=Mc, A=Ac, J=Bc, fv=fv,
-                             invinds=femp['invinds'], diribcs=femp['diribcs'])
+                             invinds=femp['invinds'],
+                             dbcinds=dbcinds, dbcvals=dbcvals)
         self.assertTrue(np.allclose(pfv, vp_init[1]))

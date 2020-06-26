@@ -93,7 +93,7 @@ def get_v_conv_conts(vvec=None, V=None,
     if len(vvec) == V.dim():
         ve = vvec
     else:
-        ve = np.zeros((V.dim(), ))
+        ve = np.full((V.dim(), ), np.nan)
         ve[invinds] = vvec.flatten()
         for k, cdbcinds in enumerate(dbcinds):
             ve[cdbcinds] = dbcvals[k]
@@ -158,14 +158,21 @@ def _localizecdbinds(cdbinds, V, invinds):
     return lclinds
 
 
-def _comp_cntrl_bcvals(diricontbcvals=[], diricontfuncs=[],
+def _comp_cntrl_bcvals(diricontbcvals=[], diricontfuncs=[], mode=None,
                        diricontfuncmems=[], time=None, vel=None, p=None, **kw):
     cntrlldbcvals = []
     try:
         for k, cdbbcv in enumerate(diricontbcvals):
             ccntrlfunc = diricontfuncs[k]
-            cntrlval, diricontfuncmems[k] = \
-                ccntrlfunc(time, vel=vel, p=p, memory=diricontfuncmems[k])
+            try:
+                cntrlval, diricontfuncmems[k] = \
+                    ccntrlfunc(time, vel=vel, p=p, mode=mode,
+                               memory=diricontfuncmems[k])
+            except TypeError:
+                cntrlval, diricontfuncmems[k] = \
+                    ccntrlfunc(time, vel=vel, p=p,
+                               memory=diricontfuncmems[k])
+
             ccntrlldbcvals = [cntrlval*bcvl for bcvl in cdbbcv]
             cntrlldbcvals.extend(ccntrlldbcvals)
     except TypeError:
@@ -173,9 +180,8 @@ def _comp_cntrl_bcvals(diricontbcvals=[], diricontfuncs=[],
     return cntrlldbcvals
 
 
-def _upd_stffnss_rhs(loccntbcinds=None, cntrlldbcvals=None,
-                     vvec=None,
-                     A=None, J=None, fv=None, fp=None, **kw):
+def _cntrl_stffnss_rhs(loccntbcinds=None, cntrlldbcvals=None,
+                       vvec=None, A=None, J=None, **kw):
 
     if vvec is not None:
         ccfv = dts.condense_velmatsbybcs(A, invinds=loccntbcinds,
@@ -183,13 +189,12 @@ def _upd_stffnss_rhs(loccntbcinds=None, cntrlldbcvals=None,
         ccfp = dts.condense_velmatsbybcs(J, invinds=loccntbcinds,
                                          vwithbcs=vvec, get_rhs_only=True,
                                          columnsonly=True)
-        return fv[loccntbcinds, :]+ccfv, fp+ccfp
+        return ccfv, ccfp
 
     crhsdct = dts.condense_sysmatsbybcs(dict(A=A, J=J),
                                         dbcvals=cntrlldbcvals,
                                         dbcinds=loccntbcinds,
-                                        rhsdict=dict(fv=fv, fp=fp),
-                                        mergerhs=True, get_rhs_only=True)
+                                        get_rhs_only=True)
     return crhsdct['fv'], crhsdct['fp']
 
 
@@ -207,7 +212,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           dbcvals=None, dbcinds=None,
                           diricontbcinds=None, diricontbcvals=None,
                           diricontfuncs=None, diricontfuncmems=None,
-                          return_vp=False, ppin=-1,
+                          return_vp=False, ppin=None,
                           return_nwtnupd_norms=False,
                           N=None, nu=None,
                           vel_pcrd_stps=10, vel_pcrd_tol=1e-4,
@@ -244,7 +249,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         right hand sides restricted via removing the boundary nodes in the
         momentum and the pressure freedom in the continuity equation
     ppin : {int, None}, optional
-        which dof of `p` is used to pin the pressure, defaults to `-1`
+        which dof of `p` is used to pin the pressure, defaults to `None`
     dbcinds: list, optional
         indices of the Dirichlet boundary conditions
     dbcvals: list, optional
@@ -367,8 +372,10 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         cjt = JT[locdbcntinvinds, :]
         cj = J[:, locdbcntinvinds]
         cnv = cmmat.shape[0]
+        cfp = fp
+        cfv = fv[locdbcntinvinds]
 
-    cntrlmatrhsdict = {'A': A, 'J': J, 'fv': fv, 'fp': fp,
+    cntrlmatrhsdict = {'A': A, 'J': J,  # 'fv': fv, 'fp': fp,
                        'loccntbcinds': loccntbcinds,
                        'diricontbcvals': diricontbcvals,
                        'diricontfuncs': diricontfuncs,
@@ -382,12 +389,13 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
     if vel_start_nwtn is None:
         cdbcvals_c = _comp_cntrl_bcvals(time=None, vel=None, p=None,
+                                        mode='init',
                                         **cntrlmatrhsdict)
-        cfv, cfp = _upd_stffnss_rhs(cntrlldbcvals=cdbcvals_c,
-                                    **cntrlmatrhsdict)
+        ccfv, ccfp = _cntrl_stffnss_rhs(cntrlldbcvals=cdbcvals_c,
+                                        **cntrlmatrhsdict)
 
         vp_stokes = lau.solve_sadpnt_smw(amat=camat, jmat=cj, jmatT=cjt,
-                                         rhsv=cfv, rhsp=cfp)
+                                         rhsv=cfv+ccfv, rhsp=cfp+ccfp)
         vp_stokes[cnv:] = -vp_stokes[cnv:]
         # pressure was flipped for symmetry
 
@@ -426,8 +434,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         cdbcvals_n = _comp_cntrl_bcvals(vel=_appbcs(vel_k, cdbcvals_c),
                                         p=p_k, **cntrlmatrhsdict)
 
-        cfv_n, cfp_n = _upd_stffnss_rhs(cntrlldbcvals=cdbcvals_n,
-                                        **cntrlmatrhsdict)
+        ccfv_n, ccfp_n = _cntrl_stffnss_rhs(cntrlldbcvals=cdbcvals_n,
+                                            **cntrlmatrhsdict)
 
         # use the old v-bcs to compute the convection
         # TODO: actually we only need Picard -- do some fine graining in dts
@@ -441,7 +449,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                                   dbcvals=[dbcvals, cdbcvals_n])
 
         vp_k = lau.solve_sadpnt_smw(amat=camat+pcrdcnvmat, jmat=cj, jmatT=cjt,
-                                    rhsv=cfv_n+rhsv_conbc, rhsp=cfp_n)
+                                    rhsv=cfv+ccfv_n+rhsv_conbc,
+                                    rhsp=cfp+ccfp_n)
 
         normpicupd = np.sqrt(m_innerproduct(cmmat, vel_k-vp_k[:cnv, ]))[0]
 
@@ -465,8 +474,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         cdbcvals_n = _comp_cntrl_bcvals(vel=_appbcs(vel_k, cdbcvals_c),
                                         p=p_k, **cntrlmatrhsdict)
 
-        cfv_n, cfp_n = _upd_stffnss_rhs(cntrlldbcvals=cdbcvals_n,
-                                        **cntrlmatrhsdict)
+        ccfv_n, ccfp_n = _cntrl_stffnss_rhs(cntrlldbcvals=cdbcvals_n,
+                                            **cntrlmatrhsdict)
         (convc_mat, rhs_con, rhsv_conbc) = \
             get_v_conv_conts(vvec=_appbcs(vel_k, cdbcvals_c), V=V,
                              invinds=dbcntinvinds,
@@ -474,8 +483,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                              dbcvals=[dbcvals, cdbcvals_n])
 
         vp_k = lau.solve_sadpnt_smw(amat=camat+convc_mat, jmat=cj, jmatT=cjt,
-                                    rhsv=cfv_n+rhs_con+rhsv_conbc,
-                                    rhsp=cfp_n)
+                                    rhsv=cfv+ccfv_n+rhs_con+rhsv_conbc,
+                                    rhsp=cfp+ccfp_n)
 
         norm_nwtnupd = np.sqrt(m_innerproduct(cmmat, vel_k - vp_k[:cnv, :]))[0]
         vel_k = vp_k[:cnv, ]
@@ -526,9 +535,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
 def solve_nse(A=None, M=None, J=None, JT=None,
               fv=None, fp=None,
-              fvc=None, fpc=None,  # TODO: this is to catch deprecated calls
-              fv_tmdp=None, fv_tmdp_params={},
-              fv_tmdp_memory=None,
+              fvtd=None, fvss=0.,
+              # TODO: fv_tmdp=None, fv_tmdp_params={}, fv_tmdp_memory=None,
               iniv=None, inip=None, lin_vel_point=None,
               stokes_flow=False,
               trange=None,
@@ -537,13 +545,14 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               dbcinds=None, dbcvals=None,
               diricontbcinds=None, diricontbcvals=None,
               diricontfuncs=None, diricontfuncmems=None,
-              # output_includes_bcs=False,
               N=None, nu=None,
-              ppin=-1,
-              closed_loop=False, static_feedback=False,
+              ppin=None,
+              closed_loop=False,
+              static_feedback=False, stat_fb_dict={},
+              dynamic_feedback=False, dyn_fb_dict={},
               feedbackthroughdict=None,
               return_vp=False,
-              tb_mat=None, cv_mat=None,
+              b_mat=None, cv_mat=None,
               vel_nwtn_stps=20, vel_nwtn_tol=5e-15,
               nsects=1, loc_nwtn_tol=5e-15, loc_pcrd_stps=True,
               addfullsweep=False,
@@ -559,9 +568,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               return_dictofvelstrs=False,
               return_dictofpstrs=False,
               dictkeysstr=False,
-              treat_nonl_explct=False,
-              no_data_caching=False, return_final_vp=False,
-              return_as_list=False,
+              treat_nonl_explct=False, no_data_caching=True,
+              return_final_vp=False,
+              return_as_list=False, return_vp_dict=False,
               verbose=True,
               start_ssstokes=False,
               **kw):
@@ -569,8 +578,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     solution of the time-dependent nonlinear Navier-Stokes equation
 
     .. math::
-        M\\dot v + Av + N(v)v + J^Tp = f \n
-        Jv =g
+        M\\dot v + Av + N(v)v + J^Tp = f_v \n
+        Jv = f_p
 
     using a Newton scheme in function space, i.e. given :math:`v_k`,
     we solve for the update like
@@ -595,6 +604,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     dictkeysstr : boolean, optional
         whether the `keys` of the result dictionaries are strings instead \
         of floats, defaults to `False`
+    fvtd : callable f(t), optional
+        time dependend right hand side in momentum equation
+    fvss : array, optional
+        right hand side in momentum for steady state computation
     fv_tmdp : callable f(t, v, dict), optional
         time-dependent part of the right-hand side, set to zero if None
     fv_tmdp_params : dictionary, optional
@@ -631,7 +644,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
           * preconditioner
 
     ppin : {int, None}, optional
-        which dof of `p` is used to pin the pressure, defaults to `-1`
+        which dof of `p` is used to pin the pressure, defaults to `None`
     stokes_flow : boolean, optional
         whether to consider the Stokes linearization, defaults to `False`
     start_ssstokes : boolean, optional
@@ -656,6 +669,15 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     cv_mat: (Ny, Nv) sparse array, optional
         output matrix for velocity outputs, needed, e.g., for output dependent
         feedback control, defaults to `None`
+    dynamic_feedback: boolean
+        whether to apply dynamic feedback, defaults to `False`
+    dyn_fb_dict, dictionary
+        that defines the dynamic observer via the keys
+          * `ha` observer dynamic matrix
+          * `hb` observer input matrix
+          * `hc` observer output matrix
+          * `drift` observer drift term, e.g., for nonzero setpoints
+
 
     Returns
     -------
@@ -670,9 +692,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     """
     import sadptprj_riclyap_adi.lin_alg_utils as lau
-
-    if fvc is not None or fpc is not None:  # TODO: this is for catching calls
-        raise UserWarning('deprecated use of `rhsd_vfrc`, use only `fv`, `fp`')
 
     if get_datastring is None:
         get_datastring = get_datastr_snu
@@ -702,8 +721,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     camat = A[locinvinds, :][:, locinvinds]
     cjt = JT[locinvinds, :]
     cj = J[:, locinvinds]
+    cfv = fv[locinvinds]
+    cfp = fp
 
-    cntrlmatrhsdict = {'A': A, 'J': J, 'fv': fv, 'fp': fp,
+    cntrlmatrhsdict = {'A': A, 'J': J,
                        'loccntbcinds': loccntbcinds,
                        'diricontbcvals': diricontbcvals,
                        'diricontfuncs': diricontfuncs,
@@ -722,13 +743,13 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                       tfilter=plttrange, writeoutput=paraviewoutput)
 
     # ## XXX: looks like this needs treatment
-    if return_dictofpstrs:
-        gpfvd = dict(V=V, M=M, A=A, J=J, fv=fv, fp=fp,
-                     dbcinds=dbcinds, dbcvals=dbcvals, invinds=invinds)
+    # if return_dictofpstrs:
+    #     gpfvd = dict(V=V, M=M, A=A, J=J, fv=fv, fp=fp,
+    #                  dbcinds=dbcinds, dbcvals=dbcvals, invinds=invinds)
 
-    if fv_tmdp is None:
-        def fv_tmdp(time=None, curvel=None, **kw):
-            return np.zeros((cnv, 1)), None
+    # if fv_tmdp is None:
+    #     def fv_tmdp(time=None, curvel=None, **kw):
+    #         return np.zeros((cnv, 1)), None
 
 # ----- #
 # chap: # the initial value
@@ -737,25 +758,29 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if iniv is None:
         if start_ssstokes:
             inicdbcvals = _comp_cntrl_bcvals(time=trange[0], vel=None, p=None,
-                                             **cntrlmatrhsdict)
-            cfv, cfp = _upd_stffnss_rhs(cntrlldbcvals=inicdbcvals,
-                                        **cntrlmatrhsdict)
+                                             mode='stokes', **cntrlmatrhsdict)
+            ccfv, ccfp = _cntrl_stffnss_rhs(cntrlldbcvals=inicdbcvals,
+                                            **cntrlmatrhsdict)
             # Stokes solution as starting value
             vp_stokes =\
                 lau.solve_sadpnt_smw(amat=camat, jmat=cj, jmatT=cjt,
-                                     rhsv=cfv,  # + fv_tmdp_cont,
+                                     rhsv=cfv+ccfv+fvss,
                                      krylov=krylov, krpslvprms=krpslvprms,
-                                     krplsprms=krplsprms, rhsp=cfp)
+                                     krplsprms=krplsprms, rhsp=cfp+ccfp)
             iniv = vp_stokes[:cnv]
         else:
             raise ValueError('No initial value given')
     else:
         inicdbcvals = (iniv[glbcntbcinds].flatten()).tolist()
         iniv = iniv[dbcntinvinds]
-        cfv, cfp = _upd_stffnss_rhs(cntrlldbcvals=inicdbcvals,
-                                    **cntrlmatrhsdict)
+        ccfv, ccfp = _cntrl_stffnss_rhs(cntrlldbcvals=inicdbcvals,
+                                        **cntrlmatrhsdict)
+        # # initialization
+        # _comp_cntrl_bcvals(time=trange[0], vel=iniv, p=inip,
+        #                    mode='init', **cntrlmatrhsdict)
     if inip is None:
-        inip = get_pfromv(v=iniv, V=V, M=cmmat, A=cmmat, J=cj, fv=cfv, fp=cfp,
+        inip = get_pfromv(v=iniv, V=V, M=cmmat, A=cmmat, J=cj,
+                          fv=cfv+ccfv+fvss, fp=cfp+ccfp,
                           dbcinds=[dbcinds, glbcntbcinds],
                           dbcvals=[dbcvals, inicdbcvals], invinds=dbcntinvinds)
 
@@ -773,11 +798,18 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         for fname in glob.glob(cdatstr + '__p*'):
             os.remove(fname)
 
-    def _atdct(cdict, t, thing):
-        if dictkeysstr:
-            cdict.update({'{0}'.format(t): thing})
-        else:
-            cdict.update({t: thing})
+    if return_dictofvelstrs or return_dictofpstrs:
+        no_data_caching = False  # need to cache data if we want it
+
+    if return_dictofpstrs or return_dictofvelstrs:
+        def _atdct(cdict, t, thing):
+            if dictkeysstr:
+                cdict.update({'{0}'.format(t): thing})
+            else:
+                cdict.update({t: thing})
+    else:
+        def _atdct(cdict, t, thing):
+            pass
 
     def _gfdct(cdict, t):
         if dictkeysstr:
@@ -790,76 +822,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         vel_pcrd_stps = 0
         print('Stokes Flow!')
         comp_nonl_semexp_inig = None
-    elif lin_vel_point is None:
-        comp_nonl_semexp_inig = True
-        if not treat_nonl_explct:
-            print(('No linearization point given - explicit' +
-                  ' treatment of the nonlinearity in the first Iteration'))
 
     else:
         cur_linvel_point = lin_vel_point
         comp_nonl_semexp_inig = False
 
     newtk, norm_nwtnupd = 0, 1
-
-    # check for previously computed velocities
-    if useolddata and lin_vel_point is None and not stokes_flow:
-        try:
-            datastrdict.update(dict(time=trange[-1]))
-            cdatstr = get_datastring(**datastrdict)
-
-            norm_nwtnupd = (dou.load_npa(cdatstr + '__norm_nwtnupd')).flatten()
-            try:
-                if norm_nwtnupd[0] is None:
-                    norm_nwtnupd = 1.
-            except IndexError:
-                norm_nwtnupd = 1.
-
-            dou.load_npa(cdatstr + '__vel')
-
-            print('found vel files')
-            print('norm of last Nwtn update: {0}'.format(norm_nwtnupd))
-            print('... loaded from ' + cdatstr)
-
-            if norm_nwtnupd < vel_nwtn_tol and not return_dictofvelstrs:
-                return
-            elif norm_nwtnupd < vel_nwtn_tol or treat_nonl_explct:
-                # looks like converged / or semi-expl
-                # -- check if all values are there
-                # t0:
-                datastrdict.update(dict(time=trange[0]))
-                cdatstr = get_datastring(**datastrdict)
-                dictofvelstrs = {}
-                _atdct(dictofvelstrs, trange[0], cdatstr + '__vel')
-                if return_dictofpstrs:
-                    dictofpstrs = {}
-
-                for t in trange:
-                    datastrdict.update(dict(time=t))
-                    cdatstr = get_datastring(**datastrdict)
-                    # test if the vels are there
-                    v_old = dou.load_npa(cdatstr + '__vel')
-                    # update the dict
-                    _atdct(dictofvelstrs, t, cdatstr + '__vel')
-                    if return_dictofpstrs:
-                        try:
-                            p_old = dou.load_npa(cdatstr + '__p')
-                            _atdct(dictofpstrs, t, cdatstr + '__p')
-                        except:
-                            p_old = get_pfromv(v=v_old, **gpfvd)
-                            dou.save_npa(p_old, fstring=cdatstr + '__p')
-                            _atdct(dictofpstrs, t, cdatstr + '__p')
-
-                if return_dictofpstrs:
-                    return dictofvelstrs, dictofpstrs
-                else:
-                    return dictofvelstrs
-
-            # comp_nonl_semexp = False
-
-        except IOError:
-            norm_nwtnupd = 2
-            print('no old velocity data found')
 
     def _appbcs(vvec, ccntrlldbcvals):
         return dts.append_bcs_vec(vvec, vdim=V.dim(), invinds=dbcntinvinds,
@@ -869,7 +837,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if treat_nonl_explct and no_data_caching:
         def _savevp(vvec, pvec, ccntrlldbcvals, cdatstr):
             pass
-
     else:
         def _savevp(vvec, pvec, ccntrlldbcvals, cdatstr):
             vpbc = _appbcs(vvec, ccntrlldbcvals)
@@ -959,44 +926,132 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     dou.output_paraview(**prvoutdict)
 
+    if lin_vel_point is None:  # do a semi-explicit integration
+        from dolfin_navier_scipy.time_step_schemes import cnab
+
+        if loccntbcinds == []:
+            def applybcs(bcs_n):
+                return 0., 0., 0.
+
+        else:
+            NV = J.shape[1]
+            cauxvec = np.zeros((NV, 1))
+
+            def applybcs(bcs_n):
+                cauxvec[loccntbcinds, 0] = bcs_n
+                return (-(A.dot(cauxvec))[locinvinds, :],
+                        -(J.dot(cauxvec)),
+                        (M.dot(cauxvec))[locinvinds, :])
+
+        if fvtd is None:
+            def rhsv(t):
+                return cfv
+        else:
+            def rhsv(t):
+                return cfv + fvtd(t)
+
+        def rhsp(t):
+            return fp
+
+        def nonlvfunc(vvec):
+            _, convvec, _ = \
+                get_v_conv_conts(vvec=vvec, V=V,
+                                 invinds=dbcntinvinds, semi_explicit=True)
+            return convvec
+
+        def getbcs(time, vvec, pvec, mode=None):
+            return _comp_cntrl_bcvals(time=time, vel=vvec, p=pvec,
+                                      diricontbcvals=diricontbcvals,
+                                      diricontfuncs=diricontfuncs,
+                                      diricontfuncmems=diricontfuncmems,
+                                      mode=mode)
+        if closed_loop:
+            if dynamic_feedback:
+                from dolfin_navier_scipy.time_step_schemes \
+                    import get_heunab_lti
+                dfb = dyn_fb_dict
+                dyn_obs_fbk = get_heunab_lti(hb=dfb['hb'], ha=dfb['ha'],
+                                             hc=dfb['hc'], inihx=dfb['inihx'],
+                                             drift=dfb['drift'])
+
+                def dynamic_rhs(t, vc=None, memory={}, mode='abtwo'):
+                    cy = cv_mat.dot(vc)
+                    curu, memory = dyn_obs_fbk(t, vc=cy,
+                                               memory=memory, mode=mode)
+                    return b_mat.dot(curu), memory
+            elif static_feedback:
+                pass
+
+        else:
+            dynamic_rhs = None
+
+        expnlveldct = {}
+
+        if return_vp_dict:
+            vp_dict = {}
+
+            def _svpplz(vvec, pvec, time=None):
+                vp_dict.update({time: dict(p=pvec, v=vvec)})
+                prvoutdict.update(dict(vc=vvec, pc=pvec, t=time))
+                dou.output_paraview(**prvoutdict)
+
+        elif no_data_caching and treat_nonl_explct:
+            def _svpplz(vvec, pvec, time=None):
+                prvoutdict.update(dict(vc=vvec, pc=pvec, t=time))
+                dou.output_paraview(**prvoutdict)
+
+        elif return_dictofvelstrs:
+            def _svpplz(vvec, pvec, time=None):
+                cfvstr = data_prfx + '_prs_t{0}'.format(time)
+                cfpstr = data_prfx + '_vel_t{0}'.format(time)
+                dou.save_npa(pvec, fstring=cfpstr)
+                dou.save_npa(vvec, fstring=cfvstr)
+                _atdct(expnlveldct, time, cfvstr)
+                prvoutdict.update(dict(vc=vvec, pc=pvec, t=time))
+                dou.output_paraview(**prvoutdict)
+
+        v_end, p_end = cnab(trange=trange, inivel=iniv, inip=inip,
+                            bcs_ini=inicdbcvals,
+                            M=cmmat, A=camat, J=cj, scalep=-1.,
+                            f_vdp=nonlvfunc,
+                            f_tdp=rhsv, g_tdp=rhsp,
+                            dynamic_rhs=dynamic_rhs,
+                            getbcs=getbcs, applybcs=applybcs, appndbcs=_appbcs,
+                            savevp=_svpplz)
+
+        if treat_nonl_explct:
+            if return_vp_dict:
+                return vp_dict
+            elif return_final_vp:
+                return (v_end, p_end)
+            elif return_dictofvelstrs:
+                return expnlveldct
+            else:
+                return
+
+        cur_linvel_point = expnlveldct
+    else:
+        cur_linvel_point = lin_vel_point
+
     for loctrng in loctrngs:
-        dtvec = np.array(loctrng)[1:] - np.array(loctrng)[:-1]
-        dotdtvec = dtvec[1:] - dtvec[:-1]
-        uniformgrid = np.allclose(np.linalg.norm(dotdtvec), 0)
-        coeffmatlu = None
 
         while (newtk < vel_nwtn_stps and norm_nwtnupd > loc_nwtn_tol):
             print('solve the NSE on the interval [{0}, {1}]'.
                   format(loctrng[0], loctrng[-1]))
             v_old = iniv  # start vector for time integration in every Newtonit
             p_old = inip
-            cfv_c, cfp_c = _upd_stffnss_rhs(cntrlldbcvals=cdbcvals_c,
-                                            **cntrlmatrhsdict)
-            if stokes_flow:
-                pcrd_anyone = False
-                loc_treat_nonl_explct = None
-                newtk = vel_nwtn_stps
-            elif comp_nonl_semexp_inig and not treat_nonl_explct:
-                pcrd_anyone = False
-                loc_treat_nonl_explct = True
-                print('explicit treatment of nonl. for initial guess!')
-            elif treat_nonl_explct:
-                pcrd_anyone = False
-                loc_treat_nonl_explct = True
-                newtk = vel_nwtn_stps
-                print('No Newton iterations - explicit treatment ' +
-                      'of the nonlinearity')
+            ccfv_c, ccfp_c = _cntrl_stffnss_rhs(cntrlldbcvals=cdbcvals_c,
+                                                **cntrlmatrhsdict)
 
-            if not comp_nonl_semexp_inig and not treat_nonl_explct:
-                if vel_pcrd_stps > 0:
-                    vel_pcrd_stps -= 1
-                    pcrd_anyone = True
-                    print('Picard iterations for initial value -- {0} left'.
-                          format(vel_pcrd_stps))
-                else:
-                    pcrd_anyone = False
-                    newtk += 1
-                    print('Computing Newton Iteration {0}'.format(newtk))
+            if vel_pcrd_stps > 0:
+                vel_pcrd_stps -= 1
+                pcrd_anyone = True
+                print('Picard iterations for initial value -- {0} left'.
+                      format(vel_pcrd_stps))
+            else:
+                pcrd_anyone = False
+                newtk += 1
+                print('Computing Newton Iteration {0}'.format(newtk))
 
             try:
                 if krpslvprms['krylovini'] == 'old':
@@ -1014,36 +1069,32 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 rhs_con_c = np.zeros((cnv, 1))
                 rhsv_conbc_c = np.zeros((cnv, 1))
             else:
-                if loc_treat_nonl_explct:
-                    prev_v = _appbcs(v_old, cdbcvals_c)
-                else:
+                try:
+                    prev_v = dou.load_npa(_gfdct(cur_linvel_point,
+                                          loctrng[0]))
+                except KeyError:
                     try:
                         prev_v = dou.load_npa(_gfdct(cur_linvel_point,
-                                              loctrng[0]))
-                    except KeyError:
-                        try:
-                            prev_v = dou.load_npa(_gfdct(cur_linvel_point,
-                                                  None))
-                        except TypeError:
-                            prev_v = cur_linvel_point[None]
-                    # prev_v = prev_v[dbcntinvinds]
+                                              None))
+                    except TypeError:
+                        prev_v = cur_linvel_point[None]
+                # prev_v = prev_v[dbcntinvinds]
 
                 convc_mat_c, rhs_con_c, rhsv_conbc_c = \
                     get_v_conv_conts(vvec=_appbcs(v_old, cdbcvals_c), V=V,
                                      invinds=dbcntinvinds,
-                                     semi_explicit=loc_treat_nonl_explct,
                                      dbcinds=[dbcinds, glbcntbcinds],
                                      dbcvals=[dbcvals, cdbcvals_c],
                                      Picard=pcrd_anyone)
 
-            cury = None if cv_mat is None else cv_mat.dot(v_old)
-            (fv_tmdp_cont,
-             fv_tmdp_memory) = fv_tmdp(time=0, curvel=v_old, cury=cury,
-                                       memory=fv_tmdp_memory,
-                                       **fv_tmdp_params)
+            # cury = None if cv_mat is None else cv_mat.dot(v_old)
+            # (fv_tmdp_cont,
+            #  fv_tmdp_memory) = fv_tmdp(time=0, curvel=v_old, cury=cury,
+            #                            memory=fv_tmdp_memory,
+            #                            **fv_tmdp_params)
 
             _rhsconvc = 0. if pcrd_anyone else rhs_con_c
-            fvn_c = cfv_c + rhsv_conbc_c + _rhsconvc + fv_tmdp_cont
+            fvn_c = cfv + ccfv_c + rhsv_conbc_c + _rhsconvc  # + fv_tmdp_cont
 
             if closed_loop:
                 if static_feedback:
@@ -1053,12 +1104,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     mtxtb_c = dou.load_npa(feedbackthroughdict[0]['mtxtb'])
                     w_c = dou.load_npa(feedbackthroughdict[0]['w'])
 
-                fvn_c = fvn_c + tb_mat * (tb_mat.T * w_c)
+                fvn_c = fvn_c + b_mat * (b_mat.T * w_c)
                 vmat_c = mtxtb_c.T
                 try:
-                    umat_c = np.array(tb_mat.todense())
+                    umat_c = np.array(b_mat.todense())
                 except AttributeError:
-                    umat_c = tb_mat
+                    umat_c = b_mat
 
             else:
                 vmat_c = None
@@ -1102,24 +1153,20 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     rhsv_conbc_n = np.zeros((cnv, 1))
                     prev_v = v_old
                 else:
-                    if loc_treat_nonl_explct:
-                        prev_v = _appbcs(v_old, cdbcvals_c)
-                        prev_p = p_old
-                    else:
+                    try:
+                        prev_v = dou.load_npa(_gfdct(cur_linvel_point, t))
+                    except KeyError:
                         try:
-                            prev_v = dou.load_npa(_gfdct(cur_linvel_point, t))
-                        except KeyError:
-                            try:
-                                prev_v = dou.load_npa(_gfdct(cur_linvel_point,
-                                                             None))
-                            except TypeError:
-                                prev_v = cur_linvel_point[None]
-                        prev_p = None
+                            prev_v = dou.load_npa(_gfdct(cur_linvel_point,
+                                                         None))
+                        except TypeError:
+                            prev_v = cur_linvel_point[None]
+                    prev_p = None
 
                 cdbcvals_n = _comp_cntrl_bcvals(vel=prev_v, p=prev_p, time=t,
                                                 **cntrlmatrhsdict)
-                cfv_n, cfp_n = _upd_stffnss_rhs(cntrlldbcvals=cdbcvals_n,
-                                                **cntrlmatrhsdict)
+                ccfv_n, ccfp_n = _cntrl_stffnss_rhs(cntrlldbcvals=cdbcvals_n,
+                                                    **cntrlmatrhsdict)
                 mbcs_n = dts.condense_velmatsbybcs(M, invinds=locinvinds,
                                                    dbcinds=loccntbcinds,
                                                    dbcvals=cdbcvals_n,
@@ -1130,19 +1177,18 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                      invinds=dbcntinvinds,
                                      dbcinds=[dbcinds, glbcntbcinds],
                                      dbcvals=[dbcvals, cdbcvals_n],
-                                     semi_explicit=loc_treat_nonl_explct,
                                      Picard=pcrd_anyone)
 
-                cury = None if cv_mat is None else cv_mat.dot(prev_v)
-                (fv_tmdp_cont,
-                 fv_tmdp_memory) = fv_tmdp(time=t,
-                                           curvel=prev_v,
-                                           cury=cury,
-                                           memory=fv_tmdp_memory,
-                                           **fv_tmdp_params)
+                # cury = None if cv_mat is None else cv_mat.dot(prev_v)
+                # (fv_tmdp_cont,
+                #  fv_tmdp_memory) = fv_tmdp(time=t,
+                #                            curvel=prev_v,
+                #                            cury=cury,
+                #                            memory=fv_tmdp_memory,
+                #                            **fv_tmdp_params)
 
                 _rhsconvn = 0. if pcrd_anyone else rhs_con_n
-                fvn_n = cfv_n + rhsv_conbc_n + _rhsconvn + fv_tmdp_cont
+                fvn_n = cfv + ccfv_n + rhsv_conbc_n + _rhsconvn  # + fv_tmdp
 
                 if closed_loop:
                     if static_feedback:
@@ -1156,12 +1202,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                         mtxtb_n = dou.load_npa(feedbackthroughdict[t]['mtxtb'])
                         w_n = dou.load_npa(feedbackthroughdict[t]['w'])
 
-                    fvn_n = fvn_n + tb_mat * (tb_mat.T * w_n)
+                    fvn_n = fvn_n + b_mat * (b_mat.T * w_n)
                     vmat_n = mtxtb_n.T
                     try:
-                        umat_n = np.array(tb_mat.todense())
+                        umat_n = np.array(b_mat.todense())
                     except AttributeError:
-                        umat_n = tb_mat
+                        umat_n = b_mat
 
                 else:
                     vmat_n = None
@@ -1188,27 +1234,14 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 except (TypeError, KeyError):
                     pass  # no inival for krylov solver required
 
-                if (uniformgrid and (stokes_flow or loc_treat_nonl_explct)
-                        and not krylov):
-                    if coeffmatlu is None:
-                        print('gonna compute an LU of the coefficient ' +
-                              'matrix \n and reuse it in the time stepping')
-                    vp_new, coeffmatlu = \
-                        lau.solve_sadpnt_smw(amat=solvmat, jmat=cj, jmatT=cjt,
-                                             rhsv=rhsv, rhsp=fp,
-                                             sadlu=coeffmatlu,
-                                             return_alu=True,
-                                             umat=umat, vmat=vmat)
-
-                else:
-                    vp_new = lau.solve_sadpnt_smw(amat=solvmat,
-                                                  jmat=cj, jmatT=cjt,
-                                                  rhsv=rhsv,
-                                                  rhsp=fp,
-                                                  krylov=krylov,
-                                                  krpslvprms=krpslvprms,
-                                                  krplsprms=krplsprms,
-                                                  umat=umat, vmat=vmat)
+                vp_new = lau.solve_sadpnt_smw(amat=solvmat,
+                                              jmat=cj, jmatT=cjt,
+                                              rhsv=rhsv,
+                                              rhsp=cfp+ccfp_n,
+                                              krylov=krylov,
+                                              krpslvprms=krpslvprms,
+                                              krplsprms=krplsprms,
+                                              umat=umat, vmat=vmat)
 
                 # print('v_old : {0} ({1})'.format(np.linalg.norm(v_old),
                 #                                  v_old.size))
@@ -1268,16 +1301,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             print('\nnorm of current Newton update: {}'.format(norm_nwtnupd))
             # print('\nsaved `norm_nwtnupd(={0})'.format(norm_nwtnupd) +
             #       ' to ' + cdatstr)
-            loc_treat_nonl_explct = False
-            comp_nonl_semexp_inig = False
 
             cur_linvel_point = dictofvelstrs
 
         iniv = v_old  # overwrite iniv as the starting value
         inip = p_old  # > for the next time section
 
-        if not treat_nonl_explct and lin_vel_point is None:
-            comp_nonl_semexp_inig = True
         if addfullsweep and loctrng is loctrngs[-2]:
             comp_nonl_semexp_inig = False
             iniv = realiniv

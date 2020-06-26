@@ -23,6 +23,7 @@ __all__ = ['get_sysmats',
            'drivcav_fems',
            'cyl_fems',
            'gen_bccont_fems',
+           'gen_bccont_fems_3D',
            'cyl3D_fems']
 
 
@@ -107,7 +108,8 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
 
     problemdict = dict(drivencavity=drivcav_fems,
                        cylinderwake=cyl_fems,
-                       cylinderwake3D=cyl3D_fems,
+                       # cylinderwake3D=cyl3D_fems,
+                       cylinderwake3D=gen_bccont_fems_3D,
                        gen_bccont=gen_bccont_fems)
 
     if problem == 'cylinderwake' or problem == 'gen_bccont':
@@ -132,10 +134,16 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
         Re = charvel*femp['charlen']/nu
 
     if bccontrol:
-        cbshapefuns = femp['contrbcsshapefuns']
-        cbclist = femp['contrbcssubdomains']
+        try:
+            cbshapefuns = femp['contrbcsshapefuns']
+            cbclist = femp['contrbcssubdomains']
+            cbds = None
+        except KeyError:
+            cbshapefuns = femp['contrbcsshapefuns']
+            cbclist = None
+            cbds = femp['cntrbcsds']
     else:
-        cbclist, cbshapefuns = None, None
+        cbclist, cbshapefuns, cbds = None, None, None
 
     try:
         outflowds = femp['outflowds']
@@ -143,7 +151,7 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
         outflowds = None
 
     stokesmats = dts.get_stokessysmats(femp['V'], femp['Q'], nu,
-                                       cbclist=cbclist,
+                                       cbclist=cbclist, cbds=cbds,
                                        gradvsymmtrc=gradvsymmtrc,
                                        outflowds=outflowds,
                                        cbshapefuns=cbshapefuns,
@@ -181,7 +189,8 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
     rhsd_vfrc = dict(fpr=rhsd_vf['fp'], fvc=rhsd_vf['fv'][invinds, ])
     if bccontrol:
         Arob, fvrob = dts.condense_velmatsbybcs(stokesmats['amatrob'],
-                                                femp['diribcs'])
+                                                dbcinds=femp['dbcinds'],
+                                                dbcvals=femp['dbcvals'])
         if np.linalg.norm(fvrob) > 1e-15:
             raise UserWarning('diri and control bc must not intersect')
 
@@ -598,6 +607,8 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
 
 
 def cyl3D_fems(refinement_level=2, scheme='TH',
+               strtobcsobs='',
+               strtomeshfile='', strtophysicalregions='',
                bccontrol=False, verbose=False):
     """
     dictionary for the fem items for the 3D cylinder wake
@@ -657,8 +668,14 @@ def cyl3D_fems(refinement_level=2, scheme='TH',
     # radius = 0.15
 
     # Load mesh
-    mesh = dolfin.\
-        Mesh("mesh/3d-cyl/karman3D_lvl{0}.xml.gz".format(refinement_level))
+    if not strtomeshfile == '':
+        mesh = dolfin.Mesh(strtomeshfile)
+        meshfile = strtophysicalregions
+    else:
+        mesh = dolfin.\
+            Mesh("mesh/3d-cyl/karman3D_lvl{0}.xml.gz".format(refinement_level))
+        meshfile = 'mesh/3d-cyl/karman3D_lvl{0}_facet_region.xml.gz'.\
+            format(refinement_level)
 
     # scheme = 'CR'
     if scheme == 'CR':
@@ -670,8 +687,6 @@ def cyl3D_fems(refinement_level=2, scheme='TH',
         Q = dolfin.FunctionSpace(mesh, "CG", 1)
 
     # get the boundaries from the gmesh file
-    meshfile = 'mesh/3d-cyl/karman3D_lvl{0}_facet_region.xml.gz'.\
-        format(refinement_level)
     boundaries = dolfin.\
         MeshFunction('size_t', mesh, meshfile)
 
@@ -826,17 +841,20 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
 
     mvwdbcs = []
     mvwtvs = []
-    for cntbc in cntbcsdata['moving walls']:
-        center = np.array(cntbc['geometry']['center'])
-        radius = cntbc['geometry']['radius']
-        if cntbc['type'] == 'circle':
-            omega = 1. if movingwallcntrl else 0.
-            rotcyl = RotatingCircle(degree=2, radius=radius,
-                                    xcenter=center, omega=omega)
-        else:
-            raise NotImplementedError()
-        mvwdbcs.append(dolfin.DirichletBC(V, rotcyl, boundaries,
-                                          cntbc['physical entity']))
+    try:
+        for cntbc in cntbcsdata['moving walls']:
+            center = np.array(cntbc['geometry']['center'])
+            radius = cntbc['geometry']['radius']
+            if cntbc['type'] == 'circle':
+                omega = 1. if movingwallcntrl else 0.
+                rotcyl = RotatingCircle(degree=2, radius=radius,
+                                        xcenter=center, omega=omega)
+            else:
+                raise NotImplementedError()
+            mvwdbcs.append(dolfin.DirichletBC(V, rotcyl, boundaries,
+                                              cntbc['physical entity']))
+    except KeyError:
+        pass  # no moving walls defined
     if not movingwallcntrl:
         diribcu.extend(mvwdbcs)  # add the moving walls to the diri bcs
         mvwdbcs = []
@@ -872,15 +890,16 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
         mvwbcinds.extend(list(bcdict.keys()))
 
     # ## Control boundaries
-    bcpes, bcshapefuns = [], []
+    bcpes, bcshapefuns, bcds = [], [], []
     if bccontrol:
         for cbc in cntbcsdata['controlbcs']:
             cpe = cbc['physical entity']
-            cxi, cxii = np.array(cbc['xone']), np.array(cbc['xone'])
+            cxi, cxii = np.array(cbc['xone']), np.array(cbc['xtwo'])
             csf = _get_cont_shape_fun2D(xi=cxi, xii=cxii,
                                         element=V.ufl_element())
             bcshapefuns.append(csf)
             bcpes.append(cpe)
+            bcds.append(dolfin.Measure("ds", subdomain_data=boundaries)(cpe))
 
     # ## Lift Drag Computation
     try:
@@ -898,7 +917,12 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
     except KeyError:
         outflowds = None  # no domain specified for outflow
 
-    cylfems = dict(V=V,
+    try:
+        odcoo = cntbcsdata['observation-domain-coordinates']
+    except KeyError:
+        odcoo = None
+
+    gbcfems = dict(V=V,
                    Q=Q,
                    dbcinds=dbcinds,
                    dbcvals=dbcvals,
@@ -913,12 +937,14 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
                    contrbcmeshfunc=boundaries,
                    contrbcspes=bcpes,
                    contrbcsshapefuns=bcshapefuns,
+                   cntrbcsds=bcds,
+                   odcoo=odcoo,
                    fv=fv,
                    fp=fp,
                    charlen=cntbcsdata['characteristic length'],
                    mesh=mesh)
 
-    return cylfems
+    return gbcfems
 
 
 def _get_cont_shape_fun2D(xi=None, xii=None, element=None, shape='parabola'):
@@ -928,8 +954,9 @@ def _get_cont_shape_fun2D(xi=None, xii=None, element=None, shape='parabola'):
 
     class GenContShape(dolfin.UserExpression):
 
-        def __init__(self, degree=2):
+        def __init__(self, degree=2, element=None):
             self.degree = degree
+            self.element = element
             super().__init__()
 
         def eval(self, value, x):
@@ -974,6 +1001,45 @@ class InflowParabola(dolfin.UserExpression):
         return (2,)
 
 
+class InflowParabola3D(dolfin.UserExpression):
+    '''Create inflow boundary condition
+
+    a parabola g with `int g(s)ds = s1-s0 == int 1 ds`
+    if on [0,1]: `g(s) = s*(1-s)*4*3/2`
+    if on [s0,s1]: `g(s) = ((s-s0)/(s1-s0))*(1-(s-s0)/(s1-s0))*6`
+    since then `g((s0+s1)/2)=3/2` and  `g(s0)=0=g(s1)`'''
+
+    def __init__(self, degree=2, xone=None, xtwo=None, xfour=None,
+                 inflowvel=1., normalvec=None):
+        self.degree = degree
+        self.xone = xone
+        self.normalvec = normalvec
+        self.inflowvel = inflowvel
+        self.xvec = xtwo-xone
+        self.yvec = xfour-xone
+        self.lenxsqrd = np.inner(self.xvec, self.xvec)
+        self.lenysqrd = np.inner(self.yvec, self.yvec)
+        try:
+            super().__init__()
+        except RuntimeError():
+            pass  # had trouble with this call to __init__ in 'dolfin:2017.2.0'
+
+    def eval(self, value, x):
+        xclean = x - self.xone
+        cursx = np.inner(xclean, self.xvec)/self.lenxsqrd
+        cursy = np.inner(xclean, self.yvec)/self.lenysqrd
+        # print(x, cursx, cursy)
+        # gin = dolfin.Expression(('6*(x[1]*(ymax-x[1]))/(ymax*ymax)',
+        #                          '0.0', '0.0'),
+        #                          ymax=ymax, element=V.ufl_element())
+        curvel = self.inflowvel*36*cursx*(1-cursx) * \
+            cursy*(1-cursy)*self.normalvec
+        value[0], value[1], value[2] = curvel[0], curvel[1], curvel[2]
+
+    def value_shape(self):
+        return (3,)
+
+
 class RotatingCircle(dolfin.UserExpression):
     '''Create the boundary condition of a rotating circle
 
@@ -1004,7 +1070,7 @@ class LiftDragSurfForce():
                  outflowds=None, phione=None, phitwo=None):
         self.mesh = V.mesh()
         self.n = dolfin.FacetNormal(self.mesh)
-        self.I = dolfin.Identity(self.mesh.geometry().dim())
+        # self.Id = dolfin.Identity(self.mesh.geometry().dim())
         self.ldds = ldds
         self.outflowds = outflowds
         self.nu = nu
@@ -1032,7 +1098,7 @@ class LiftDragSurfForce():
         # L = (inner(self.nu*grad(uy), grad(self.phione))
         #      + inner(u, grad(uy))*self.phione
         #      - p*self.phione.dx(1))*dolfin.dx
-        # T = -p*self.I + 2.0*self.nu*self.epsilon(u)
+        # T = -p*self.Id + 2.0*self.nu*self.epsilon(u)
         # force = dolfin.dot(T, self.n)
         # D = force[0]*self.ldds
         # L = force[1]*self.ldds
@@ -1079,3 +1145,223 @@ class LiftDragSurfForce():
         trqthr = tconv + tdiff + tpres - tofcr
 
         return trqthr
+
+
+def gen_bccont_fems_3D(scheme='TH', bccontrol=True, verbose=False,
+                       strtomeshfile='', strtophysicalregions='',
+                       inflowvel=1., inflowprofile='parabola',
+                       movingwallcntrl=False,
+                       strtobcsobs=''):
+    """
+    dictionary for the fem items for a general 3D flow setup
+
+    with
+     * inflow/outflow
+     * boundary control
+
+    Parameters
+    ----------
+    scheme : {None, 'CR', 'TH'}
+        the finite element scheme to be applied, 'CR' for Crouzieux-Raviart,\
+        'TH' for Taylor-Hood, overrides `pdgree`, `vdgree`, defaults to `None`
+    bccontrol : boolean, optional
+        whether to consider boundary control via penalized Robin \
+        defaults to `True`
+    movingwallcntrl : boolean, optional
+        whether control is via moving boundaries
+
+    Returns
+    -------
+    femp : a dictionary with the keys:
+         * `V`: FEM space of the velocity
+         * `Q`: FEM space of the pressure
+         * `diribcs`: list of the (Dirichlet) boundary conditions
+         * `dbcsinds`: list vortex indices with (Dirichlet) boundary conditions
+         * `dbcsvals`: list of values of the (Dirichlet) boundary conditions
+         * `dirip`: list of the (Dirichlet) boundary conditions \
+                 for the pressure
+         * `fv`: right hand side of the momentum equation
+         * `fp`: right hand side of the continuity equation
+         * `charlen`: characteristic length of the setup
+         * `odcoo`: dictionary with the coordinates of the \
+                 domain of observation
+
+    """
+
+    # Load mesh
+    mesh = dolfin.Mesh(strtomeshfile)
+
+    if scheme == 'CR':
+        V = dolfin.VectorFunctionSpace(mesh, "CR", 1)
+        Q = dolfin.FunctionSpace(mesh, "DG", 0)
+    elif scheme == 'TH':
+        V = dolfin.VectorFunctionSpace(mesh, "CG", 2)
+        Q = dolfin.FunctionSpace(mesh, "CG", 1)
+
+    boundaries = dolfin.MeshFunction('size_t', mesh, strtophysicalregions)
+
+    with open(strtobcsobs) as f:
+        cntbcsdata = json.load(f)
+
+    inflowgeodata = cntbcsdata['inflow']
+    inflwpe = inflowgeodata['physical entity']
+    inflwin = np.array(inflowgeodata['inward normal'])
+    inflwxi = np.array(inflowgeodata['xone'])
+    inflwxii = np.array(inflowgeodata['xtwo'])
+    # inflwxiii = np.array(inflowgeodata['xthree'])
+    inflwxiv = np.array(inflowgeodata['xfour'])
+
+    if inflowprofile == 'block':
+        raise NotImplementedError()
+        inflwprfl = dolfin.\
+            Expression(('cv*no', 'cv*nt'), cv=inflowvel,
+                       no=inflwin[0], nt=inflwin[1],
+                       element=V.ufl_element())
+    elif inflowprofile == 'parabola':
+        inflwprfl = InflowParabola3D(degree=2, xone=inflwxi, xtwo=inflwxii,
+                                     xfour=inflwxiv,
+                                     normalvec=inflwin, inflowvel=inflowvel)
+    bcin = dolfin.DirichletBC(V, inflwprfl, boundaries, inflwpe)
+    diribcu = [bcin]
+
+    # ## THE WALLS
+    wallspel = cntbcsdata['walls']['physical entity']
+    gzero = dolfin.Constant((0, 0, 0))
+    for wpe in wallspel:
+        diribcu.append(dolfin.DirichletBC(V, gzero, boundaries, wpe))
+        # bcdict = diribcu[-1].get_boundary_values()
+
+    if not bccontrol:  # treat the control boundaries as walls
+        try:
+            for cntbc in cntbcsdata['controlbcs']:
+                diribcu.append(dolfin.DirichletBC(V, gzero, boundaries,
+                                                  cntbc['physical entity']))
+        except KeyError:
+            pass  # no control boundaries
+
+    # yes-slip walls
+    try:
+        slipwallspel = cntbcsdata['slipwalls']['physical entity']
+        slipwallsnvs = cntbcsdata['slipwalls']['inward normals']
+        gscalzero = dolfin.Constant(0)
+        for kk, swpe in enumerate(slipwallspel):
+            cinwnrml = np.array(slipwallsnvs[kk])
+            if np.abs(np.inner(cinwnrml, np.array([0, 0, 1.]))) == 1:
+                cbcsw = dolfin.DirichletBC(V.sub(2), gscalzero,
+                                           boundaries, swpe)
+                diribcu.append(cbcsw)
+            else:
+                raise NotImplementedError()
+    except KeyError:
+        pass  # no control boundaries
+
+    mvwdbcs = []
+    mvwtvs = []
+    try:
+        for cntbc in cntbcsdata['moving walls']:
+            raise NotImplementedError()
+            center = np.array(cntbc['geometry']['center'])
+            radius = cntbc['geometry']['radius']
+            if cntbc['type'] == 'circle':
+                omega = 1. if movingwallcntrl else 0.
+                rotcyl = RotatingCircle(degree=2, radius=radius,
+                                        xcenter=center, omega=omega)
+            else:
+                raise NotImplementedError()
+            mvwdbcs.append(dolfin.DirichletBC(V, rotcyl, boundaries,
+                                              cntbc['physical entity']))
+    except KeyError:
+        pass  # no moving walls defined
+    if not movingwallcntrl:
+        diribcu.extend(mvwdbcs)  # add the moving walls to the diri bcs
+        mvwdbcs = []
+
+    # Create outflow boundary condition for pressure
+    # TODO XXX why zero pressure?? is this do-nothing???
+    # outflwpe = cntbcsdata['outflow']['physical entity']
+    # g2 = dolfin.Constant(0)
+    # bc2 = dolfin.DirichletBC(Q, g2, boundaries, outflwpe)
+
+    # Collect boundary conditions
+    # bcp = [bc2]
+
+    # Create right-hand side function
+    fv = dolfin.Constant((0, 0, 0))
+    fp = dolfin.Constant(0)
+
+    def initial_conditions(self, V, Q):
+        u0 = dolfin.Constant((0, 0, 0))
+        p0 = dolfin.Constant(0)
+        return u0, p0
+
+    dbcinds, dbcvals = [], []
+    for bc in diribcu:
+        bcdict = bc.get_boundary_values()
+        dbcvals.extend(list(bcdict.values()))
+        dbcinds.extend(list(bcdict.keys()))
+
+    mvwbcinds, mvwbcvals = [], []
+    for bc in mvwdbcs:
+        bcdict = bc.get_boundary_values()
+        mvwbcvals.extend(list(bcdict.values()))
+        mvwbcinds.extend(list(bcdict.keys()))
+
+    # ## Control boundaries
+    bcpes, bcshapefuns, bcds = [], [], []
+    if bccontrol:
+        raise NotImplementedError()
+        for cbc in cntbcsdata['controlbcs']:
+            cpe = cbc['physical entity']
+            cxi, cxii = np.array(cbc['xone']), np.array(cbc['xtwo'])
+            csf = _get_cont_shape_fun2D(xi=cxi, xii=cxii,
+                                        element=V.ufl_element())
+            bcshapefuns.append(csf)
+            bcpes.append(cpe)
+            bcds.append(dolfin.Measure("ds", subdomain_data=boundaries)(cpe))
+
+    # ## Lift Drag Computation
+    try:
+        ldsurfpe = cntbcsdata['lift drag surface']['physical entity']
+        raise NotImplementedError()
+        liftdragds = dolfin.Measure("ds", subdomain_data=boundaries)(ldsurfpe)
+        bclds = dolfin.DirichletBC(V, gzero, boundaries, ldsurfpe)
+        bcldsdict = bclds.get_boundary_values()
+        ldsbcinds = list(bcldsdict.keys())
+    except KeyError:
+        liftdragds = None  # no domain specified for lift/drag
+        ldsbcinds = None
+    try:
+        outflwpe = cntbcsdata['outflow']['physical entity']
+        outflowds = dolfin.Measure("ds", subdomain_data=boundaries)(outflwpe)
+    except KeyError:
+        outflowds = None  # no domain specified for outflow
+
+    try:
+        odcoo = cntbcsdata['observation-domain-coordinates']
+        raise NotImplementedError()
+    except KeyError:
+        odcoo = None
+
+    gbcfems = dict(V=V,
+                   Q=Q,
+                   dbcinds=dbcinds,
+                   dbcvals=dbcvals,
+                   mvwbcinds=mvwbcinds,
+                   mvwbcvals=mvwbcvals,
+                   mvwtvs=mvwtvs,
+                   # dirip=bcp,
+                   outflowds=outflowds,
+                   # contrbcssubdomains=bcsubdoms,
+                   liftdragds=liftdragds,
+                   ldsbcinds=ldsbcinds,
+                   contrbcmeshfunc=boundaries,
+                   contrbcspes=bcpes,
+                   contrbcsshapefuns=bcshapefuns,
+                   cntrbcsds=bcds,
+                   odcoo=odcoo,
+                   fv=fv,
+                   fp=fp,
+                   charlen=cntbcsdata['characteristic length'],
+                   mesh=mesh)
+
+    return gbcfems

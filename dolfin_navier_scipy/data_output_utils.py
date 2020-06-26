@@ -16,12 +16,13 @@ def output_paraview(V=None, Q=None, VS=None, fstring='nn',
                     dbcinds=None, dbcvals=None,
                     vp=None, vc=None, pc=None, sc=None,
                     sname='nn',
-                    ppin=-1, t=None, tfilter=None, writeoutput=True,
+                    ppin=None, t=None, tfilter=None, writeoutput=True,
                     vfile=None, pfile=None, sfile=None):
     """write the paraview output for a solution `(v,p)` or a scalar `s`
 
     given as coefficients
     """
+
     if not writeoutput:
         return
     else:
@@ -45,6 +46,11 @@ def output_paraview(V=None, Q=None, VS=None, fstring='nn',
                                  diribcs=diribcs)
 
         v.rename('v', 'velocity')
+        # import matplotlib.pyplot as plt
+        # dolfin.plot(v)
+        # plt.show()
+        # dolfin.plot(p)
+        # plt.show()
         if vfile is None:
             vfile = dolfin.File(fstring+'_vel.pvd')
         vfile << v, t
@@ -100,6 +106,7 @@ def load_spa(fstring):
 def load_json_dicts(StrToJs):
     fjs = open(StrToJs)
     JsDict = json.load(fjs)
+    fjs.close()
     return JsDict
 
 
@@ -391,12 +398,15 @@ class Timer(object):
 
     def __enter__(self):
         self.tstart = time.time()
+        # self.ptstart = time.process_time()
 
     def __exit__(self, type, value, traceback):
         elt = time.time() - self.tstart
+        # elpt = time.process_time() - self.ptstart
         self.timerinfo.update(dict(elt=elt))
         if self.logger is not None:
             self.logger.info('{0}: Elapsed time: {1}'.
                              format(self.name, elt))
         if self.verbose:
             print('{0}: Elapsed time: {1}'.format(self.name, elt))
+            # print('{0}: Elapsed CPU time: {1}'.format(self.name, elpt))
