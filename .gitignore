@@ -1,6 +1,9 @@
 data/
 results/
 mesh/
+build/
+dist/
+dolfin_navier_scipy.egg-info/
 *.npy
 *.pyc
 tests/paraviewplots/
