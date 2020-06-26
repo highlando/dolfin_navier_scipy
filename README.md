@@ -11,10 +11,12 @@ This python module `dns` provides an interface between the FEM toolbox [`FEniCS`
 To get started, create the needed subdirectories and run one of the `tests/time_dep_nse_.py` files, e.g.
 
 ```
+pip install sadptprj_riclyap_adi
 cd tests
 mkdir data
 mkdir results
 # export PYTHONPATH="$PYTHONPATH:path/to/repo/"  # add the repo to the path
+# pip install dolfin_navier_scipy                # or install the module using pip
 python3 time_dep_nse_expnonl.py
 ```
 
@@ -47,3 +49,9 @@ The latter is my home-brew module that includes the submodule `lin_alg_utils` wi
 ## Documentation
 
 Documentation of the code goes [here](http://dolfin-navier-scipy.readthedocs.org/en/latest/index.html).
+
+## Installation as Module
+
+```
+pip install dolfin_navier_scipy
+```
