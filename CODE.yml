@@ -1,8 +1,8 @@
 ---
 name: dolfin_navier_scipy
 shortname: dns
-version: 2019.06
-release-date: 2019-06-05
+version: 1.0.0
+release-date: 2020-06-26
 id: 
 id-type: doi
 authors: Jan Heiland
