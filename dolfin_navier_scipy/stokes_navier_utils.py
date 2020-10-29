@@ -562,8 +562,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               useolddata=False,
               get_datastring=None,
               data_prfx='',
-              paraviewoutput=False,
-              plttrange=None,
+              paraviewoutput=False, plttrange=None, prvoutpnts=None,
               vfileprfx='', pfileprfx='',
               return_dictofvelstrs=False,
               return_dictofpstrs=False,
@@ -735,6 +734,16 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     NP = J.shape[0]
     fv = np.zeros((cnv, 1)) if fv is None else fv
     fp = np.zeros((NP, 1)) if fp is None else fp
+
+    if plttrange is None:
+        if prvoutpnts is not None:
+            cnts = trange.size  # TODO: trange may be a list...
+            filtert = np.arange(0, cnts, np.int(np.floor(cnts/prvoutpnts)))
+            plttrange = trange[filtert]
+    try:
+        plttrange = plttrange.tolist()
+    except AttributeError:
+        pass
 
     prvoutdict = dict(V=V, Q=Q, vp=None, t=None,
                       dbcinds=[dbcinds, glbcntbcinds],

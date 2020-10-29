@@ -35,6 +35,9 @@ def testit(meshprfx='mesh/karman2D-outlets', meshlevel=1, proutdir='results/',
         raise Warning('need "' + ddir + '" subdir for storing the data')
     os.chdir('..')
 
+    plttrange = np.linspace(t0, tE, 101)
+    plttrange = None
+
     soldict = stokesmatsc  # containing A, J, JT
     soldict.update(femp)  # adding V, Q, invinds, diribcs
     soldict.update(tips)  # adding time integration params
@@ -46,6 +49,7 @@ def testit(meshprfx='mesh/karman2D-outlets', meshlevel=1, proutdir='results/',
                    dbcinds=femp['dbcinds'], dbcvals=femp['dbcvals'],
                    data_prfx=ddir+data_prfx,
                    paraviewoutput=ParaviewOutput,
+                   plttrange=plttrange, prvoutpnts=100,
                    vfileprfx=proutdir+'vel_',
                    pfileprfx=proutdir+'p_')
 
