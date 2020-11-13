@@ -987,6 +987,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     cy = cv_mat.dot(vc)
                     curu, memory = dyn_obs_fbk(t, vc=cy,
                                                memory=memory, mode=mode)
+                    print('cury: {0:.4e} -- curu: {1:.4e}'.
+                          format(cy.flatten()[0], curu.flatten()[0]))
+                    print(cy, curu)
                     return b_mat.dot(curu), memory
             elif static_feedback:
                 pass
