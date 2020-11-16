@@ -308,6 +308,10 @@ def get_stokessysmats(V, Q, nu=None, bccontrol=False, gradvsymmtrc=True,
             amatrob.eliminate_zeros()
             amatrobl.append(amatrob)
             bmatrobl.append(bmatrob.get_local().reshape((V.dim(), 1)))
+            print('ncb: {0} -- norm of brob: {1}'.
+                  format(ncb, np.linalg.norm(bmatrobl[-1])))
+            print('ncb: {0} -- norm of arob: {1}'.
+                  format(ncb, np.linalg.norm(amatrobl[-1].data)))
 
         amatrob = amatrobl[0]
         for amatadd in amatrobl[1:]:

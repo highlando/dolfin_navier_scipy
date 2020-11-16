@@ -133,14 +133,11 @@ def plot_prs_outp(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
 
     if tikzfile is not None:
         try:
-            from matplotlib2tikz import save as tikz_save
-            tikz_save(tikzfile + '.tikz',
-                      figureheight='\\figureheight',
-                      figurewidth='\\figurewidth'
-                      )
+            import tikzplotlib
+            tikzplotlib.save(tikzfile + '.tikz')
             print('tikz saved to ' + tikzfile + '.tikz')
         except ImportError:
-            print('cannot save to tikz -- no matplotlib2tikz found')
+            print('cannot save to tikz -- no tikzplotlib found')
     if tikzonly:
         return
     else:
@@ -176,18 +173,15 @@ def plot_outp_sig(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
         return
 
     try:
-        from matplotlib2tikz import save as tikz_save
+        import tikzplotlib
         if tikzstr is None:
             tikzstr = str_to_json + '{0}'.format(fignum)
-        tikz_save(tikzstr + '.tikz',
-                  figureheight='\\figureheight',
-                  figurewidth='\\figurewidth'
-                  )
+        tikzplotlib.save(tikzstr + '.tikz')
         print('tikz saved to ' + tikzstr + '.tikz')
         haztikz = True
     except ImportError:
         haztikz = False
-        print('cannot save to tikz -- no matplotlib2tikz found')
+        print('cannot save to tikz -- no tikzplotlib found')
 
     fig.show()
 
@@ -197,10 +191,8 @@ def plot_outp_sig(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
         ax1.plot(tmesh, np.array(outsig)-reference)
 
         if haztikz:
-            tikz_save(str_to_json + '{0}'.format(fignum) + '_difftoref.tikz',
-                      figureheight='\\figureheight',
-                      figurewidth='\\figurewidth'
-                      )
+            tikzplotlib.save(str_to_json + '{0}'.format(fignum) +
+                             '_difftoref.tikz')
         fig.show()
 
 

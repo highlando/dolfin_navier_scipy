@@ -4,10 +4,11 @@ with open("README.md", 'r') as f:
     long_description = f.read()
 
 setup(name='dolfin_navier_scipy',
-      version='1.0.0',
+      version='1.0.1',
       description='A Scipy-Fenics interface for incompressible Navier-Stokes',
       license="GPLv3",
       long_description=long_description,
+      long_description_content_type='text/markdown',
       author='Jan Heiland',
       author_email='jnhlnd@gmail.com',
       url="https://github.com/highlando/dolfin_navier_scipy",

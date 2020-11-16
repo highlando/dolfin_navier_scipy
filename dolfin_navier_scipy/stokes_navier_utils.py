@@ -570,6 +570,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               treat_nonl_explct=False, no_data_caching=True,
               return_final_vp=False,
               return_as_list=False, return_vp_dict=False,
+              return_y_list=False,
               verbose=True,
               start_ssstokes=False,
               **kw):
@@ -1007,11 +1008,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 prvoutdict.update(dict(vc=vvec, pc=pvec, t=time))
                 dou.output_paraview(**prvoutdict)
 
-        elif no_data_caching and treat_nonl_explct:
-            def _svpplz(vvec, pvec, time=None):
-                prvoutdict.update(dict(vc=vvec, pc=pvec, t=time))
-                dou.output_paraview(**prvoutdict)
-
         elif return_dictofvelstrs:
             def _svpplz(vvec, pvec, time=None):
                 cfvstr = data_prfx + '_prs_t{0}'.format(time)
@@ -1021,6 +1017,18 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 _atdct(expnlveldct, time, cfvstr)
                 prvoutdict.update(dict(vc=vvec, pc=pvec, t=time))
                 dou.output_paraview(**prvoutdict)
+
+        else:
+            ylist = []
+
+            def _svpplz(vvec, pvec, time=None):
+                prvoutdict.update(dict(vc=vvec, pc=pvec, t=time))
+                dou.output_paraview(**prvoutdict)
+                if return_y_list:
+                    try:
+                        ylist.append(cv_mat.dot(vvec[dbcntinvinds]))
+                    except ValueError:
+                        ylist.append(cv_mat.dot(vvec))
 
         v_end, p_end = cnab(trange=trange, inivel=iniv, inip=inip,
                             bcs_ini=inicdbcvals,
@@ -1038,6 +1046,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 return (v_end, p_end)
             elif return_dictofvelstrs:
                 return expnlveldct
+            elif return_y_list:
+                return ylist
             else:
                 return
 
