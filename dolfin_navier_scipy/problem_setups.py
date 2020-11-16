@@ -194,7 +194,15 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
         if np.linalg.norm(fvrob) > 1e-15:
             raise UserWarning('diri and control bc must not intersect')
 
+        import ipdb
+        ipdb.set_trace()
+
+        Brobfull = stokesmats['bmatrob']
+        print(np.linalg.norm(Brobfull))
+        Brob = Brobfull[invinds, :]
+        print(np.linalg.norm(Brob))
         Brob = stokesmats['bmatrob'][invinds, :]
+        print(np.linalg.norm(Brobfull))
         stokesmatsc.update({'Brob': Brob, 'Arob': Arob})
 
     # add the info on boundary and inner nodes
@@ -961,8 +969,8 @@ def _get_cont_shape_fun2D(xi=None, xii=None, element=None, shape='parabola'):
 
         def eval(self, value, x):
             curs = np.linalg.norm(x - xi)/lencb
-            # print(x, curs)
             curvel = 6*curs*(1-curs)*cbn
+            print(x, curs, curvel)
             value[0], value[1] = curvel[0], curvel[1]
 
         def value_shape(self):
