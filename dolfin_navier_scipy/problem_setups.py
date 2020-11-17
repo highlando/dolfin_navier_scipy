@@ -791,6 +791,7 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
     """
 
     # Load mesh
+    print('mesh: ' + strtomeshfile)
     mesh = dolfin.Mesh(strtomeshfile)
 
     if scheme == 'CR':
@@ -847,9 +848,9 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
     mvwtvs = []
     try:
         for cntbc in cntbcsdata['moving walls']:
-            center = np.array(cntbc['geometry']['center'])
-            radius = cntbc['geometry']['radius']
             if cntbc['type'] == 'circle':
+                center = np.array(cntbc['geometry']['center'])
+                radius = cntbc['geometry']['radius']
                 omega = 1. if movingwallcntrl else 0.
                 rotcyl = RotatingCircle(degree=2, radius=radius,
                                         xcenter=center, omega=omega)
