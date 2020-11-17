@@ -147,7 +147,7 @@ def plot_prs_outp(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
 
 def plot_outp_sig(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
                   outsig=None, tmesh=None, fignum=222, reference=None,
-                  tikzstr=None, compress=5, notikz=False):
+                  tikzstr=None, compress=5, tikzplease=False):
     import matplotlib.pyplot as plt
 
     if str_to_json is not None:
@@ -168,7 +168,7 @@ def plot_outp_sig(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
              color='b', linewidth=2.0)
     ax1.plot(np.array(tmesh)[redina], np.array(outsig)[redina, NY:],
              color='r', linewidth=2.0)
-    if notikz:
+    if not tikzplease:
         plt.show()
         return
 
