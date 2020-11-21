@@ -893,11 +893,15 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
     bcpes, bcshapefuns, bcds = [], [], []
     if bccontrol:
         for cbc in cntbcsdata['controlbcs']:
-            cpe = cbc['physical entity']
-            cxi, cxii = np.array(cbc['xone']), np.array(cbc['xtwo'])
-            csf = _get_cont_shape_fun2D(xi=cxi, xii=cxii,
-                                        element=V.ufl_element())
+            if cbc['type'] == 'inlet':
+                cxi, cxii = np.array(cbc['xone']), np.array(cbc['xtwo'])
+                csf = _get_cont_shape_fun2D(xi=cxi, xii=cxii,
+                                            element=V.ufl_element())
+            elif cbc['type'] == 'rotating circle':
+                csf = RotatingCircle(center=cbc['center'],
+                                     radius=cbc['radius'])
             bcshapefuns.append(csf)
+            cpe = cbc['physical entity']
             bcpes.append(cpe)
             bcds.append(dolfin.Measure("ds", subdomain_data=boundaries)(cpe))
 
