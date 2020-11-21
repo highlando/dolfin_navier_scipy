@@ -48,7 +48,8 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
     fv_n, fp_n = f_tdp(trange[1]), g_tdp(trange[1])
 
     # Predictor Step -- CN + explicit Euler
-    tfv = M*inivel - .5*dt*A*inivel + .5*dt*(fv_c+fv_n + tbfv+bfv_c + tdfv+dfv_c) \
+    tfv = M*inivel - .5*dt*A*inivel \
+        + .5*dt*(fv_c+fv_n + tbfv+bfv_c + tdfv+dfv_c) \
         + dt*nfc_c - (tmbc-mbc_c)
 
     tvp_new, coeffmatlu = \
@@ -58,7 +59,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
                              return_alu=True)
     tv_new = tvp_new[:NV, :]
     tp_new = 1./dt*scalep*tvp_new[NV:, :]
-    savevp(appndbcs(tv_new, tbcs), tp_new, time=(trange[1], 'heunpred'))
+    # savevp(appndbcs(tv_new, tbcs), tp_new, time=(trange[1], 'heunpred'))
 
     # Corrector Step
     dfv_n, drm = dynamic_rhs(trange[1], vc=tv_new, memory=drm, mode='heuncorr')
@@ -85,7 +86,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
     for kck, ctrange in enumerate(listofts):
         if verbose:
             print('time-stepping {0}/{1} complete -- @runtime {2:.1f}'.
-                  format(kck, ntimeslices, time.clock()))
+                  format(kck, ntimeslices, time.process_time()))
         for ctime in ctrange:
             v_old, p_old = v_new, p_new
             bcs_c = bcs_n
