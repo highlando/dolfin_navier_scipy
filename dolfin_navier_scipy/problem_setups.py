@@ -579,9 +579,17 @@ def cyl_fems(refinement_level=2, vdgree=2, pdgree=1, scheme=None,
     bcu = [bc0, bc1, bc1cyl]
     bcp = [bc2]
 
+    dbcinds, dbcvals = [], []
+    for bc in bcu:
+        bcdict = bc.get_boundary_values()
+        dbcvals.extend(list(bcdict.values()))
+        dbcinds.extend(list(bcdict.keys()))
+
     cylfems = dict(V=V,
                    Q=Q,
                    diribcs=bcu,
+                   dbcinds=dbcinds,
+                   dbcvals=dbcvals,
                    dirip=bcp,
                    contrbcssubdomains=bcsubdoms,
                    contrbcsshapefuns=bcshapefuns,
