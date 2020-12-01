@@ -3,8 +3,6 @@ import scipy.sparse as sps
 import os
 import glob
 import time
-# import sys
-# import copy
 import dolfin
 
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
@@ -536,7 +534,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 def solve_nse(A=None, M=None, J=None, JT=None,
               fv=None, fp=None,
               fvtd=None, fvss=0.,
-              # TODO: fv_tmdp=None, fv_tmdp_params={}, fv_tmdp_memory=None,
+              fv_tmdp=None,  # TODO: fv_tmdp_params={}, fv_tmdp_memory=None,
               iniv=None, inip=None, lin_vel_point=None,
               stokes_flow=False,
               trange=None,
@@ -702,6 +700,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if treat_nonl_explct and lin_vel_point is not None:
         raise UserWarning('cant use `lin_vel_point` ' +
                           'and explicit treatment of the nonlinearity')
+
+    if fv_tmdp is not None:
+        raise DeprecationWarning()
 
     dbcinds, dbcvals = dts.unroll_dlfn_dbcs(diribcs, bcinds=dbcinds,
                                             bcvals=dbcvals)

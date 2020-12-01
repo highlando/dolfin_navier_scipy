@@ -807,6 +807,7 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
         cntbcsdata = json.load(f)
 
     inflowgeodata = cntbcsdata['inflow']
+
     inflwpe = inflowgeodata['physical entity']
     print('mesh: physical entity {0} -- inflow'.format(inflwpe))
     inflwin = np.array(inflowgeodata['inward normal'])
@@ -839,8 +840,8 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
             for cntbc in cntbcsdata['controlbcs']:
                 diribcu.append(dolfin.DirichletBC(V, gzero, boundaries,
                                                   cntbc['physical entity']))
-            print('mesh: physical entity {0} -- wall'.
-                  format(cntbc['physical entity']))
+                print('mesh: physical entity {0} -- wall'.
+                      format(cntbc['physical entity']))
         except KeyError:
             pass  # no control boundaries
 
@@ -853,7 +854,7 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
                 radius = cntbc['geometry']['radius']
                 omega = 1. if movingwallcntrl else 0.
                 rotcyl = RotatingCircle(degree=2, radius=radius,
-                                        xcenter=center, omega=omega)
+                                        center=center, omega=omega)
             else:
                 raise NotImplementedError()
             mvwdbcs.append(dolfin.DirichletBC(V, rotcyl, boundaries,
@@ -909,9 +910,10 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
             elif cbc['type'] == 'rotating circle':
                 csf = RotatingCircle(center=cbc['center'],
                                      radius=cbc['radius'])
-            print('mesh: physical entity {0} -- boundary control'.format(cpe))
-            bcshapefuns.append(csf)
             cpe = cbc['physical entity']
+            print('mesh: physical entity {0} -- boundary control ({1})'.
+                  format(cpe, cbc['type']))
+            bcshapefuns.append(csf)
             bcpes.append(cpe)
             bcds.append(dolfin.Measure("ds", subdomain_data=boundaries)(cpe))
 
@@ -1061,11 +1063,11 @@ class RotatingCircle(dolfin.UserExpression):
     returns the angular velocity at the circle boundary
     '''
 
-    def __init__(self, degree=2, radius=None, xcenter=None,
+    def __init__(self, degree=2, radius=None, center=None,
                  omega=1.):
         self.degree = degree
         self.radius = radius
-        self.xcenter = xcenter
+        self.xcenter = center
         self.anglevel = radius*omega
         print('Rotating cylinder: omega set to {0}'.format(omega))
         super().__init__()
@@ -1280,7 +1282,7 @@ def gen_bccont_fems_3D(scheme='TH', bccontrol=True, verbose=False,
             if cntbc['type'] == 'circle':
                 omega = 1. if movingwallcntrl else 0.
                 rotcyl = RotatingCircle(degree=2, radius=radius,
-                                        xcenter=center, omega=omega)
+                                        center=center, omega=omega)
             else:
                 raise NotImplementedError()
             mvwdbcs.append(dolfin.DirichletBC(V, rotcyl, boundaries,
