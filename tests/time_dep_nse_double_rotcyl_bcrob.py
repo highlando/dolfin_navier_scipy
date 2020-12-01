@@ -66,6 +66,6 @@ if __name__ == '__main__':
     Re = 40
     Nts = 400
     tE = 1
-    scaletest = 100
+    scaletest = 50
     testit(Re=Re, Nts=scaletest*Nts, tE=scaletest*tE,
            ParaviewOutput=True, scheme='TH', zerocontrol=False)
