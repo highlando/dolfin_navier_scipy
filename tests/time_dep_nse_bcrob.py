@@ -30,8 +30,8 @@ def testit(problem='cylinderwake', N=2, nu=None, Re=1e2, Nts=1e3+1,
     else:
         Brob = 1./palpha*stokesmatsc['Brob']
 
-    def fv_tmdp(time=0, v=None, **kw):
-        return np.sin(time)*(Brob[:, :1] - Brob[:, 1:]), None
+    def fv_tmdp(time, v=None, **kw):
+        return np.sin(time)*(Brob[:, :1] - Brob[:, 1:])
 
     soldict = stokesmatsc  # containing A, J, JT
     soldict.update(femp)  # adding V, Q, invinds, diribcs
@@ -43,15 +43,15 @@ def testit(problem='cylinderwake', N=2, nu=None, Re=1e2, Nts=1e3+1,
                    # comp_nonl_semexp=True,
                    treat_nonl_explct=False,
                    vel_nwtn_tol=vel_nwtn_tol,
-                   fv_tmdp=fv_tmdp,
+                   fvtd=fv_tmdp,
                    start_ssstokes=True,
                    get_datastring=None,
                    data_prfx=ddir+data_prfx,
                    paraviewoutput=ParaviewOutput,
                    vel_pcrd_stps=1,
                    clearprvdata=True,
-                   vfileprfx=proutdir+'vel_{0}_'.format(scheme),
-                   pfileprfx=proutdir+'p_{0}_'.format(scheme))
+                   vfileprfx=proutdir+'cwrbc_vel_{0}_'.format(scheme),
+                   pfileprfx=proutdir+'cwrbc_p_{0}_'.format(scheme))
 
     snu.solve_nse(**soldict)
     # print krylovdict['krpslvprms']['convstatsl']

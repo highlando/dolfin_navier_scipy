@@ -30,7 +30,6 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     ddir = 'data/'
     data_prfx = problem+'{2}_mesh{0}_Re{1}'.format(meshlvl, femp['Re'], scheme)
 
-    # ## Parameters for the benchmark values
     NP, NV = stokesmatsc['J'].shape
     print('NV + NP : {0} + {1} = {2}'.format(NV, NP, NV+NP))
 
