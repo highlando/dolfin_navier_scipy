@@ -38,6 +38,7 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     soldict.update(invinds=femp['invinds'], V=femp['V'], Q=femp['Q'])
     soldict.update(fv=rhsd['fv'], fp=rhsd['fp'],
                    N=meshlvl, nu=nu,
+                   vel_nwtn_tol=5e-14,
                    verbose=True,
                    return_vp=True,
                    get_datastring=None,
@@ -56,10 +57,10 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
 
 
 if __name__ == '__main__':
-    meshlvl = 1
+    meshlvl = 2
     nu = 1e-3
     rho = 1.
-    charvel = .02
+    charvel = .05
 
     # scheme = 'CR'
     # testit(problem='gen_bccont', nu=nu, charvel=charvel,
