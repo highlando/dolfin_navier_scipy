@@ -40,7 +40,7 @@ A selection:
 
 ## Dependencies
 
- * dolfin interface to [FEniCS](https://fenicsproject.org/) -- tested with `v2018.1.0`, `v2017.2` 
+ * dolfin interface to [FEniCS](https://fenicsproject.org/) -- tested with `v2019.2.0`, `v2018.1.0`, `v2017.2` 
  * [sadptprj_riclyap_adi](https://github.com/highlando/sadptprj_riclyap_adi)
 
 The latter is my home-brew module that includes the submodule `lin_alg_utils` with routines for solving the saddle point problem as it arises in the `(v,p)` formulation of the NSE. 
