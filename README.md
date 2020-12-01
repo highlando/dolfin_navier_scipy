@@ -37,6 +37,8 @@ A selection:
  * `tests/time_dep_nse_expnonl.py`: time integration with explicit treatment of the nonlinearity
  * `tests/time_dep_nse_bcrob.py`: time integration of the cylinder wake with boundary controls
  * `tests/time_dep_nse_krylov.py`: time integration with iterative solves of the state equations via [`krypy`](https://github.com/andrenarchy/krypy)
+ * `tests/time_dep_nse_double_rotcyl_bcrob.py`: rotating double cylinder via
+   Robin boundary conditions
 
 ## Dependencies
 
