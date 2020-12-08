@@ -987,8 +987,11 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
                 def dynamic_rhs(t, vc=None, memory={}, mode='abtwo'):
                     cy = cv_mat.dot(vc)
+                    print('cy: ', cy)
                     curu, memory = dyn_obs_fbk(t, vc=cy,
                                                memory=memory, mode=mode)
+                    print('mmr:', memory)
+                    print('cu: ', curu)
                     return b_mat.dot(curu), memory
             elif static_feedback:
                 pass

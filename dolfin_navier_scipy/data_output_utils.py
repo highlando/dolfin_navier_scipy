@@ -215,7 +215,7 @@ def save_output_json(datadict=None,
     if plotroutine == 'plot_outp_sig':
         print('\n to plot w/o tikz: \n')
         print('from ' + module + ' import ' + plotroutine)
-        print(plotroutine + '("' + fstring + '", notikz=True)')
+        print(plotroutine + '("' + fstring + '")')
 
 
 def extract_output(dictofpaths=None, tmesh=None, c_mat=None, ystarvec=None):

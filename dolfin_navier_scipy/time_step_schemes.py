@@ -13,6 +13,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
          scalep=-1.,
          getbcs=None, applybcs=None, appndbcs=None,
          savevp=None, dynamic_rhs=None, dynamic_rhs_memory={},
+         implicit_dynamic_rhs=None, implicit_dynamic_rhs_memory={},
          ntimeslices=10, verbose=True):
 
     dtvec = np.array(trange)[1:] - np.array(trange)[:-1]
@@ -32,7 +33,14 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
         def dynamic_rhs(t, vc=None, memory={}, mode=None):
             return zerorhs, memory
 
+    if implicit_dynamic_rhs is None:
+        def mplctdnmc_rhs(t, vc=None, memory={}, mode=None):
+            return zerorhs, memory
+    else:
+        mplctdnmc_rhs = implicit_dynamic_rhs
+
     drm = dynamic_rhs_memory
+    mddrm = implicit_dynamic_rhs_memory
 
     savevp(appndbcs(inivel, bcs_ini), inip, time=trange[0])
 
@@ -43,13 +51,18 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
     dfv_c, drm = dynamic_rhs(trange[0], vc=inivel, memory=drm, mode='init')
     tdfv, drm = dynamic_rhs(trange[0], vc=inivel, memory=drm, mode='heunpred')
 
+    mplct_dfv_c, mddrm = mplctdnmc_rhs(trange[0], vc=inivel, memory=mddrm,
+                                       mode='init')
+    mplct_tdfv, mddrm = mplctdnmc_rhs(trange[0], vc=inivel, memory=mddrm,
+                                      mode='heunpred')
+
     tbcs = getbcs(trange[1], appndbcs(inivel, bcs_ini), inip, mode='heunpred')
     tbfv, tbfp, tmbc = applybcs(tbcs)
     fv_n, fp_n = f_tdp(trange[1]), g_tdp(trange[1])
 
     # Predictor Step -- CN + explicit Euler
     tfv = M*inivel - .5*dt*A*inivel \
-        + .5*dt*(fv_c+fv_n + tbfv+bfv_c + tdfv+dfv_c) \
+        + .5*dt*(fv_c+fv_n + tbfv+bfv_c + tdfv+dfv_c+mplct_dfv_c) \
         + dt*nfc_c - (tmbc-mbc_c)
 
     tvp_new, coeffmatlu = \
@@ -63,15 +76,22 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
 
     # Corrector Step
     dfv_n, drm = dynamic_rhs(trange[1], vc=tv_new, memory=drm, mode='heuncorr')
+    mplct_dfv_n, mddrm = mplctdnmc_rhs(trange[1], vc=tv_new, memory=mddrm,
+                                       mode='heuncorr')
     nfc_n = f_vdp(appndbcs(tv_new, tbcs))
     bcs_n = getbcs(trange[1], appndbcs(tv_new, tbcs), tp_new, mode='heuncorr')
     bfv_n, bfp_n, mbc_n = applybcs(bcs_n)
     rhs_n = M*inivel - .5*dt*A*inivel - (mbc_n-mbc_c) +\
-        .5*dt*(fv_c+fv_n + bfv_n+bfv_c + dfv_n+tdfv + nfc_c+nfc_n)
+        .5*dt*(fv_c+fv_n + bfv_n+bfv_c + dfv_n+tdfv
+               + nfc_c+nfc_n + mplct_dfv_c+mplct_dfv_n)
 
     vp_new = coeffmatlu(np.vstack([rhs_n, fp_n+bfp_n]).flatten())
     v_new = vp_new[:NV].reshape((NV, 1))
     p_new = 1./dt*scalep*vp_new[NV:].reshape((NP, 1))
+
+    # the implicit rhs at k=1
+    mplct_dfv_o = mplct_dfv_c
+    mplct_dfv_c, mddrm = mplctdnmc_rhs(trange[1], vc=v_new, memory=mddrm)
 
     savevp(appndbcs(v_new, bcs_n), p_new, time=trange[1])
 
@@ -103,14 +123,20 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
             dfv_n, drm = dynamic_rhs(ctime, vc=v_old, memory=drm,
                                      mode='abtwo')
 
-            rhs_n = M*v_old - .5*dt*A*v_old + 1.5*dt*nfc_c-.5*dt*nfc_o \
+            rhs_n = M*v_old - .5*dt*A*v_old \
                 - (mbc_n-mbc_c) \
+                + .5*dt*(3*nfc_c-nfc_o) \
+                + .5*dt*(3*mplct_dfv_c - mplct_dfv_o) \
                 + .5*dt*(fv_c+fv_n + bfv_n+bfv_c + dfv_n+dfv_c)
 
             vp_new = coeffmatlu(np.vstack([rhs_n, fp_n+bfp_n]).flatten())
 
             v_new = vp_new[:NV].reshape((NV, 1))
             p_new = 1./dt*scalep*vp_new[NV:].reshape((NP, 1))
+
+            # updating the implicit rhs
+            mplct_dfv_o = mplct_dfv_c
+            mplct_dfv_c, mddrm = mplctdnmc_rhs(ctime, vc=v_new, memory=mddrm)
 
             savevp(appndbcs(v_new, bcs_n), p_new, time=ctime)
 
@@ -164,3 +190,62 @@ def get_heunab_lti(hb=None, ha=None, hc=None, inihx=None, drift=None):
             return hcchx, memory
 
     return heunab_lti
+
+
+def get_heuntrpz_lti(hb=None, ha=None, hc=None, inihx=None, drift=None,
+                     constdt=None):
+    """ realizes the Heun/trapezoidal discretization of a linear observer
+
+    ```
+    hx' = hA*hx + hb*y
+     u  = hc*hx
+    ```
+
+    e.g. with `hb=C*C` and `hc=BB*X` to get output based feedback actuation
+    """
+    hN = ha.shape[0]
+    cdt = constdt
+    if constdt is not None:
+        obsitmat = np.linalg.inv(np.eye(hN)-constdt/2*ha)
+    else:
+        raise NotImplementedError()
+
+    def heuntrpz_lti(t, vc=None, memory={}, mode='abtwo'):
+        if mode == 'init':
+            chx = inihx
+            hcchx = hc.dot(chx)
+            memory.update(dict(lastt=t, lasthx=inihx))
+            return hcchx, memory
+
+        if mode == 'heunpred' or mode == 'heuncorr':
+            if mode == 'heunpred':
+                currhs = hb.dot(vc) + drift(t)
+                chx = inihx + cdt*(ha@inihx + currhs)
+                hcchx = hc.dot(chx)
+                memory.update(dict(lastrhs=currhs, lasthx=inihx))
+                memory.update(dict(hphx=chx))
+                return hcchx, memory
+
+            elif mode == 'heuncorr':
+                currhs = hb.dot(vc) + drift(t)
+                hphx = memory['hphx']
+                lhx = memory['lasthx']
+                lrhs = memory['lastrhs']
+                chx = inihx + .5*cdt*(ha@(hphx+lhx) + currhs+lrhs)
+                hcchx = hc.dot(chx)
+                memory.update(dict(lastt=t, hchx=chx))
+                return hcchx, memory
+
+        else:
+            # curdt = t - memory['lastt']
+            crhs = hb.dot(vc) + drift(t)
+            lrhs = memory['lastrhs']
+            lhx = memory['lasthx']
+            # <-- implicit trap rule
+            chx = obsitmat@(lhx + .5*cdt*(ha@lhx + crhs + lrhs))
+            # implicit trap rule -->
+            memory.update(dict(lasthx=chx, lastrhs=crhs))
+            hcchx = hc.dot(chx)
+            return hcchx, memory
+
+    return heuntrpz_lti
