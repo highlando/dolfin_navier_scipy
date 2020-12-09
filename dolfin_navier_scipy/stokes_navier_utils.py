@@ -8,6 +8,7 @@ import dolfin
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import dolfin_navier_scipy.data_output_utils as dou
 
+import dolfin_navier_scipy.time_step_schemes as tss
 
 __all__ = ['get_datastr_snu',
            'get_v_conv_conts',
@@ -226,7 +227,6 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           vfileprfx='', pfileprfx='',
                           verbose=True,
                           **kw):
-
     """
     Solution of the steady state nonlinear NSE Problem
 
@@ -548,6 +548,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               closed_loop=False,
               static_feedback=False, stat_fb_dict={},
               dynamic_feedback=False, dyn_fb_dict={},
+              dyn_fb_disc='trapezoidal',
               feedbackthroughdict=None,
               return_vp=False,
               b_mat=None, cv_mat=None,
@@ -607,11 +608,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     fvss : array, optional
         right hand side in momentum for steady state computation
     fv_tmdp : callable f(t, v, dict), optional
-        time-dependent part of the right-hand side, set to zero if None
-    fv_tmdp_params : dictionary, optional
-        dictionary of parameters to be passed to `fv_tmdp`, defaults to `{}`
-    fv_tmdp_memory : dictionary, optional
-        memory of the function
+        XXX: this is deprecated
     dbcinds: list, optional
         indices of the Dirichlet boundary conditions
     dbcvals: list, optional
@@ -675,7 +672,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
           * `hb` observer input matrix
           * `hc` observer output matrix
           * `drift` observer drift term, e.g., for nonzero setpoints
-
+    dyn_fb_disc: string
+        how to discretize the dynamic observer/controller
+         * `AB2` explicit scheme (Adams Bashforth)
+         * `trapezoidal` implicit scheme (Trapezoidal)
 
     Returns
     -------
@@ -938,7 +938,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     dou.output_paraview(**prvoutdict)
 
     if lin_vel_point is None:  # do a semi-explicit integration
-        from dolfin_navier_scipy.time_step_schemes import cnab
+        # from dolfin_navier_scipy.time_step_schemes import cnab
 
         if loccntbcinds == []:
             def applybcs(bcs_n):
@@ -976,28 +976,35 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                       diricontfuncs=diricontfuncs,
                                       diricontfuncmems=diricontfuncmems,
                                       mode=mode)
+
+        implicit_dynamic_rhs, dynamic_rhs = None, None
         if closed_loop:
             if dynamic_feedback:
-                from dolfin_navier_scipy.time_step_schemes \
-                    import get_heunab_lti
                 dfb = dyn_fb_dict
-                dyn_obs_fbk = get_heunab_lti(hb=dfb['hb'], ha=dfb['ha'],
-                                             hc=dfb['hc'], inihx=dfb['inihx'],
-                                             drift=dfb['drift'])
+                if dyn_fb_disc == 'trapezoidal':
+                    dfb.update(dict(constdt=trange[1]-trange[0]))
+                    dyn_obs_fbk = tss.get_heuntrpz_lti(**dfb)
 
-                def dynamic_rhs(t, vc=None, memory={}, mode='abtwo'):
-                    cy = cv_mat.dot(vc)
-                    print('cy: ', cy)
-                    curu, memory = dyn_obs_fbk(t, vc=cy,
-                                               memory=memory, mode=mode)
-                    print('mmr:', memory)
-                    print('cu: ', curu)
-                    return b_mat.dot(curu), memory
+                    def implicit_dynamic_rhs(t, vc=None, memory={}, mode=None):
+                        cy = cv_mat.dot(vc)
+                        curu, memory = dyn_obs_fbk(t, vc=cy,
+                                                   memory=memory, mode=mode)
+                        return b_mat.dot(curu), memory
+
+                elif dyn_fb_disc == 'AB2':
+                    dyn_obs_fbk = tss.\
+                        get_heunab_lti(hb=dfb['hb'], ha=dfb['ha'],
+                                       hc=dfb['hc'], inihx=dfb['inihx'],
+                                       drift=dfb['drift'])
+
+                    def dynamic_rhs(t, vc=None, memory={}, mode=None):
+                        cy = cv_mat.dot(vc)
+                        curu, memory = dyn_obs_fbk(t, vc=cy,
+                                                   memory=memory, mode=mode)
+                        return b_mat.dot(curu), memory
+
             elif static_feedback:
                 pass
-
-        else:
-            dynamic_rhs = None
 
         expnlveldct = {}
 
@@ -1031,14 +1038,15 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     except ValueError:
                         ylist.append(cv_mat.dot(vvec))
 
-        v_end, p_end = cnab(trange=trange, inivel=iniv, inip=inip,
-                            bcs_ini=inicdbcvals,
-                            M=cmmat, A=camat, J=cj, scalep=-1.,
-                            f_vdp=nonlvfunc,
-                            f_tdp=rhsv, g_tdp=rhsp,
-                            dynamic_rhs=dynamic_rhs,
-                            getbcs=getbcs, applybcs=applybcs, appndbcs=_appbcs,
-                            savevp=_svpplz)
+        v_end, p_end = tss.cnab(trange=trange, inivel=iniv, inip=inip,
+                                bcs_ini=inicdbcvals,
+                                M=cmmat, A=camat, J=cj, scalep=-1.,
+                                f_vdp=nonlvfunc,
+                                f_tdp=rhsv, g_tdp=rhsp,
+                                dynamic_rhs=dynamic_rhs,
+                                implicit_dynamic_rhs=implicit_dynamic_rhs,
+                                getbcs=getbcs, applybcs=applybcs,
+                                appndbcs=_appbcs, savevp=_svpplz)
 
         if treat_nonl_explct:
             if return_vp_dict:
@@ -1094,11 +1102,11 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             else:
                 try:
                     prev_v = dou.load_npa(_gfdct(cur_linvel_point,
-                                          loctrng[0]))
+                                                 loctrng[0]))
                 except KeyError:
                     try:
                         prev_v = dou.load_npa(_gfdct(cur_linvel_point,
-                                              None))
+                                                     None))
                     except TypeError:
                         prev_v = cur_linvel_point[None]
                 # prev_v = prev_v[dbcntinvinds]
