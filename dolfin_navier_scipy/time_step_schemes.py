@@ -34,10 +34,10 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
             return zerorhs, memory
 
     if implicit_dynamic_rhs is None:
-        def mplctdnmc_rhs(t, vc=None, memory={}, mode=None):
+        def implicit_dynamic_rhs(t, vc=None, memory={}, mode=None):
             return zerorhs, memory
-    else:
-        mplctdnmc_rhs = implicit_dynamic_rhs
+
+    mplctdnmc_rhs = implicit_dynamic_rhs  # rename for efficiency in typing
 
     drm = dynamic_rhs_memory
     mddrm = implicit_dynamic_rhs_memory
@@ -154,6 +154,8 @@ def get_heunab_lti(hb=None, ha=None, hc=None, inihx=None, drift=None):
     e.g. with `hb=C*C` and `hc=BB*X` to get output based feedback actuation
     """
 
+    print('NOTE: HEUN+AB2 for the controller')
+
     def heunab_lti(t, vc=None, memory={}, mode='abtwo'):
         if mode == 'init':
             chx = inihx
@@ -203,10 +205,12 @@ def get_heuntrpz_lti(hb=None, ha=None, hc=None, inihx=None, drift=None,
 
     e.g. with `hb=C*C` and `hc=BB*X` to get output based feedback actuation
     """
+    print('NOTE: HEUN+Implicit Trapezoidal rule for the controller')
     hN = ha.shape[0]
     cdt = constdt
     if constdt is not None:
         obsitmat = np.linalg.inv(np.eye(hN)-constdt/2*ha)
+        print('NOTE: uniform time grid is assumed for the controller')
     else:
         raise NotImplementedError()
 
