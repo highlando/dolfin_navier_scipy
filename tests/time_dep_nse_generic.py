@@ -7,7 +7,9 @@ import dolfin_navier_scipy.problem_setups as dnsps
 
 def testit(meshprfx='mesh/karman2D-outlets', meshlevel=1, proutdir='results/',
            problem='drivencavity', N=None, nu=1e-2, Re=None,
-           t0=0.0, tE=1.0, Nts=1e2+1, ParaviewOutput=False, scheme='TH'):
+           t0=0.0, tE=1.0, Nts=1e2+1,
+           ParaviewOutput=False, prvoutpnts=200,
+           scheme='TH'):
 
     meshfile = meshprfx + '_lvl{0}.xml.gz'.format(meshlevel)
     physregs = meshprfx + '_lvl{0}_facet_region.xml.gz'.format(meshlevel)
@@ -49,7 +51,7 @@ def testit(meshprfx='mesh/karman2D-outlets', meshlevel=1, proutdir='results/',
                    dbcinds=femp['dbcinds'], dbcvals=femp['dbcvals'],
                    data_prfx=ddir+data_prfx,
                    paraviewoutput=ParaviewOutput,
-                   plttrange=plttrange, prvoutpnts=100,
+                   plttrange=plttrange, prvoutpnts=prvoutpnts,
                    vfileprfx=proutdir+'vel_',
                    pfileprfx=proutdir+'p_')
 
@@ -78,6 +80,8 @@ if __name__ == '__main__':
                         help="number of time steps", default=8192)
     parser.add_argument("--scaletest", type=float,
                         help="scale the test size", default=1.)
+    parser.add_argument("--paraviewframes", type=int,
+                        help="number of outputs for paraview", default=200)
     args = parser.parse_args()
     print(args)
     scheme = 'TH'
@@ -86,4 +90,4 @@ if __name__ == '__main__':
            meshprfx=args.meshprefix, meshlevel=args.meshlevel,
            t0=0., tE=args.scaletest*args.tE,
            Nts=np.int(args.scaletest*args.Nts),
-           scheme=scheme, ParaviewOutput=True)
+           scheme=scheme, ParaviewOutput=True, prvoutpnts=args.paraviewframes)

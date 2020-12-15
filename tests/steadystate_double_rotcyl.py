@@ -19,7 +19,7 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     physregs = 'mesh/2D-double-rotcyl_lvl{0}_facet_region.xml.gz'.\
         format(meshlvl)
     femp, stokesmatsc, rhsd = \
-        dnsps.get_sysmats(problem='gen_bccont', nu=nu,
+        dnsps.get_sysmats(problem='gen_bccont', nu=nu, Re=Re,
                           charvel=charvel, gradvsymmtrc=gradvsymmtrc,
                           scheme=scheme, mergerhs=True,
                           meshparams=dict(strtomeshfile=meshfile,
@@ -60,7 +60,8 @@ if __name__ == '__main__':
     meshlvl = 2
     nu = 1e-3
     rho = 1.
-    charvel = .05
+    charvel = 1.
+    Re = 50
 
     # scheme = 'CR'
     # testit(problem='gen_bccont', nu=nu, charvel=charvel,
@@ -68,6 +69,10 @@ if __name__ == '__main__':
     #        scheme=scheme, ParaviewOutput=True)
 
     scheme = 'TH'
-    testit(problem='2D-double-cyl', nu=nu, charvel=charvel,
+    # testit(problem='2D-double-cyl', nu=nu, charvel=charvel,
+    #        rho=rho, meshlvl=meshlvl,  # gradvsymmtrc=False,
+    #        scheme=scheme, ParaviewOutput=True)
+
+    testit(problem='2D-double-cyl', Re=50, charvel=charvel,
            rho=rho, meshlvl=meshlvl,  # gradvsymmtrc=False,
            scheme=scheme, ParaviewOutput=True)
