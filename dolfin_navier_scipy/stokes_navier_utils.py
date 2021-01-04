@@ -539,6 +539,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               stokes_flow=False,
               trange=None,
               t0=None, tE=None, Nts=None,
+              time_int_scheme='cnab',
               V=None, Q=None, invinds=None, diribcs=None,
               dbcinds=None, dbcvals=None,
               diricontbcinds=None, diricontbcvals=None,
@@ -1038,12 +1039,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     except ValueError:
                         ylist.append(cv_mat.dot(vvec))
 
-        time_int_scheme = 'cnab'
-        time_int_scheme = 'sbdf2'
         if time_int_scheme == 'cnab':
             timintsc = tss.cnab
         elif time_int_scheme == 'sbdf2':
             timintsc = tss.sbdftwo
+        if verbose:
+            print('INFO: time integration with', time_int_scheme)
 
         v_end, p_end = timintsc(trange=trange, inivel=iniv, inip=inip,
                                 bcs_ini=inicdbcvals,

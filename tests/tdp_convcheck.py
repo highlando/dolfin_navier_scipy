@@ -62,8 +62,8 @@ def conv_plot(abscissa, datalist, fit=None,
             ax.plot(abscissa, abspow, 'k'+fls[i])
 
     if logscale:
-        ax.set_xscale('log', basex=logbase)
-        ax.set_yscale('log', basey=logbase)
+        ax.set_xscale('log', base=logbase)
+        ax.set_yscale('log', base=logbase)
     if ylims is not None:
         plt.ylim(ylims)
     if xlims is not None:
@@ -82,6 +82,7 @@ def conv_plot(abscissa, datalist, fit=None,
 
 def cnvchk(meshprfx='mesh/karman2D-outlets', meshlevel=1, proutdir='results/',
            problem='drivencavity', N=None, nu=1e-2, Re=None,
+           time_int_scheme='cnab',
            t0=0.0, tE=1.0, Nts=1e2+1, scheme='TH', dblng=2):
 
     meshfile = meshprfx + '_lvl{0}.xml.gz'.format(meshlevel)
@@ -106,6 +107,7 @@ def cnvchk(meshprfx='mesh/karman2D-outlets', meshlevel=1, proutdir='results/',
                    get_datastring=None,
                    verbose=True,
                    treat_nonl_explct=True,
+                   time_int_scheme=time_int_scheme,
                    dbcinds=femp['dbcinds'], dbcvals=femp['dbcvals'])
 
     mmat = stokesmatsc['M']
@@ -131,7 +133,9 @@ def cnvchk(meshprfx='mesh/karman2D-outlets', meshlevel=1, proutdir='results/',
         ntslst.append(cnts)
         print('Nts: {0} -- |v-vref|: {1:e}'.format(cnts, cnv))
 
-    conv_plot(ntslst, [errlst], logscale=True, fit=[2], markerl=['o'])
+    conv_plot(ntslst, [errlst], logscale=True, fit=[2], markerl=['o'],
+              leglist=[time_int_scheme],
+              title='Check for 2nd order convergence')
 
 
 if __name__ == '__main__':
@@ -154,6 +158,8 @@ if __name__ == '__main__':
                         help="number of outputs for paraview", default=200)
     parser.add_argument("--doublings", type=int,
                         help="how often we double the time steps", default=4)
+    parser.add_argument("--tis", type=str, choices=['cnab', 'sbdf2'],
+                        help="scheme for time integration", default='sbdf2')
     args = parser.parse_args()
     print(args)
     scheme = 'TH'
@@ -163,4 +169,4 @@ if __name__ == '__main__':
            t0=0., tE=args.scaletest*args.tE,
            Nts=np.int(args.scaletest*args.Nts),
            dblng=args.doublings,
-           scheme=scheme)
+           scheme=scheme, time_int_scheme=args.tis)

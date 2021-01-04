@@ -60,7 +60,6 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
                                 sps.hstack([J, sps.csr_matrix((NP, NP))])])
     coeffmatlu = spsla.factorized(trpz_coeffmat)
 
-    verbose = True
     for kck, ctrange in enumerate(listofts):
         if verbose:
             print('time-stepping {0}/{1} complete -- @runtime {2:.1f}'.
@@ -258,7 +257,6 @@ def sbdftwo(trange=None, inivel=None, inip=None, bcs_ini=[],
                                 sps.hstack([J, sps.csr_matrix((NP, NP))])])
     coeffmatlu = spsla.factorized(bdft_coeffmat)
 
-    verbose = True
     for kck, ctrange in enumerate(listofts):
         if verbose:
             print('time-stepping {0}/{1} complete -- @runtime {2:.1f}'.
