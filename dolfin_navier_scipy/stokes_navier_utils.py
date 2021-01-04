@@ -1038,13 +1038,21 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     except ValueError:
                         ylist.append(cv_mat.dot(vvec))
 
-        v_end, p_end = tss.cnab(trange=trange, inivel=iniv, inip=inip,
+        time_int_scheme = 'cnab'
+        time_int_scheme = 'sbdf2'
+        if time_int_scheme == 'cnab':
+            timintsc = tss.cnab
+        elif time_int_scheme == 'sbdf2':
+            timintsc = tss.sbdftwo
+
+        v_end, p_end = timintsc(trange=trange, inivel=iniv, inip=inip,
                                 bcs_ini=inicdbcvals,
                                 M=cmmat, A=camat, J=cj, scalep=-1.,
                                 f_vdp=nonlvfunc,
                                 f_tdp=rhsv, g_tdp=rhsp,
                                 dynamic_rhs=dynamic_rhs,
-                                implicit_dynamic_rhs=implicit_dynamic_rhs,
+                                verbose=verbose,
+                                # implicit_dynamic_rhs=implicit_dynamic_rhs,
                                 getbcs=getbcs, applybcs=applybcs,
                                 appndbcs=_appbcs, savevp=_svpplz)
 

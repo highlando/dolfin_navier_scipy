@@ -5,9 +5,9 @@
 MSHPRFX='/home/heiland/work/code/lqgbt-oseen/tests/mesh/2D-outlet-meshes/karman2D-outlets'
 MSHLVL=2
 RE=60
-NTS=15000
-TE=8
-SCLTST=1
+NTS=4200  # 4200 was OK with CNAB, 4000 not
+TE=4
+SCLTST=1.
 PRVFRM=200
 
 python3 time_dep_nse_generic.py \

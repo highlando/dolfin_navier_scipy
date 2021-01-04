@@ -1,9 +1,16 @@
 import numpy as np
+import scipy.sparse as sps
+import scipy.sparse.linalg as spsla
+import time
 
 import sadptprj_riclyap_adi.lin_alg_utils as lau
 
 # from dolfin_navier_scipy.residual_checks import get_imex_res
 # from dolfin_navier_scipy.dolfin_to_sparrays import expand_vp_dolfunc
+
+__all__ = ['cnab',
+           'sbdftwo',
+           ]
 
 
 def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
@@ -13,19 +20,11 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
          scalep=-1.,
          getbcs=None, applybcs=None, appndbcs=None,
          savevp=None, dynamic_rhs=None, dynamic_rhs_memory={},
-         implicit_dynamic_rhs=None, implicit_dynamic_rhs_memory={},
+         # implicit_dynamic_rhs=None, implicit_dynamic_rhs_memory={},
          ntimeslices=10, verbose=True):
 
-    dtvec = np.array(trange)[1:] - np.array(trange)[:-1]
-    dotdtvec = dtvec[1:] - dtvec[:-1]
-    uniformgrid = np.allclose(np.linalg.norm(dotdtvec), 0)
-    if verbose:
-        import time
+    dt, listofts = _inittimegrid(trange, ntimeslices=ntimeslices)
 
-    if not uniformgrid:
-        raise NotImplementedError()
-
-    dt = trange[1] - trange[0]
     NP, NV = J.shape
     zerorhs = np.zeros((NV, 1))
 
@@ -33,74 +32,33 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
         def dynamic_rhs(t, vc=None, memory={}, mode=None):
             return zerorhs, memory
 
-    if implicit_dynamic_rhs is None:
-        def implicit_dynamic_rhs(t, vc=None, memory={}, mode=None):
-            return zerorhs, memory
+    dfv_c, drm = dynamic_rhs(trange[0], vc=inivel,
+                             memory=dynamic_rhs_memory, mode='init')
 
-    mplctdnmc_rhs = implicit_dynamic_rhs  # rename for efficiency in typing
+    # if implicit_dynamic_rhs is None:
+    #     def implicit_dynamic_rhs(t, vc=None, memory={}, mode=None):
+    #         return zerorhs, memory
 
-    drm = dynamic_rhs_memory
-    mddrm = implicit_dynamic_rhs_memory
+    # mplctdnmc_rhs = implicit_dynamic_rhs  # rename for efficiency in typing
+    # drm = dynamic_rhs_memory
+    # mddrm = implicit_dynamic_rhs_memory
 
     savevp(appndbcs(inivel, bcs_ini), inip, time=trange[0])
 
-    bcs_c = bcs_ini  # getbcs(trange[0], inivel, inip)
-    bfv_c, bfp_c, mbc_c = applybcs(bcs_c)
-    fv_c = f_tdp(trange[0])
-    nfc_c = f_vdp(appndbcs(inivel, bcs_ini))
-    dfv_c, drm = dynamic_rhs(trange[0], vc=inivel, memory=drm, mode='init')
-    tdfv, drm = dynamic_rhs(trange[0], vc=inivel, memory=drm, mode='heunpred')
+    v_n, p_n, bcs_n, bfv_n, mbc_c, mbc_n, fv_n, nfc_c, nfc_n, dfv_n, drm \
+        = _onestepheun(vc=inivel, pc=inip, tc=trange[0], tn=trange[1],
+                       M=M, A=A, J=J,
+                       scalep=scalep,
+                       dfv_c=dfv_c, dynamic_rhs=dynamic_rhs, drm=drm,
+                       bcs_c=bcs_ini, applybcs=applybcs,
+                       appndbcs=appndbcs, getbcs=getbcs,
+                       f_tdp=f_tdp, f_vdp=f_vdp, g_tdp=g_tdp)
 
-    mplct_dfv_c, mddrm = mplctdnmc_rhs(trange[0], vc=inivel, memory=mddrm,
-                                       mode='init')
-    mplct_tdfv, mddrm = mplctdnmc_rhs(trange[0], vc=inivel, memory=mddrm,
-                                      mode='heunpred')
+    savevp(appndbcs(v_n, bcs_n), p_n, time=trange[1])
 
-    tbcs = getbcs(trange[1], appndbcs(inivel, bcs_ini), inip, mode='heunpred')
-    tbfv, tbfp, tmbc = applybcs(tbcs)
-    fv_n, fp_n = f_tdp(trange[1]), g_tdp(trange[1])
-
-    # Predictor Step -- CN + explicit Euler
-    tfv = M*inivel - .5*dt*A*inivel \
-        + .5*dt*(fv_c+fv_n + tbfv+bfv_c + tdfv+dfv_c+mplct_dfv_c) \
-        + dt*nfc_c - (tmbc-mbc_c)
-
-    tvp_new, coeffmatlu = \
-        lau.solve_sadpnt_smw(amat=M+.5*dt*A, jmat=J, jmatT=J.T,
-                             rhsv=tfv,
-                             rhsp=fp_n+tbfp,
-                             return_alu=True)
-    tv_new = tvp_new[:NV, :]
-    tp_new = 1./dt*scalep*tvp_new[NV:, :]
-    # savevp(appndbcs(tv_new, tbcs), tp_new, time=(trange[1], 'heunpred'))
-
-    # Corrector Step
-    dfv_n, drm = dynamic_rhs(trange[1], vc=tv_new, memory=drm, mode='heuncorr')
-    mplct_dfv_n, mddrm = mplctdnmc_rhs(trange[1], vc=tv_new, memory=mddrm,
-                                       mode='heuncorr')
-    nfc_n = f_vdp(appndbcs(tv_new, tbcs))
-    bcs_n = getbcs(trange[1], appndbcs(tv_new, tbcs), tp_new, mode='heuncorr')
-    bfv_n, bfp_n, mbc_n = applybcs(bcs_n)
-    rhs_n = M*inivel - .5*dt*A*inivel - (mbc_n-mbc_c) +\
-        .5*dt*(fv_c+fv_n + bfv_n+bfv_c + dfv_n+tdfv
-               + nfc_c+nfc_n + mplct_dfv_c+mplct_dfv_n)
-
-    vp_new = coeffmatlu(np.vstack([rhs_n, fp_n+bfp_n]).flatten())
-    v_new = vp_new[:NV].reshape((NV, 1))
-    p_new = 1./dt*scalep*vp_new[NV:].reshape((NP, 1))
-
-    # the implicit rhs at k=1
-    mplct_dfv_o = mplct_dfv_c
-    mplct_dfv_c, mddrm = mplctdnmc_rhs(trange[1], vc=v_new, memory=mddrm)
-
-    savevp(appndbcs(v_new, bcs_n), p_new, time=trange[1])
-
-    lltr = np.array(trange[2:])
-    lnts = lltr.size
-    lenofts = np.floor(lnts/ntimeslices).astype(np.int)
-    listofts = [lltr[k*lenofts: (k+1)*lenofts].tolist()
-                for k in range(ntimeslices)]
-    listofts.append(lltr[ntimeslices*lenofts:].tolist())
+    trpz_coeffmat = sps.vstack([sps.hstack([M+.5*dt*A, J.T]),
+                                sps.hstack([J, sps.csr_matrix((NP, NP))])])
+    coeffmatlu = spsla.factorized(trpz_coeffmat)
 
     verbose = True
     for kck, ctrange in enumerate(listofts):
@@ -108,39 +66,44 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
             print('time-stepping {0}/{1} complete -- @runtime {2:.1f}'.
                   format(kck, ntimeslices, time.process_time()))
         for ctime in ctrange:
-            v_old, p_old = v_new, p_new
-            bcs_c = bcs_n
-            bfv_c, mbc_c = bfv_n, mbc_n
+            # bump the variables
+            v_c, p_c = v_n, p_n
+            bcs_c, bfv_c, mbc_c = bcs_n, bfv_n, mbc_n
             fv_c = fv_n
             dfv_c = dfv_n
 
+            # the static parts
             nfc_o = nfc_c
-            nfc_c = f_vdp(appndbcs(v_old, bcs_c))
+            nfc_c = f_vdp(appndbcs(v_c, bcs_c))
 
-            bcs_n = getbcs(ctime, appndbcs(v_old, bcs_c), p_old, mode='abtwo')
+            # predict the boundary conditions
+            bcs_n = getbcs(ctime, appndbcs(v_c, bcs_c), p_c, mode='abtwo')
             bfv_n, bfp_n, mbc_n = applybcs(bcs_n)
+
+            # new values of the explicit time parts
             fv_n, fp_n = f_tdp(ctime), g_tdp(ctime)
-            dfv_n, drm = dynamic_rhs(ctime, vc=v_old, memory=drm,
+
+            dfv_n, drm = dynamic_rhs(ctime, vc=v_c, memory=drm,
                                      mode='abtwo')
 
-            rhs_n = M*v_old - .5*dt*A*v_old \
+            rhs_n = M*v_c - .5*dt*A*v_c \
                 - (mbc_n-mbc_c) \
                 + .5*dt*(3*nfc_c-nfc_o) \
-                + .5*dt*(3*mplct_dfv_c - mplct_dfv_o) \
                 + .5*dt*(fv_c+fv_n + bfv_n+bfv_c + dfv_n+dfv_c)
+            # + .5*dt*(3*mplct_dfv_c - mplct_dfv_o) \
 
-            vp_new = coeffmatlu(np.vstack([rhs_n, fp_n+bfp_n]).flatten())
+            vp_n = coeffmatlu(np.vstack([rhs_n, fp_n+bfp_n]).flatten())
 
-            v_new = vp_new[:NV].reshape((NV, 1))
-            p_new = 1./dt*scalep*vp_new[NV:].reshape((NP, 1))
+            v_n = vp_n[:NV].reshape((NV, 1))
+            p_n = 1./dt*scalep*vp_n[NV:].reshape((NP, 1))
 
             # updating the implicit rhs
-            mplct_dfv_o = mplct_dfv_c
-            mplct_dfv_c, mddrm = mplctdnmc_rhs(ctime, vc=v_new, memory=mddrm)
+            # mplct_dfv_o = mplct_dfv_c
+            # mplct_dfv_c, mddrm = mplctdnmc_rhs(ctime, vc=v_new, memory=mddrm)
 
-            savevp(appndbcs(v_new, bcs_n), p_new, time=ctime)
+            savevp(appndbcs(v_n, bcs_n), p_n, time=ctime)
 
-    return v_new, p_new
+    return v_n, p_n
 
 
 def get_heunab_lti(hb=None, ha=None, hc=None, inihx=None, drift=None):
@@ -253,3 +216,177 @@ def get_heuntrpz_lti(hb=None, ha=None, hc=None, inihx=None, drift=None,
             return hcchx, memory
 
     return heuntrpz_lti
+
+
+def sbdftwo(trange=None, inivel=None, inip=None, bcs_ini=[],
+            M=None, A=None, J=None,
+            f_vdp=None,
+            f_tdp=None, g_tdp=None,
+            scalep=-1.,
+            getbcs=None, applybcs=None, appndbcs=None,
+            savevp=None, dynamic_rhs=None, dynamic_rhs_memory={},
+            # implicit_dynamic_rhs=None, implicit_dynamic_rhs_memory={},
+            ntimeslices=10, verbose=True):
+
+    dt, listofts = _inittimegrid(trange, ntimeslices=ntimeslices)
+
+    NP, NV = J.shape
+    zerorhs = np.zeros((NV, 1))
+
+    if dynamic_rhs is None:
+        def dynamic_rhs(t, vc=None, memory={}, mode=None):
+            return zerorhs, memory
+
+    dfv_c, drm = dynamic_rhs(trange[0], vc=inivel,
+                             memory=dynamic_rhs_memory, mode='init')
+
+    savevp(appndbcs(inivel, bcs_ini), inip, time=trange[0])
+
+    v_c = inivel
+    v_n, p_n, bcs_n, bfv_n, mbc_c, mbc_n, fv_n, nfc_c, nfc_n, dfv_n, drm \
+        = _onestepheun(vc=v_c, pc=inip, tc=trange[0], tn=trange[1],
+                       M=M, A=A, J=J,
+                       scalep=scalep,
+                       dfv_c=dfv_c, dynamic_rhs=dynamic_rhs, drm=drm,
+                       bcs_c=bcs_ini, applybcs=applybcs,
+                       appndbcs=appndbcs, getbcs=getbcs,
+                       f_tdp=f_tdp, f_vdp=f_vdp, g_tdp=g_tdp)
+
+    savevp(appndbcs(v_n, bcs_n), p_n, time=trange[1])
+
+    bdft_coeffmat = sps.vstack([sps.hstack([M+2./3*dt*A, J.T]),
+                                sps.hstack([J, sps.csr_matrix((NP, NP))])])
+    coeffmatlu = spsla.factorized(bdft_coeffmat)
+
+    verbose = True
+    for kck, ctrange in enumerate(listofts):
+        if verbose:
+            print('time-stepping {0}/{1} complete -- @runtime {2:.1f}'.
+                  format(kck, ntimeslices, time.process_time()))
+        for ctime in ctrange:
+            # bump the variables
+            v_p = v_c
+            mbc_p = mbc_c
+            v_c, p_c = v_n, p_n
+            bcs_c, mbc_c = bcs_n, mbc_n
+            dfv_c = dfv_n
+
+            # the static parts
+            nfc_p = nfc_c
+            nfc_c = f_vdp(appndbcs(v_c, bcs_c))
+
+            # predict the boundary conditions
+            bcs_n = getbcs(ctime, appndbcs(v_c, bcs_c), p_c, mode='abtwo')
+            bfv_n, bfp_n, mbc_n = applybcs(bcs_n)
+
+            # new values of the explicit time parts
+            fv_n, fp_n = f_tdp(ctime), g_tdp(ctime)
+
+            dfv_n, drm = dynamic_rhs(ctime, vc=v_c, memory=drm,
+                                     mode='abtwo')
+
+            rhs_n = 1/3*M@(4*v_c - v_p) \
+                - (mbc_n-4/3*mbc_c+1/3*mbc_p) \
+                + 2/3*dt*bfv_n \
+                + 2/3*dt*(2*nfc_c-nfc_p) \
+                + 2/3*dt*(fv_n + dfv_n)
+
+            vp_n = coeffmatlu(np.vstack([rhs_n, fp_n+bfp_n]).flatten())
+
+            v_n = vp_n[:NV].reshape((NV, 1))
+            p_n = 1./dt*scalep*vp_n[NV:].reshape((NP, 1))
+
+            savevp(appndbcs(v_n, bcs_n), p_n, time=ctime)
+
+    return v_n, p_n
+
+
+def _checkuniformgrid(trange):
+    dtvec = np.array(trange)[1:] - np.array(trange)[:-1]
+    dotdtvec = dtvec[1:] - dtvec[:-1]
+    uniformgrid = np.allclose(np.linalg.norm(dotdtvec), 0)
+    if not uniformgrid:
+        raise NotImplementedError()
+
+
+def _onestepheun(vc=None, pc=None, tc=None, tn=None,
+                 M=None, A=None, J=None,
+                 scalep=1., scheme='IMEX-Euler',
+                 dfv_c=None, dynamic_rhs=None, drm={},
+                 # implicit_dynamic_rhs=None, mdrm={},
+                 bcs_c=None, applybcs=None, appndbcs=None, getbcs=None,
+                 f_tdp=None, f_vdp=None, g_tdp=None):
+
+    NP, NV = J.shape
+
+    dt = tn - tc
+    bfv_c, bfp_c, mbc_c = applybcs(bcs_c)
+    fv_c = f_tdp(tc)
+    nfc_c = f_vdp(appndbcs(vc, bcs_c))
+    tdfv_n, drm = dynamic_rhs(tc, vc=vc, memory=drm, mode='heunpred')
+
+    # mplct_dfv_c, mdrm = implicit_dynamic_rhs(tc, vc=vc, memory=mdrm,
+    #                                          mode='init')
+    # mplct_tdfv, mdrm = implicit_dynamic_rhs(tc, vc=vc, memory=mdrm,
+    #                                         mode='heunpred')
+
+    tbcs = getbcs(tn, appndbcs(vc, bcs_c), pc, mode='heunpred')
+    tbfv_n, tbfp_n, tmbc_n = applybcs(tbcs)
+    fv_n, fp_n = f_tdp(tn), g_tdp(tn)
+
+    # Predictor Step -- CN + explicit Euler for convection
+
+    if scheme == 'IMEX-Euler':
+        tfv = M@vc \
+            + dt*(fv_n + tbfv_n + tdfv_n) \
+            + dt*nfc_c - (tmbc_n-mbc_c)
+        tvp_n = lau.solve_sadpnt_smw(amat=M+dt*A, jmat=J, jmatT=J.T,
+                                     rhsv=tfv, rhsp=fp_n+tbfp_n)
+    elif scheme == 'IMEX-trpz':
+        tfv = M*vc - .5*dt*A*vc \
+            + .5*dt*(fv_c+fv_n + tbfv_n+bfv_c + tdfv_n+dfv_c) \
+            + dt*nfc_c - (tmbc_n-mbc_c)
+        tvp_n = lau.solve_sadpnt_smw(amat=M+.5*dt*A, jmat=J, jmatT=J.T,
+                                     rhsv=tfv, rhsp=fp_n+tbfp_n)
+
+    tv_n = tvp_n[:NV, :]
+    tp_n = 1./dt*scalep*tvp_n[NV:, :]
+    # savevp(appndbcs(tv_new, tbcs), tp_new, time=(trange[1], 'heunpred'))
+
+    # Corrector Step
+    dfv_n, drm = dynamic_rhs(tn, vc=tv_n, memory=drm, mode='heuncorr')
+    # mplct_dfv_n, mddrm = implicit_dynamic_rhs(tn, vc=tv_new,
+    #                                           memory=mdrm,
+    #                                           mode='heuncorr')
+    tnfc_n = f_vdp(appndbcs(tv_n, tbcs))
+    bcs_n = getbcs(tn, appndbcs(tv_n, tbcs), tp_n, mode='heuncorr')
+    bfv_n, bfp_n, mbc_n = applybcs(bcs_n)
+    rhs_n = M*vc - (mbc_n-mbc_c) - .5*dt*A*(vc+tv_n) +\
+        .5*dt*(fv_c+fv_n + bfv_n+bfv_c + dfv_n+dfv_c
+               + nfc_c+tnfc_n)  # + mplct_dfv_c+mplct_dfv_n)
+
+    # vp_new = coeffmatlu(np.vstack([rhs_n, fp_n+bfp_n]).flatten())
+    vp_n = lau.solve_sadpnt_smw(amat=M, jmat=J, jmatT=J.T,
+                                rhsv=rhs_n, rhsp=fp_n+bfp_n)
+    v_n = vp_n[:NV].reshape((NV, 1))
+    p_n = 1./dt*scalep*vp_n[NV:].reshape((NP, 1))
+
+    # the implicit rhs at k=1
+    # mplct_dfv_o = mplct_dfv_c
+    # mplct_dfv_c, mddrm = implicit_dynamic_rhs(tn, vc=v_new, memory=mddrm)
+
+    nfc_n = f_vdp(appndbcs(v_n, bcs_n))
+
+    return v_n, p_n, bcs_n, bfv_n, mbc_c, mbc_n, fv_n, nfc_c, nfc_n, dfv_n, drm
+
+
+def _inittimegrid(trange, ntimeslices=10):
+    _checkuniformgrid(trange)
+    dt = trange[1] - trange[0]
+    lltr = np.array(trange[2:])
+    lnts = lltr.size
+    lenofts = np.floor(lnts/ntimeslices).astype(np.int)
+    listofts = [lltr[k*lenofts: (k+1)*lenofts].tolist()
+                for k in range(ntimeslices)]
+    listofts.append(lltr[ntimeslices*lenofts:].tolist())
+    return dt, listofts
