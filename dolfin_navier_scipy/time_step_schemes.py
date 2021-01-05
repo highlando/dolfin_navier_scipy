@@ -219,8 +219,7 @@ def get_heuntrpz_lti(hb=None, ha=None, hc=None, inihx=None, drift=None,
 
 def sbdftwo(trange=None, inivel=None, inip=None, bcs_ini=[],
             M=None, A=None, J=None,
-            f_vdp=None,
-            f_tdp=None, g_tdp=None,
+            f_vdp=None, f_tdp=None, g_tdp=None,
             scalep=-1.,
             getbcs=None, applybcs=None, appndbcs=None,
             savevp=None, dynamic_rhs=None, dynamic_rhs_memory={},
@@ -388,3 +387,49 @@ def _inittimegrid(trange, ntimeslices=10):
                 for k in range(ntimeslices)]
     listofts.append(lltr[ntimeslices*lenofts:].tolist())
     return dt, listofts
+
+
+def nse_include_lnrcntrllr(M=None, A=None, J=None, B=None, C=None, iniv=None,
+                           hM=None, hA=None, hB=None, hC=None, hiniv=None,
+                           f_vdp=None, f_tdp=None, hf_tdp=None,
+                           applybcs=None, appndbcs=None, getbcs=None,
+                           savevp=None):
+
+    NP, NV, hNV = J.shape, hA.shape[0]
+    Jext = sps.hstack([J, sps.csr_matrix((NP, hNV))])
+
+    BhC = sps.csr_matrix(B@hC)
+    BhC.eliminate_zeros()
+
+    hBC = sps.csr_matrix(hB@C)
+    hBC.eliminate_zeros()
+
+    Aext = sps.vstack([sps.hstack([A, BhC]),
+                       sps.hstack([hBC, hA])])
+
+    zNVhNV = sps.csr_matrix((NV, hNV))
+    Mext = sps.vstack([sps.hstack([M, zNVhNV]),
+                       sps.hstack([zNVhNV.T, hM])])
+
+    inivext = np.vstack([iniv, hiniv])
+
+    zhvec = 0*hiniv
+
+    def fvdpext(vvec):
+        return np.vstack([f_vdp, zhvec])
+
+    getbcsext = getbcs  # XXX: will be called with `appendbcs`
+
+    def ftdpext(t):
+        return np.vstack([f_tdp(t), hf_tdp(t)])
+
+    applybcsext = applybcs
+    # XXX: this will fail for control Dirichlets
+    # TODO: get back to this when implementing feedback Diri control
+
+    def appndbcsext(vhvvec, ccntrlldbcvals):
+        return appndbcs(vhvvec[:NV, :], ccntrlldbcvals)
+
+    return dict(A=Aext, M=Mext, J=Jext, f_vdp=fvdpext, f_tpd=ftdpext,
+                getbcs=getbcsext, applybcs=applybcsext,
+                appndbcs=appndbcsext, inivel=inivext)

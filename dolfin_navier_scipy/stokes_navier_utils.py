@@ -1004,6 +1004,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                                    memory=memory, mode=mode)
                         return b_mat.dot(curu), memory
 
+                elif dyn_fb_disc == 'linear_implicit':
+                    pass
+
+
+
+
             elif static_feedback:
                 pass
 
