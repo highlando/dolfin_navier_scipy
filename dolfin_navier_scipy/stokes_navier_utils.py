@@ -149,7 +149,10 @@ def _localizecdbinds(cdbinds, V, invinds):
     full space `V`. Here, in the matrices, we have already
     resolved the constant Dirichlet bcs
     """
-    allinds = np.arange(V.dim())
+    if V is None:
+        allinds = np.array(invinds)
+    else:
+        allinds = np.arange(V.dim())
     redcdallinds = allinds[invinds]
     # now: find the positions of the control dbcs in the reduced
     # index vector
@@ -705,6 +708,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if fv_tmdp is not None:
         raise DeprecationWarning()
 
+    JT = J.T if JT is None else JT
+
     dbcinds, dbcvals = dts.unroll_dlfn_dbcs(diribcs, bcinds=dbcinds,
                                             bcvals=dbcvals)
 
@@ -719,6 +724,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         dbcntinvinds = np.setdiff1d(invinds, glbcntbcinds).astype(np.int32)
 
     locinvinds = (_localizecdbinds(dbcntinvinds, V, invinds)).tolist()
+    cnv = dbcntinvinds.size
+    vdim = cnv if V is None else V.dim()
+    NP = J.shape[0]
+    fv = np.zeros((cnv, 1)) if fv is None else fv
+    fp = np.zeros((NP, 1)) if fp is None else fp
+
     cmmat = M[locinvinds, :][:, locinvinds]
     camat = A[locinvinds, :][:, locinvinds]
     cjt = JT[locinvinds, :]
@@ -732,11 +743,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                        'diricontfuncs': diricontfuncs,
                        'diricontfuncmems': diricontfuncmems
                        }
-
-    cnv = dbcntinvinds.size
-    NP = J.shape[0]
-    fv = np.zeros((cnv, 1)) if fv is None else fv
-    fp = np.zeros((NP, 1)) if fp is None else fp
 
     if plttrange is None:
         if prvoutpnts is not None:
@@ -793,6 +799,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if inip is None:
         inip = get_pfromv(v=iniv, V=V, M=cmmat, A=cmmat, J=cj,
                           fv=cfv+ccfv+fvss, fp=cfp+ccfp,
+                          stokes_flow=stokes_flow,
                           dbcinds=[dbcinds, glbcntbcinds],
                           dbcvals=[dbcvals, inicdbcvals], invinds=dbcntinvinds)
 
@@ -842,7 +849,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     newtk, norm_nwtnupd = 0, 1
 
     def _appbcs(vvec, ccntrlldbcvals):
-        return dts.append_bcs_vec(vvec, vdim=V.dim(), invinds=dbcntinvinds,
+        return dts.append_bcs_vec(vvec, vdim=vdim, invinds=dbcntinvinds,
                                   bcinds=[dbcinds, glbcntbcinds],
                                   bcvals=[dbcvals, ccntrlldbcvals])
 
@@ -1007,9 +1014,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 elif dyn_fb_disc == 'linear_implicit':
                     pass
 
-
-
-
             elif static_feedback:
                 pass
 
@@ -1052,10 +1056,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         if verbose:
             print('INFO: time integration with', time_int_scheme)
 
+        f_vdp = None if stokes_flow else nonlvfunc
+
         v_end, p_end = timintsc(trange=trange, inivel=iniv, inip=inip,
                                 bcs_ini=inicdbcvals,
                                 M=cmmat, A=camat, J=cj, scalep=-1.,
-                                f_vdp=nonlvfunc,
+                                f_vdp=f_vdp,
                                 f_tdp=rhsv, g_tdp=rhsp,
                                 dynamic_rhs=dynamic_rhs,
                                 verbose=verbose,
@@ -1378,7 +1384,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
 def get_pfromv(v=None, V=None, M=None, A=None, J=None, fv=None, fp=None,
                decouplevp=False, solve_M=None, symmetric=False,
-               cgtol=1e-8,
+               cgtol=1e-8, stokes_flow=False,
                diribcs=None, dbcinds=None, dbcvals=None, invinds=None,
                **kwargs):
     """ for a velocity `v`, get the corresponding `p`
@@ -1390,8 +1396,11 @@ def get_pfromv(v=None, V=None, M=None, A=None, J=None, fv=None, fp=None,
 
     import sadptprj_riclyap_adi.lin_alg_utils as lau
 
-    _, rhs_con, _ = get_v_conv_conts(vvec=v, V=V, invinds=invinds,
-                                     dbcinds=dbcinds, dbcvals=dbcvals)
+    if stokes_flow:
+        rhs_con = 0.
+    else:
+        _, rhs_con, _ = get_v_conv_conts(vvec=v, V=V, invinds=invinds,
+                                         dbcinds=dbcinds, dbcvals=dbcvals)
 
     if decouplevp and symmetric:
         vp = lau.solve_sadpnt_smw(jmat=J, jmatT=J.T,

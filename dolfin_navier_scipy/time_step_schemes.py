@@ -32,6 +32,10 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
         def dynamic_rhs(t, vc=None, memory={}, mode=None):
             return zerorhs, memory
 
+    if f_vdp is None:
+        def f_vdp(vvec):
+            return zerorhs
+
     dfv_c, drm = dynamic_rhs(trange[0], vc=inivel,
                              memory=dynamic_rhs_memory, mode='init')
 
@@ -416,9 +420,11 @@ def nse_include_lnrcntrllr(M=None, A=None, J=None, B=None, C=None, iniv=None,
     zhvec = 0*hiniv
 
     def fvdpext(vvec):
-        return np.vstack([f_vdp, zhvec])
+        # XXX: will be called with `appendbcs`
+        return np.vstack([f_vdp(vvec), zhvec])
 
     getbcsext = getbcs  # XXX: will be called with `appendbcs`
+    savevpext = savevp  # XXX: will be called with `appendbcs`
 
     def ftdpext(t):
         return np.vstack([f_tdp(t), hf_tdp(t)])
@@ -432,4 +438,5 @@ def nse_include_lnrcntrllr(M=None, A=None, J=None, B=None, C=None, iniv=None,
 
     return dict(A=Aext, M=Mext, J=Jext, f_vdp=fvdpext, f_tpd=ftdpext,
                 getbcs=getbcsext, applybcs=applybcsext,
-                appndbcs=appndbcsext, inivel=inivext)
+                appndbcs=appndbcsext, inivel=inivext,
+                savevp=savevpext)
