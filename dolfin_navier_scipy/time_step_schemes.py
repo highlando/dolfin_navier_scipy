@@ -239,6 +239,10 @@ def sbdftwo(trange=None, inivel=None, inip=None, bcs_ini=[],
         def dynamic_rhs(t, vc=None, memory={}, mode=None):
             return zerorhs, memory
 
+    if f_vdp is None:
+        def f_vdp(vvec):
+            return zerorhs
+
     dfv_c, drm = dynamic_rhs(trange[0], vc=inivel,
                              memory=dynamic_rhs_memory, mode='init')
 
@@ -398,9 +402,16 @@ def nse_include_lnrcntrllr(M=None, A=None, J=None, B=None, C=None, iniv=None,
                            f_vdp=None, f_tdp=None, hf_tdp=None,
                            applybcs=None, appndbcs=None, getbcs=None,
                            savevp=None):
+    '''
+    helper function to include a linear observer/controller
 
-    NP, NV, hNV = J.shape, hA.shape[0]
+    into the linear part of the incompressible Navier-Stokes equations
+    '''
+
+    NP, NV = J.shape
+    hNV = hA.shape[0]
     Jext = sps.hstack([J, sps.csr_matrix((NP, hNV))])
+    hM = sps.eye(hNV) if hM is None else hM
 
     BhC = sps.csr_matrix(B@hC)
     BhC.eliminate_zeros()
@@ -419,9 +430,11 @@ def nse_include_lnrcntrllr(M=None, A=None, J=None, B=None, C=None, iniv=None,
 
     zhvec = 0*hiniv
 
-    def fvdpext(vvec):
+    def _fvdpext(vvec):
         # XXX: will be called with `appendbcs`
         return np.vstack([f_vdp(vvec), zhvec])
+
+    fvdpext = f_vdp if f_vdp is None else _fvdpext
 
     getbcsext = getbcs  # XXX: will be called with `appendbcs`
     savevpext = savevp  # XXX: will be called with `appendbcs`
@@ -436,7 +449,7 @@ def nse_include_lnrcntrllr(M=None, A=None, J=None, B=None, C=None, iniv=None,
     def appndbcsext(vhvvec, ccntrlldbcvals):
         return appndbcs(vhvvec[:NV, :], ccntrlldbcvals)
 
-    return dict(A=Aext, M=Mext, J=Jext, f_vdp=fvdpext, f_tpd=ftdpext,
+    return dict(A=Aext, M=Mext, J=Jext, f_vdp=fvdpext, f_tdp=ftdpext,
                 getbcs=getbcsext, applybcs=applybcsext,
                 appndbcs=appndbcsext, inivel=inivext,
                 savevp=savevpext)

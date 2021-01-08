@@ -570,7 +570,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               return_dictofvelstrs=False,
               return_dictofpstrs=False,
               dictkeysstr=False,
-              treat_nonl_explct=False, no_data_caching=True,
+              treat_nonl_explicit=False, no_data_caching=True,
               return_final_vp=False,
               return_as_list=False, return_vp_dict=False,
               return_y_list=False,
@@ -701,7 +701,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if trange is None:
         trange = np.linspace(t0, tE, Nts+1)
 
-    if treat_nonl_explct and lin_vel_point is not None:
+    if treat_nonl_explicit and lin_vel_point is not None:
         raise UserWarning('cant use `lin_vel_point` ' +
                           'and explicit treatment of the nonlinearity')
 
@@ -805,7 +805,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     datastrdict = dict(time=None, meshp=N, nu=nu,
                        Nts=trange.size-1, data_prfx=data_prfx,
-                       semiexpl=treat_nonl_explct)
+                       semiexpl=treat_nonl_explicit)
 
     if return_as_list:
         clearprvdata = True  # we want the results at hand
@@ -853,7 +853,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                   bcinds=[dbcinds, glbcntbcinds],
                                   bcvals=[dbcvals, ccntrlldbcvals])
 
-    if treat_nonl_explct and no_data_caching:
+    if treat_nonl_explicit and no_data_caching:
         def _savevp(vvec, pvec, ccntrlldbcvals, cdatstr):
             pass
     else:
@@ -978,6 +978,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                  invinds=dbcntinvinds, semi_explicit=True)
             return convvec
 
+        f_vdp = None if stokes_flow else nonlvfunc
+
         def getbcs(time, vvec, pvec, mode=None):
             return _comp_cntrl_bcvals(time=time, vel=vvec, p=pvec,
                                       diricontbcvals=diricontbcvals,
@@ -986,36 +988,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                       mode=mode)
 
         implicit_dynamic_rhs, dynamic_rhs = None, None
-        if closed_loop:
-            if dynamic_feedback:
-                dfb = dyn_fb_dict
-                if dyn_fb_disc == 'trapezoidal':
-                    dfb.update(dict(constdt=trange[1]-trange[0]))
-                    dyn_obs_fbk = tss.get_heuntrpz_lti(**dfb)
-
-                    def implicit_dynamic_rhs(t, vc=None, memory={}, mode=None):
-                        cy = cv_mat.dot(vc)
-                        curu, memory = dyn_obs_fbk(t, vc=cy,
-                                                   memory=memory, mode=mode)
-                        return b_mat.dot(curu), memory
-
-                elif dyn_fb_disc == 'AB2':
-                    dyn_obs_fbk = tss.\
-                        get_heunab_lti(hb=dfb['hb'], ha=dfb['ha'],
-                                       hc=dfb['hc'], inihx=dfb['inihx'],
-                                       drift=dfb['drift'])
-
-                    def dynamic_rhs(t, vc=None, memory={}, mode=None):
-                        cy = cv_mat.dot(vc)
-                        curu, memory = dyn_obs_fbk(t, vc=cy,
-                                                   memory=memory, mode=mode)
-                        return b_mat.dot(curu), memory
-
-                elif dyn_fb_disc == 'linear_implicit':
-                    pass
-
-            elif static_feedback:
-                pass
 
         expnlveldct = {}
 
@@ -1056,20 +1028,58 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         if verbose:
             print('INFO: time integration with', time_int_scheme)
 
-        f_vdp = None if stokes_flow else nonlvfunc
+        if closed_loop:
+            if dynamic_feedback:
+                dfb = dyn_fb_dict
+                if dyn_fb_disc == 'trapezoidal':
+                    dfb.update(dict(constdt=trange[1]-trange[0]))
+                    dyn_obs_fbk = tss.get_heuntrpz_lti(**dfb)
 
-        v_end, p_end = timintsc(trange=trange, inivel=iniv, inip=inip,
-                                bcs_ini=inicdbcvals,
-                                M=cmmat, A=camat, J=cj, scalep=-1.,
-                                f_vdp=f_vdp,
-                                f_tdp=rhsv, g_tdp=rhsp,
-                                dynamic_rhs=dynamic_rhs,
-                                verbose=verbose,
-                                # implicit_dynamic_rhs=implicit_dynamic_rhs,
-                                getbcs=getbcs, applybcs=applybcs,
-                                appndbcs=_appbcs, savevp=_svpplz)
+                    def implicit_dynamic_rhs(t, vc=None, memory={}, mode=None):
+                        cy = cv_mat.dot(vc)
+                        curu, memory = dyn_obs_fbk(t, vc=cy,
+                                                   memory=memory, mode=mode)
+                        return b_mat.dot(curu), memory
 
-        if treat_nonl_explct:
+                elif dyn_fb_disc == 'AB2':
+                    dyn_obs_fbk = tss.\
+                        get_heunab_lti(hb=dfb['hb'], ha=dfb['ha'],
+                                       hc=dfb['hc'], inihx=dfb['inihx'],
+                                       drift=dfb['drift'])
+
+                    def dynamic_rhs(t, vc=None, memory={}, mode=None):
+                        cy = cv_mat.dot(vc)
+                        curu, memory = dyn_obs_fbk(t, vc=cy,
+                                                   memory=memory, mode=mode)
+                        return b_mat.dot(curu), memory
+
+                elif dyn_fb_disc == 'linear_implicit':
+                    incldcdct = dict(M=cmmat, A=camat, J=cj,
+                                     B=b_mat, C=cv_mat, iniv=iniv, hM=None,
+                                     hA=dfb['ha'], hB=dfb['hb'], hC=dfb['hc'],
+                                     hiniv=dfb['inihx'], f_vdp=f_vdp,
+                                     f_tdp=rhsv, hf_tdp=dfb['drift'],
+                                     applybcs=applybcs, appndbcs=_appbcs,
+                                     getbcs=getbcs, savevp=_svpplz)
+
+                    icd = tss.nse_include_lnrcntrllr(**incldcdct)
+                    icd.update(dynamic_rhs=None)
+
+            elif static_feedback:
+                pass
+
+        if not dyn_fb_disc == 'linear_implicit':
+            icd = dict(f_tdp=rhsv, inivel=iniv, verbose=verbose,
+                       M=cmmat, A=camat, J=cj, f_vdp=f_vdp,
+                       dynamic_rhs=dynamic_rhs, getbcs=getbcs,
+                       applybcs=applybcs, appndbcs=_appbcs, savevp=_svpplz)
+
+        v_end, p_end = timintsc(trange=trange,
+                                inip=inip, scalep=-1.,
+                                g_tdp=rhsp, bcs_ini=inicdbcvals,
+                                **icd)
+
+        if treat_nonl_explicit:
             if return_vp_dict:
                 return vp_dict
             elif return_final_vp:
@@ -1333,7 +1343,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                     vellist.append(_appbcs(v_old, cdbcvals_n))
 
                 # integrate the Newton error
-                if stokes_flow or treat_nonl_explct:
+                if stokes_flow or treat_nonl_explicit:
                     norm_nwtnupd = None
                 elif comp_nonl_semexp_inig:
                     norm_nwtnupd = 1.
