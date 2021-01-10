@@ -406,6 +406,18 @@ def nse_include_lnrcntrllr(M=None, A=None, J=None, B=None, C=None, iniv=None,
     helper function to include a linear observer/controller
 
     into the linear part of the incompressible Navier-Stokes equations
+
+    Notes
+    -----
+
+    While the matrices of the NSE follow the convention
+
+    .. math:: M \\dot{v} + Av + J^Tp = Bu
+
+    The controller uses standard LTI notation
+
+    .. math:: \\dot x = \\hat{A} x + \\hat{B} u
+
     '''
 
     NP, NV = J.shape
@@ -419,8 +431,9 @@ def nse_include_lnrcntrllr(M=None, A=None, J=None, B=None, C=None, iniv=None,
     hBC = sps.csr_matrix(hB@C)
     hBC.eliminate_zeros()
 
-    Aext = sps.vstack([sps.hstack([A, BhC]),
-                       sps.hstack([hBC, hA])])
+    Aext = sps.vstack([sps.hstack([A, -BhC]),
+                       sps.hstack([-hBC, -hA])])
+    # Note the minus -- cp. the `Notes` above
 
     zNVhNV = sps.csr_matrix((NV, hNV))
     Mext = sps.vstack([sps.hstack([M, zNVhNV]),
