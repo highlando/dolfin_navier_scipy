@@ -225,7 +225,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           get_datastring=None,
                           data_prfx='',
                           paraviewoutput=False,
-                          save_data=True,
+                          save_data=False,
                           save_intermediate_steps=False,
                           vfileprfx='', pfileprfx='',
                           verbose=True,
@@ -1364,7 +1364,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                            dbcvals=[dbcvals, cdbcvals_c]))
                     dou.output_paraview(**prvoutdict)
 
-            dou.save_npa(norm_nwtnupd, cdatstr + '__norm_nwtnupd')
+            if not no_data_caching:
+                dou.save_npa(norm_nwtnupd, cdatstr + '__norm_nwtnupd')
             print('\nnorm of current Newton update: {}'.format(norm_nwtnupd))
             # print('\nsaved `norm_nwtnupd(={0})'.format(norm_nwtnupd) +
             #       ' to ' + cdatstr)
