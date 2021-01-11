@@ -106,7 +106,7 @@ def cnvchk(meshprfx='mesh/karman2D-outlets', meshlevel=1, proutdir='results/',
                    start_ssstokes=True,
                    get_datastring=None,
                    verbose=True,
-                   treat_nonl_explct=True,
+                   treat_nonl_explicit=True,
                    time_int_scheme=time_int_scheme,
                    dbcinds=femp['dbcinds'], dbcvals=femp['dbcvals'])
 

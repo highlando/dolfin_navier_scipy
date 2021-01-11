@@ -50,7 +50,7 @@ def testit(charvel=None, Re=None,
     soldict.update(femp)  # adding V, Q, invinds, diribcs
     soldict.update(tips)  # adding time integration params
     soldict.update(fv=rhsd['fv'], fp=rhsd['fp'], Re=Re,
-                   treat_nonl_explct=True,
+                   treat_nonl_explicit=True,
                    fvtd=fv_tmdp,
                    start_ssstokes=True,
                    data_prfx=ddir+data_prfx,

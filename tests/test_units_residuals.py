@@ -46,7 +46,7 @@ class TimeIntResiduals(unittest.TestCase):
         soldict.update(femp)  # adding V, Q, invinds, diribcs
         soldict.update(tips)  # adding time integration params
         soldict.update(fv=rhsd['fv'], fp=rhsd['fp'],
-                       treat_nonl_explct=True,
+                       treat_nonl_explicit=True,
                        return_vp_dict=True,
                        no_data_caching=True,
                        start_ssstokes=True)

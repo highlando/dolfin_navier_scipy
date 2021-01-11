@@ -571,6 +571,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               return_dictofpstrs=False,
               dictkeysstr=False,
               treat_nonl_explicit=True, no_data_caching=True,
+              treat_nonl_explct=False,  # TODO: remove deprecated option
               return_final_vp=False,
               return_as_list=False, return_vp_dict=False,
               return_y_list=False,
@@ -649,7 +650,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     start_ssstokes : boolean, optional
         for your convenience, compute and use the steady state stokes solution
         as initial value, defaults to `False`
-    treat_nonl_explct= string, optional
+    treat_nonl_explicit= string, optional
         whether to treat the nonlinearity explicitly, defaults to `False`
     nsects: int, optional
         in how many segments the trange is split up. (The newton iteration
@@ -700,6 +701,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     if trange is None:
         trange = np.linspace(t0, tE, Nts+1)
+
+    if treat_nonl_explct:
+        raise DeprecationWarning('deprecated: rename `treat_nonl_explct` to' +
+                                 '`treat_nonl_explicit`')
 
     if treat_nonl_explicit and lin_vel_point is not None:
         raise UserWarning('cant use `lin_vel_point` ' +
