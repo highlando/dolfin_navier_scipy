@@ -1,3 +1,4 @@
-numpydoc==0.4
+sphinx==3.2.1
+sphinx_rtd_theme==0.5.0
+numpydoc
 mock
-sphinx==1.6.7
