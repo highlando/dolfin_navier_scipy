@@ -20,3 +20,8 @@ data_output_utils
 -----------------
 .. automodule:: data_output_utils 
   :members:
+
+time_int_utils
+--------------
+.. automodule:: time_int_utils 
+  :members:
