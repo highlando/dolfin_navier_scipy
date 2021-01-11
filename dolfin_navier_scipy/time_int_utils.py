@@ -10,6 +10,7 @@ import sadptprj_riclyap_adi.lin_alg_utils as lau
 
 __all__ = ['cnab',
            'sbdftwo',
+           'nse_include_lnrcntrllr'
            ]
 
 
@@ -453,6 +454,7 @@ def nse_include_lnrcntrllr(M=None, A=None, J=None, B=None, C=None, iniv=None,
     savevpext = savevp  # XXX: will be called with `appendbcs`
 
     def ftdpext(t):
+        # print('time = {0}'.format(t))
         return np.vstack([f_tdp(t), hf_tdp(t)])
 
     applybcsext = applybcs
@@ -460,6 +462,8 @@ def nse_include_lnrcntrllr(M=None, A=None, J=None, B=None, C=None, iniv=None,
     # TODO: get back to this when implementing feedback Diri control
 
     def appndbcsext(vhvvec, ccntrlldbcvals):
+        # print('y = {0}'.format(np.linalg.norm(C@vhvvec[:NV, :])))
+        # print('u = {0}'.format(hC@vhvvec[NV:, :]))
         return appndbcs(vhvvec[:NV, :], ccntrlldbcvals)
 
     return dict(A=Aext, M=Mext, J=Jext, f_vdp=fvdpext, f_tdp=ftdpext,

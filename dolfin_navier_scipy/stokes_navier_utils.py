@@ -8,7 +8,7 @@ import dolfin
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import dolfin_navier_scipy.data_output_utils as dou
 
-import dolfin_navier_scipy.time_step_schemes as tss
+import dolfin_navier_scipy.time_int_utils as tiu
 
 __all__ = ['get_datastr_snu',
            'get_v_conv_conts',
@@ -570,7 +570,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               return_dictofvelstrs=False,
               return_dictofpstrs=False,
               dictkeysstr=False,
-              treat_nonl_explicit=False, no_data_caching=True,
+              treat_nonl_explicit=True, no_data_caching=True,
               return_final_vp=False,
               return_as_list=False, return_vp_dict=False,
               return_y_list=False,
@@ -1022,9 +1022,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                         ylist.append(cv_mat.dot(vvec))
 
         if time_int_scheme == 'cnab':
-            timintsc = tss.cnab
+            timintsc = tiu.cnab
         elif time_int_scheme == 'sbdf2':
-            timintsc = tss.sbdftwo
+            timintsc = tiu.sbdftwo
         if verbose:
             print('INFO: time integration with', time_int_scheme)
 
@@ -1033,7 +1033,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 dfb = dyn_fb_dict
                 if dyn_fb_disc == 'trapezoidal':
                     dfb.update(dict(constdt=trange[1]-trange[0]))
-                    dyn_obs_fbk = tss.get_heuntrpz_lti(**dfb)
+                    dyn_obs_fbk = tiu.get_heuntrpz_lti(**dfb)
 
                     def implicit_dynamic_rhs(t, vc=None, memory={}, mode=None):
                         cy = cv_mat.dot(vc)
@@ -1042,7 +1042,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                         return b_mat.dot(curu), memory
 
                 elif dyn_fb_disc == 'AB2':
-                    dyn_obs_fbk = tss.\
+                    dyn_obs_fbk = tiu.\
                         get_heunab_lti(hb=dfb['hb'], ha=dfb['ha'],
                                        hc=dfb['hc'], inihx=dfb['inihx'],
                                        drift=dfb['drift'])
@@ -1062,7 +1062,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                                      applybcs=applybcs, appndbcs=_appbcs,
                                      getbcs=getbcs, savevp=_svpplz)
 
-                    icd = tss.nse_include_lnrcntrllr(**incldcdct)
+                    icd = tiu.nse_include_lnrcntrllr(**incldcdct)
                     icd.update(dynamic_rhs=None)
 
             elif static_feedback:
