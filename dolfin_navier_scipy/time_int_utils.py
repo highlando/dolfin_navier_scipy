@@ -23,6 +23,10 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
          savevp=None, dynamic_rhs=None, dynamic_rhs_memory={},
          # implicit_dynamic_rhs=None, implicit_dynamic_rhs_memory={},
          ntimeslices=10, verbose=True):
+    """
+    to be provided
+
+    """
 
     dt, listofts = _inittimegrid(trange, ntimeslices=ntimeslices)
 
@@ -230,6 +234,10 @@ def sbdftwo(trange=None, inivel=None, inip=None, bcs_ini=[],
             savevp=None, dynamic_rhs=None, dynamic_rhs_memory={},
             # implicit_dynamic_rhs=None, implicit_dynamic_rhs_memory={},
             ntimeslices=10, verbose=True):
+    """
+    to be provided
+
+    """
 
     dt, listofts = _inittimegrid(trange, ntimeslices=ntimeslices)
 

@@ -28,6 +28,7 @@ MOCK_MODULES = ['numpy',
                 # 'os', 'glob', 'sys', 'copy',
                 'dolfin_navier_scipy', 'dolfin_navier_scipy.data_output_utils',
                 'dolfin_navier_scipy.dolfin_to_sparrays',
+                'dolfin_navier_scipy.time_int_utils',
                 'sadptprj_riclyap_adi',
                 'sadptprj_riclyap_adi.lin_alg_utils'
                 ]
@@ -140,7 +141,7 @@ html_theme = 'default'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = []
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
