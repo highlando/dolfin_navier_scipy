@@ -259,15 +259,19 @@ def meas_output_diff(dictofpaths=None, ylist=None, tmesh=None,
     else:
         ystlist = [ystarfunc(t) for t in tmesh]
 
-    diffy = np.array(ylist) - np.array(ystlist)
-    ndiffy = []
-    for row in range(diffy.shape[0]):
-        crow = diffy[row, :]
-        ndiffy.append(np.dot(crow.T, crow))
-    ndiffy = np.array(ndiffy)
-    dtvec = tmesh[1:] - tmesh[:-1]
-    trapv = 0.5*(ndiffy[:-1] + ndiffy[1:])
-    return (dtvec*trapv).sum()
+    try:
+        diffy = np.array(ylist) - np.array(ystlist)
+        ndiffy = []
+        for row in range(diffy.shape[0]):
+            crow = diffy[row, :]
+            ndiffy.append(np.dot(crow.T, crow))
+        ndiffy = np.array(ndiffy)
+        dtvec = tmesh[1:] - tmesh[:-1]
+        trapv = 0.5*(ndiffy[:-1] + ndiffy[1:])
+        return (dtvec*trapv).sum()
+    except ValueError:
+        print('data does not match')
+        return
 
 
 def load_or_comp(filestr=None, comprtn=None, comprtnargs={},
