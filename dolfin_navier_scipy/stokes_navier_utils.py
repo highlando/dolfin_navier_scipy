@@ -575,6 +575,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               return_final_vp=False,
               return_as_list=False, return_vp_dict=False,
               return_y_list=False,
+              check_ff=False, check_ff_maxv=1e8,
               verbose=True,
               start_ssstokes=False,
               **kw):
@@ -625,9 +626,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     diricontfuncs: list, optional
         list like `[ufunc]` where `ufunc: (t, v) -> u` where `u` is used to
         scale the corresponding `diricontbcvals`
-    # output_includes_bcs : boolean, optional
-    #     whether append the boundary nodes to the computed and stored \
-    #     velocities, defaults to `False`
+    check_ff: boolean, optional
+        whether to check for failures and to invoke a premature break,
+        defaults to `False`
+    check_ff_maxv: float, optional
+        threshold for norm of velocity that indicates a failure,
+        defaults to `1e8`
     krylov : {None, 'gmres'}, optional
         whether or not to use an iterative solver, defaults to `None`
     krpslvprms : dictionary, optional
@@ -1079,20 +1083,28 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                        dynamic_rhs=dynamic_rhs, getbcs=getbcs,
                        applybcs=applybcs, appndbcs=_appbcs, savevp=_svpplz)
 
-        v_end, p_end = timintsc(trange=trange,
-                                inip=inip, scalep=-1.,
-                                g_tdp=rhsp, bcs_ini=inicdbcvals,
-                                **icd)
+        v_end, p_end, ffflag = timintsc(trange=trange,
+                                        inip=inip, scalep=-1.,
+                                        g_tdp=rhsp, bcs_ini=inicdbcvals,
+                                        check_ff=check_ff,
+                                        check_ff_maxv=check_ff_maxv,
+                                        **icd)
+
+        def _toflagornottoflag(thingtoret):
+            if check_ff:
+                return thingtoret, ffflag
+            else:
+                return thingtoret
 
         if treat_nonl_explicit:
             if return_vp_dict:
-                return vp_dict
+                return _toflagornottoflag(vp_dict)
             elif return_final_vp:
-                return (v_end, p_end)
+                return _toflagornottoflag((v_end, p_end))
             elif return_dictofvelstrs:
-                return expnlveldct
+                return _toflagornottoflag(expnlveldct)
             elif return_y_list:
-                return ylist
+                return _toflagornottoflag(ylist)
             else:
                 return
 

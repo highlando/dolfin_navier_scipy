@@ -21,6 +21,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
          scalep=-1.,
          getbcs=None, applybcs=None, appndbcs=None,
          savevp=None, dynamic_rhs=None, dynamic_rhs_memory={},
+         check_ff=False, check_ff_maxv=None,
          # implicit_dynamic_rhs=None, implicit_dynamic_rhs_memory={},
          ntimeslices=10, verbose=True):
     """
@@ -32,6 +33,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
 
     NP, NV = J.shape
     zerorhs = np.zeros((NV, 1))
+    ffflag = 0
 
     if dynamic_rhs is None:
         def dynamic_rhs(t, vc=None, memory={}, mode=None):
@@ -70,9 +72,14 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
     coeffmatlu = spsla.factorized(trpz_coeffmat)
 
     for kck, ctrange in enumerate(listofts):
+        nrmvc = np.linalg.norm(v_n)
         if verbose:
-            print('time-stepping {0}/{1} complete -- @runtime {2:.1f}'.
-                  format(kck, ntimeslices, time.process_time()))
+            print('time-stepping {0}/{1} complete -- @runtime {2:.1f} '.
+                  format(kck, ntimeslices, time.process_time()) +
+                  ' -- |v| {0:.2e}'.format(nrmvc))
+        if nrmvc > check_ff_maxv or nrmvc is np.nan:
+            ffflag = 1
+            break
         for ctime in ctrange:
             # bump the variables
             v_c, p_c = v_n, p_n
@@ -111,7 +118,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
 
             savevp(appndbcs(v_n, bcs_n), p_n, time=ctime)
 
-    return v_n, p_n
+    return v_n, p_n, ffflag
 
 
 def get_heunab_lti(hb=None, ha=None, hc=None, inihx=None, drift=None):
@@ -229,6 +236,7 @@ def get_heuntrpz_lti(hb=None, ha=None, hc=None, inihx=None, drift=None,
 def sbdftwo(trange=None, inivel=None, inip=None, bcs_ini=[],
             M=None, A=None, J=None,
             f_vdp=None, f_tdp=None, g_tdp=None,
+            check_ff=False, check_ff_maxv=None,
             scalep=-1.,
             getbcs=None, applybcs=None, appndbcs=None,
             savevp=None, dynamic_rhs=None, dynamic_rhs_memory={},
@@ -273,10 +281,17 @@ def sbdftwo(trange=None, inivel=None, inip=None, bcs_ini=[],
                                 sps.hstack([J, sps.csr_matrix((NP, NP))])])
     coeffmatlu = spsla.factorized(bdft_coeffmat)
 
+    ffflag = 0
+
     for kck, ctrange in enumerate(listofts):
+        nrmvc = np.linalg.norm(v_c)
         if verbose:
-            print('time-stepping {0}/{1} complete -- @runtime {2:.1f}'.
-                  format(kck, ntimeslices, time.process_time()))
+            print('time-stepping {0}/{1} complete -- @runtime {2:.1f} '.
+                  format(kck, ntimeslices, time.process_time()) +
+                  ' -- |v| {0:.2e}'.format(nrmvc))
+        if nrmvc > check_ff_maxv or nrmvc is np.nan:
+            ffflag = 1
+            break
         for ctime in ctrange:
             # bump the variables
             v_p = v_c
@@ -312,7 +327,7 @@ def sbdftwo(trange=None, inivel=None, inip=None, bcs_ini=[],
 
             savevp(appndbcs(v_n, bcs_n), p_n, time=ctime)
 
-    return v_n, p_n
+    return v_n, p_n, ffflag
 
 
 def _checkuniformgrid(trange):
