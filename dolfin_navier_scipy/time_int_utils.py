@@ -77,7 +77,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
             print('time-stepping {0}/{1} complete -- @runtime {2:.1f} '.
                   format(kck, ntimeslices, time.process_time()) +
                   ' -- |v| {0:.2e}'.format(nrmvc))
-        if nrmvc > check_ff_maxv or nrmvc is np.nan:
+        if nrmvc > check_ff_maxv or np.isnan(nrmvc):
             ffflag = 1
             break
         for ctime in ctrange:
@@ -289,7 +289,8 @@ def sbdftwo(trange=None, inivel=None, inip=None, bcs_ini=[],
             print('time-stepping {0}/{1} complete -- @runtime {2:.1f} '.
                   format(kck, ntimeslices, time.process_time()) +
                   ' -- |v| {0:.2e}'.format(nrmvc))
-        if nrmvc > check_ff_maxv or nrmvc is np.nan:
+
+        if nrmvc > check_ff_maxv or np.isnan(nrmvc):
             ffflag = 1
             break
         for ctime in ctrange:
