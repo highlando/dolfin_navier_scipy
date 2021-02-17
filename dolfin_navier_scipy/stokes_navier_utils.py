@@ -463,6 +463,9 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         vp_k[cnv:] = -vp_k[cnv:]
         # pressure was flipped for symmetry
 
+        prvoutdict.update(dict(vp=vp_k))
+        dou.output_paraview(**prvoutdict)
+
         if normpicupd < vel_pcrd_tol:
             break
 

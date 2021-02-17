@@ -186,7 +186,7 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
     stokesmatsc.update({'Jfull': stokesmats['J']})
 
     # pressure freedom and dirichlet reduced rhs
-    rhsd_vfrc = dict(fpr=rhsd_vf['fp'], fvc=rhsd_vf['fv'][invinds, ])
+    rhsd_vfrc = dict(fp=rhsd_vf['fp'], fv=rhsd_vf['fv'][invinds, ])
     if bccontrol:
         Arob, fvrob = dts.condense_velmatsbybcs(stokesmats['amatrob'],
                                                 dbcinds=femp['dbcinds'],
@@ -205,8 +205,8 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
     femp.update({'Re': Re})
 
     if mergerhs:
-        rhsd = dict(fv=rhsd_vfrc['fvc']+rhsd_stbc['fv'],
-                    fp=rhsd_vfrc['fpr']+rhsd_stbc['fp'])
+        rhsd = dict(fv=rhsd_vfrc['fv']+rhsd_stbc['fv'],
+                    fp=rhsd_vfrc['fp']+rhsd_stbc['fp'])
         return femp, stokesmatsc, rhsd
     else:
         return femp, stokesmatsc, rhsd_vfrc, rhsd_stbc
