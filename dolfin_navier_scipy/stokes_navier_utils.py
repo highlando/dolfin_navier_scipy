@@ -575,6 +575,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               dictkeysstr=False,
               treat_nonl_explicit=True, no_data_caching=True,
               treat_nonl_explct=False,  # TODO: remove deprecated option
+              datatrange=None, dataoutpnts=None,
               return_final_vp=False,
               return_as_list=False, return_vp_dict=False,
               return_y_list=False,
@@ -766,6 +767,17 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     except AttributeError:
         pass
 
+    if datatrange is None and dataoutpnts is None:
+        datatrange = np.copy(trange).tolist()
+    elif datatrange is None:
+        cnts = trange.size  # TODO: trange may be a list...
+        filtert = np.arange(0, cnts, np.int(np.floor(cnts/dataoutpnts)))
+        datatrange = trange[filtert]
+    try:
+        datatrange = datatrange.tolist()
+    except AttributeError:
+        pass
+
     prvoutdict = dict(V=V, Q=Q, vp=None, t=None,
                       dbcinds=[dbcinds, glbcntbcinds],
                       dbcvals=[dbcvals],
@@ -834,15 +846,23 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     if return_dictofpstrs or return_dictofvelstrs:
         def _atdct(cdict, t, thing):
+
+            if not t == datatrange[0]:
+                return
+            else:
+                datatrange.pop(0)
+
             if dictkeysstr:
                 cdict.update({'{0}'.format(t): thing})
             else:
                 cdict.update({t: thing})
+
     else:
         def _atdct(cdict, t, thing):
             pass
 
     def _gfdct(cdict, t):
+
         if dictkeysstr:
             return cdict['{0}'.format(t)]
         else:
@@ -1105,7 +1125,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             elif return_final_vp:
                 return _toflagornottoflag((v_end, p_end))
             elif return_dictofvelstrs:
-                return _toflagornottoflag(expnlveldct)
+                dictofvelstrs.update(expnlveldct)
+                return _toflagornottoflag(dictofvelstrs)
             elif return_y_list:
                 return _toflagornottoflag(ylist)
             else:
