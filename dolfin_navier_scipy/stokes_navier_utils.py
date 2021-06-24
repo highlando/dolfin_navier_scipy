@@ -312,8 +312,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
             cdatstr = get_datastring(**datastrdict)
 
             norm_nwtnupd = dou.load_npa(cdatstr + '__norm_nwtnupd')
-            vel_k = dou.load_npa(cdatstr + '__vel')
             norm_nwtnupd_list.append(norm_nwtnupd)
+            vel_k = dou.load_npa(cdatstr + '__vel')
 
             if verbose:
                 print('found vel files')
@@ -565,7 +565,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               vel_pcrd_stps=4,
               krylov=None, krpslvprms={}, krplsprms={},
               clearprvdata=False,
-              useolddata=False,
+              # useolddata=False,  # not used anymore
               get_datastring=None,
               data_prfx='',
               paraviewoutput=False, plttrange=None, prvoutpnts=None,
