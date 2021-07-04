@@ -808,6 +808,8 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
     elif scheme == 'TH':
         V = dolfin.VectorFunctionSpace(mesh, "CG", 2)
         Q = dolfin.FunctionSpace(mesh, "CG", 1)
+    else:
+        raise UserWarning('Specify the FEM scheme `{TH, CR}` explicitly SVP')
 
     boundaries = dolfin.MeshFunction('size_t', mesh, strtophysicalregions)
 

@@ -847,10 +847,15 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if return_dictofpstrs or return_dictofvelstrs:
         def _atdct(cdict, t, thing):
 
-            if not t == datatrange[0]:
+            try:
+                if not t == datatrange[0]:
+                    return
+                else:
+                    datatrange.pop(0)
+            except IndexError:
+                print(f'`snu._atdct`: t={t:.5f}' +
+                      ' out of the range covered by the data points')
                 return
-            else:
-                datatrange.pop(0)
 
             if dictkeysstr:
                 cdict.update({'{0}'.format(t): thing})

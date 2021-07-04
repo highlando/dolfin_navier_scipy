@@ -59,3 +59,10 @@ Documentation of the code goes [here](http://dolfin-navier-scipy.readthedocs.org
 ```
 pip install dolfin_navier_scipy
 ```
+
+## Changelog
+
+### `v1.1.3`
+
+ * catch the case that the *datapoints* do not extend to the full time range
+ * enforce explicit specification of the FEM scheme in `problem_setups.gen_bccont_fems`
