@@ -770,8 +770,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if datatrange is None and dataoutpnts is None:
         datatrange = np.copy(trange).tolist()
     elif datatrange is None:
-        cnts = trange.size  # TODO: trange may be a list...
-        filtert = np.arange(0, cnts, np.int(np.floor(cnts/dataoutpnts)))
+        try:
+            cnts = trange.size
+        except AttributeError:
+            cnts = len(trange)
+        h = (cnts-1)/(dataoutpnts-1)
+        filtert = [np.int(np.floor(h*i)) for i in range(dataoutpnts)]
         datatrange = trange[filtert]
     try:
         datatrange = datatrange.tolist()
@@ -853,7 +857,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 else:
                     datatrange.pop(0)
             except IndexError:
-                print(f'`snu._atdct`: t={t:.5f}' +
+                print(f'INFO: `snu._atdct`: t={t:.5f}' +
                       ' out of the range covered by the data points')
                 return
 
