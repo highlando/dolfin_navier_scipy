@@ -1,6 +1,7 @@
 # import numpy as np
 
-# import dolfin
+import dolfin
+import matplotlib.pyplot as plt
 
 import dolfin_navier_scipy.stokes_navier_utils as snu
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
@@ -56,13 +57,19 @@ def testit(problem=None, nu=None, charvel=None, Re=None,
     vss, dynpss = dts.expand_vp_dolfunc(vc=vp_ss_nse[0], pc=vp_ss_nse[1],
                                         **femp)
 
+    plt.figure(1)
+    dolfin.plot(vss)
+    plt.figure(2)
+    dolfin.plot(dynpss)
+    plt.show()
+
 
 if __name__ == '__main__':
     meshlvl = 2
     nu = 1e-3
     rho = 1.
     charvel = 1.
-    Re = 60
+    Re = 40
 
     # scheme = 'CR'
     # testit(problem='gen_bccont', nu=nu, charvel=charvel,
