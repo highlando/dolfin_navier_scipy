@@ -148,6 +148,9 @@ def plot_prs_outp(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
 def plot_outp_sig(str_to_json=None, tmeshkey='tmesh', sigkey='outsig',
                   outsig=None, tmesh=None, fignum=222, reference=None,
                   tikzstr=None, compress=5, tikzplease=False):
+    ''' plotting output signals
+
+    '''
     import matplotlib.pyplot as plt
 
     if str_to_json is not None:
