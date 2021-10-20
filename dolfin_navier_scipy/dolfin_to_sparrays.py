@@ -422,25 +422,42 @@ def get_curfv(V, fv, invinds, tcur):
 
 
 def get_convvec(u0_dolfun=None, V=None, u0_vec=None, femp=None,
+                uone_utwo_same=True, utwo_dolfun=None, utwo_vec=None,
                 dbcvals=None, dbcinds=None,
                 diribcs=None, invinds=None):
-    """return the convection vector e.g. for explicit schemes
+    """return the convection vector f(u, u) = N(u)u
 
-    given a dolfin function or the coefficient vector
+    e.g. for explicit schemes.
+
+    Input: a dolfin function or the coefficient vector.
+
+    If needed, two different `u`s can be provided for `f(u1, u2)=N(u1)u2`
     """
 
     if u0_vec is not None:
         if femp is not None:
             diribcs = femp['diribcs']
             invinds = femp['invinds']
-        u0, p = expand_vp_dolfunc(vc=u0_vec, V=V, diribcs=diribcs,
-                                  dbcvals=dbcvals, dbcinds=dbcinds,
-                                  invinds=invinds)
+        uone, p = expand_vp_dolfunc(vc=u0_vec, V=V, diribcs=diribcs,
+                                    dbcvals=dbcvals, dbcinds=dbcinds,
+                                    invinds=invinds)
     else:
-        u0 = u0_dolfun
+        uone = u0_dolfun
+    if uone_utwo_same:
+        utwo = uone
+    else:
+        if utwo_vec is not None:
+            if femp is not None:
+                diribcs = femp['diribcs']
+                invinds = femp['invinds']
+            utwo, _ = expand_vp_dolfunc(vc=u0_vec, V=V, diribcs=diribcs,
+                                        dbcvals=dbcvals, dbcinds=dbcinds,
+                                        invinds=invinds)
+        else:
+            utwo = utwo_dolfun
 
     v = dolfin.TestFunction(V)
-    ConvForm = inner(grad(u0) * u0, v) * dx
+    ConvForm = inner(grad(uone) * utwo, v) * dx
 
     ConvForm = dolfin.assemble(ConvForm)
     if invinds is not None:
