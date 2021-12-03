@@ -1044,8 +1044,14 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             def _svpplz(vvec, pvec, time=None):
                 cfvstr = data_prfx + '_prs_t{0}'.format(time)
                 cfpstr = data_prfx + '_vel_t{0}'.format(time)
-                dou.save_npa(pvec, fstring=cfpstr)
-                dou.save_npa(vvec, fstring=cfvstr)
+                try:
+                    if dataoutpnts is not None and not time == datatrange[0]:
+                        pass
+                    else:
+                        dou.save_npa(pvec, fstring=cfpstr)
+                        dou.save_npa(vvec, fstring=cfvstr)
+                except IndexError:
+                    pass  # if something goes wrong, don't stop
                 _atdct(expnlveldct, time, cfvstr)
                 prvoutdict.update(dict(vc=vvec, pc=pvec, t=time))
                 dou.output_paraview(**prvoutdict)
