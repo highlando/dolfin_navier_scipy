@@ -14,6 +14,8 @@
 # along with `dolfin_navier_scipy`.
 # If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
 import dolfin
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import numpy as np
@@ -162,16 +164,17 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
 
     # remove the freedom in the pressure if required
     if problem == 'cylinderwake':
-        print('cylinderwake: pressure need not be pinned')
+        logging.info('cylinderwake: pressure need not be pinned')
         if ppin is not None:
             raise UserWarning('pinning the p will give wrong results')
     elif ppin is None:
-        print('pressure is not pinned - `J` may be singular for internal flow')
+        logging.info('pressure is not pinned - ' +
+                     '`J` may be singular for internal flow')
     elif ppin == -1:
         stokesmats['J'] = stokesmats['J'][:-1, :][:, :]
         stokesmats['JT'] = stokesmats['JT'][:, :-1][:, :]
         rhsd_vf['fp'] = rhsd_vf['fp'][:-1, :]
-        print('pressure pinned at last dof `-1`')
+        logging.info('pressure pinned at last dof `-1`')
     else:
         raise NotImplementedError('Cannot pin `p` other than at `-1`')
 
@@ -799,7 +802,7 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
     """
 
     # Load mesh
-    print('mesh: ' + strtomeshfile)
+    logging.info('mesh: ' + strtomeshfile)
     mesh = dolfin.Mesh(strtomeshfile)
 
     if scheme == 'CR':
@@ -819,7 +822,7 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
     inflowgeodata = cntbcsdata['inflow']
 
     inflwpe = inflowgeodata['physical entity']
-    print('mesh: physical entity {0} -- inflow'.format(inflwpe))
+    logging.info('mesh: physical entity {0} -- inflow'.format(inflwpe))
     inflwin = np.array(inflowgeodata['inward normal'])
     inflwxi = np.array(inflowgeodata['xone'])
     inflwxii = np.array(inflowgeodata['xtwo'])
@@ -843,15 +846,15 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
     for wpe in wallspel:
         diribcu.append(dolfin.DirichletBC(V, gzero, boundaries, wpe))
         bcdict = diribcu[-1].get_boundary_values()
-        print('mesh: physical entity {0} -- wall'.format(wpe))
+        logging.info('mesh: physical entity {0} -- wall'.format(wpe))
 
     if not bccontrol:  # treat the control boundaries as walls
         try:
             for cntbc in cntbcsdata['controlbcs']:
                 diribcu.append(dolfin.DirichletBC(V, gzero, boundaries,
                                                   cntbc['physical entity']))
-                print('mesh: physical entity {0} -- wall'.
-                      format(cntbc['physical entity']))
+                logging.info('mesh: physical entity {0} -- wall'.
+                             format(cntbc['physical entity']))
         except KeyError:
             pass  # no control boundaries
 
@@ -869,19 +872,19 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
                 raise NotImplementedError()
             mvwdbcs.append(dolfin.DirichletBC(V, rotcyl, boundaries,
                                               cntbc['physical entity']))
-            print('mesh: physical entity {0} -- moving wall'.
-                  format(cntbc['physical entity']))
+            logging.info('mesh: physical entity {0} -- moving wall'.
+                         format(cntbc['physical entity']))
     except KeyError:
         pass  # no moving walls defined
     if not movingwallcntrl and len(mvwdbcs) > 0:
         diribcu.extend(mvwdbcs)  # add the moving walls to the diri bcs
         mvwdbcs = []
-        print('mesh: physical entities -- moving walls --> walls')
+        logging.info('mesh: physical entities -- moving walls --> walls')
 
     # Create outflow boundary condition for pressure
     # TODO XXX why zero pressure?? is this do-nothing???
     outflwpe = cntbcsdata['outflow']['physical entity']
-    print('mesh: physical entity {0} -- outflow'.format(outflwpe))
+    logging.info('mesh: physical entity {0} -- outflow'.format(outflwpe))
     g2 = dolfin.Constant(0)
     bc2 = dolfin.DirichletBC(Q, g2, boundaries, outflwpe)
 
@@ -921,8 +924,8 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
                 csf = RotatingCircle(center=cbc['center'],
                                      radius=cbc['radius'])
             cpe = cbc['physical entity']
-            print('mesh: physical entity {0} -- boundary control ({1})'.
-                  format(cpe, cbc['type']))
+            logging.info('mesh: physical entity {0} -- boundary control ({1})'.
+                         format(cpe, cbc['type']))
             bcshapefuns.append(csf)
             bcpes.append(cpe)
             bcds.append(dolfin.Measure("ds", subdomain_data=boundaries)(cpe))
@@ -932,7 +935,7 @@ def gen_bccont_fems(scheme='TH', bccontrol=True, verbose=False,
         ldsurfpe = cntbcsdata['lift drag surface']['physical entity']
         liftdragds = dolfin.Measure("ds", subdomain_data=boundaries)(ldsurfpe)
         bclds = dolfin.DirichletBC(V, gzero, boundaries, ldsurfpe)
-        print('mesh: physical entity {0} -- lift/drag surf'.format(ldsurfpe))
+        logging.info(f'mesh: physical entity {ldsurfpe} -- lift/drag surf')
         bcldsdict = bclds.get_boundary_values()
         ldsbcinds = list(bcldsdict.keys())
     except KeyError:
