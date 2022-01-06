@@ -164,12 +164,12 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
 
     # remove the freedom in the pressure if required
     if problem == 'cylinderwake':
-        logging.info('cylinderwake: pressure need not be pinned')
+        logging.debug('cylinderwake: pressure need not be pinned')
         if ppin is not None:
             raise UserWarning('pinning the p will give wrong results')
     elif ppin is None:
-        logging.info('pressure is not pinned - ' +
-                     '`J` may be singular for internal flow')
+        logging.debug('pressure is not pinned - ' +
+                      '`J` may be singular for internal flow')
     elif ppin == -1:
         stokesmats['J'] = stokesmats['J'][:-1, :][:, :]
         stokesmats['JT'] = stokesmats['JT'][:, :-1][:, :]
