@@ -576,6 +576,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               dictkeysstr=False,
               treat_nonl_explicit=True, no_data_caching=True,
               treat_nonl_explct=False,  # TODO: remove deprecated option
+              use_custom_nonlinearity=False,
+              custom_nonlinear_vel_function=None,
               datatrange=None, dataoutpnts=None,
               return_final_vp=False,
               return_as_list=False, return_vp_dict=False,
@@ -661,6 +663,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         as initial value, defaults to `False`
     treat_nonl_explicit= string, optional
         whether to treat the nonlinearity explicitly, defaults to `False`
+    use_custom_nonlinearity: boolean, optional
+        whether to use a custom nonlinear velocity function to replace the
+        convection part, defaults to `False`
+    custom_nonlinear_vel_function: callable f(v), optional
+        the custom nonlinear function (cp. `use_custom_nonlinearity`),
+        defaults to `None`
     nsects: int, optional
         in how many segments the trange is split up. (The newton iteration
         will be confined to the segments and, probably, converge faster than
@@ -1014,11 +1022,16 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         def rhsp(t):
             return fp
 
-        def nonlvfunc(vvec):
-            _, convvec, _ = \
-                get_v_conv_conts(vvec=vvec, V=V,
-                                 invinds=dbcntinvinds, semi_explicit=True)
-            return convvec
+        if use_custom_nonlinearity:
+            nonlvfunc = custom_nonlinear_vel_function
+            logging.\
+                debug('The convection is replaced by a custom nonlinearity')
+        else:
+            def nonlvfunc(vvec):
+                _, convvec, _ = \
+                    get_v_conv_conts(vvec=vvec, V=V,
+                                     invinds=dbcntinvinds, semi_explicit=True)
+                return convvec
 
         f_vdp = None if stokes_flow else nonlvfunc
 
