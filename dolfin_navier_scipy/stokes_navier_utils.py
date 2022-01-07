@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 import scipy.sparse as sps
 import os
@@ -1072,8 +1073,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             timintsc = tiu.cnab
         elif time_int_scheme == 'sbdf2':
             timintsc = tiu.sbdftwo
-        if verbose:
-            print('INFO: time integration with', time_int_scheme)
+        logging.info('Time integration with ' + time_int_scheme)
 
         if closed_loop:
             if dynamic_feedback:
