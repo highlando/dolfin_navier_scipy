@@ -2,6 +2,7 @@ import numpy as np
 import scipy.sparse as sps
 import scipy.sparse.linalg as spsla
 import time
+import logging
 
 import sadptprj_riclyap_adi.lin_alg_utils as lau
 
@@ -78,6 +79,8 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
                   format(kck, ntimeslices, time.process_time()) +
                   ' -- |v| {0:.2e}'.format(nrmvc))
         if nrmvc > check_ff_maxv or np.isnan(nrmvc):
+            logging.warning('breaking the time integration because' +
+                            ' of possible blowup')
             ffflag = 1
             break
         for ctime in ctrange:
