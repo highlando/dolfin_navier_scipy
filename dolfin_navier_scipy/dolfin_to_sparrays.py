@@ -1,6 +1,7 @@
 import dolfin
 import numpy as np
 import scipy.sparse as sps
+# import logging
 
 from dolfin import dx, grad, div, inner
 
@@ -450,7 +451,7 @@ def get_convvec(u0_dolfun=None, V=None, u0_vec=None, femp=None,
             if femp is not None:
                 diribcs = femp['diribcs']
                 invinds = femp['invinds']
-            utwo, _ = expand_vp_dolfunc(vc=u0_vec, V=V, diribcs=diribcs,
+            utwo, _ = expand_vp_dolfunc(vc=utwo_vec, V=V, diribcs=diribcs,
                                         dbcvals=dbcvals, dbcinds=dbcinds,
                                         invinds=invinds)
         else:
