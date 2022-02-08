@@ -4,7 +4,7 @@ with open("README.md", 'r') as f:
     long_description = f.read()
 
 setup(name='dolfin_navier_scipy',
-      version='1.1.5dev',
+      version='1.2.1dev',
       description='A Scipy-Fenics interface for incompressible Navier-Stokes',
       license="GPLv3",
       long_description=long_description,
