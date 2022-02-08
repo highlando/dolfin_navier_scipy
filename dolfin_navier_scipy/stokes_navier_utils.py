@@ -560,6 +560,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               feedbackthroughdict=None,
               return_vp=False,
               b_mat=None, cv_mat=None,
+              vp_output=False, vp_out_fun=None, vp_output_dict=None,
               vel_nwtn_stps=20, vel_nwtn_tol=5e-15,
               nsects=1, loc_nwtn_tol=5e-15, loc_pcrd_stps=True,
               addfullsweep=False,
@@ -1035,6 +1036,14 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
         f_vdp = None if stokes_flow else nonlvfunc
 
+        def _addoutput(vvec, pvec, time=None):
+            if vp_output:
+                vpo = vp_out_fun(vvec, pvec, time=None)
+                vp_output_dict.update({time: vpo})
+            else:
+                pass
+            return
+
         def getbcs(time, vvec, pvec, mode=None):
             return _comp_cntrl_bcvals(time=time, vel=vvec, p=pvec,
                                       diricontbcvals=diricontbcvals,
@@ -1050,12 +1059,14 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             vp_dict = {}
 
             def _svpplz(vvec, pvec, time=None):
+                _addoutput(vvec, pvec, time=time)
                 vp_dict.update({time: dict(p=pvec, v=vvec)})
                 prvoutdict.update(dict(vc=vvec, pc=pvec, t=time))
                 dou.output_paraview(**prvoutdict)
 
         elif return_dictofvelstrs:
             def _svpplz(vvec, pvec, time=None):
+                _addoutput(vvec, pvec, time=time)
                 cfvstr = data_prfx + '_prs_t{0}'.format(time)
                 cfpstr = data_prfx + '_vel_t{0}'.format(time)
                 try:
@@ -1074,6 +1085,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             ylist = []
 
             def _svpplz(vvec, pvec, time=None):
+                _addoutput(vvec, pvec, time=time)
                 prvoutdict.update(dict(vc=vvec, pc=pvec, t=time))
                 dou.output_paraview(**prvoutdict)
                 if return_y_list:
@@ -1127,6 +1139,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
             elif static_feedback:
                 pass
+        else:
+            pass
 
         if not dyn_fb_disc == 'linear_implicit':
             icd = dict(f_tdp=rhsv, inivel=iniv, verbose=verbose,

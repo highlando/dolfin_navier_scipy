@@ -79,8 +79,8 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
                   format(kck, ntimeslices, time.process_time()) +
                   ' -- |v| {0:.2e}'.format(nrmvc))
         if nrmvc > check_ff_maxv or np.isnan(nrmvc):
-            logging.warning('breaking the time integration because' +
-                            ' of possible blowup')
+            logging.warning('BREAK: |v| is `NaN` or ' +
+                            f'|v| > threshhold({check_ff_maxv})')
             ffflag = 1
             break
         for ctime in ctrange:

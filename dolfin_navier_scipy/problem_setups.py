@@ -1096,13 +1096,12 @@ class RotatingCircle(dolfin.UserExpression):
 
 class LiftDragSurfForce():
 
-    def __init__(self, V=None, nu=None, ldds=None,
+    def __init__(self, V=None, nu=None, ldds=None, gradvsymmtrc=True,
                  outflowds=None, phione=None, phitwo=None):
         self.mesh = V.mesh()
         self.n = dolfin.FacetNormal(self.mesh)
         # self.Id = dolfin.Identity(self.mesh.geometry().dim())
-        self.ldds = ldds
-        self.outflowds = outflowds
+        # self.ldds = ldds
         self.nu = nu
         self.A = dolfin.as_matrix([[0., 1.],
                                    [-1., 0.]])
@@ -1111,10 +1110,15 @@ class LiftDragSurfForce():
         self.phionex = pickx*phione
         self.phioney = picky*phione
         self.phitwo = phitwo
+        self.gradvsymmtrc = gradvsymmtrc
 
-        def epsilon(u):
-            return 0.5*(dolfin.nabla_grad(u) + dolfin.nabla_grad(u).T)
-
+        if gradvsymmtrc:
+            def epsilon(u):
+                return 0.5*(dolfin.nabla_grad(u) + dolfin.nabla_grad(u).T)
+            self.outflowds = outflowds
+        else:
+            def epsilon(u):
+                return dolfin.grad(u)
         self.epsilon = epsilon
 
     def evaliftdragforce(self, u=None, p=None):
@@ -1140,24 +1144,30 @@ class LiftDragSurfForce():
 
         # ## the Babuska/Millner trick
         pox = self.phionex
+        poy = self.phioney
 
         # convection
         drgo = inner(dolfin.dot(u, dolfin.nabla_grad(u)), pox)*dx
-        # outflow correction
-        ofcor = (self.nu*inner(grad(u).T*self.n, pox))*self.outflowds
+        # outflow correction for symmetrized gradient
+        if self.gradvsymmtrc:
+            dofcor = (self.nu*inner(grad(u).T*self.n, pox))*self.outflowds
+            lofcor = (self.nu*inner(grad(u).T*self.n, poy))*self.outflowds
+        else:
+            dofcor, lofcor = 0, 0
+
         # diffusion
         drgt = (2*self.nu*inner(epsi(u), grad(self.phionex)))*dx
         # pressure
         drgd = -p*div(self.phionex)*dx
 
-        drag = dolfin.assemble(drgt+drgd+drgo-ofcor)
+        drag = dolfin.assemble(drgt+drgd+drgo-dofcor)
 
-        lfto = inner(dolfin.dot(u, dolfin.nabla_grad(u)), self.phioney)*dx
-        lftt = 2*self.nu*inner(self.epsilon(u), dolfin.grad(self.phioney))*dx
-        lftd = (-p*dolfin.div(self.phioney))*dx
-        # outflow correction
-        ofcor = (self.nu*inner(grad(u).T*self.n, self.phioney))*self.outflowds
-        lift = dolfin.assemble(lfto+lftt+lftd-ofcor)
+        lfto = inner(dolfin.dot(u, dolfin.nabla_grad(u)), poy)*dx
+        lftt = 2*self.nu*inner(self.epsilon(u), dolfin.grad(poy))*dx
+        lftd = (-p*dolfin.div(poy))*dx
+
+        lift = dolfin.assemble(lfto+lftt+lftd-lofcor)
+
         return lift, drag
 
     def evatorqueSphere2D(self, u=None, p=None):
@@ -1395,3 +1405,15 @@ def gen_bccont_fems_3D(scheme='TH', bccontrol=True, verbose=False,
                    mesh=mesh)
 
     return gbcfems
+
+
+def get_bcinds(mesh=None, V=None, prfile=None, pelist=[]):
+    boundaries = dolfin.MeshFunction('size_t', mesh, prfile)
+    gzero = dolfin.Constant((0, 0))
+    diribcinds = []
+    for wpe in pelist:
+        cdbc = dolfin.DirichletBC(V, gzero, boundaries, wpe)
+        bcdict = cdbc.get_boundary_values()
+        diribcinds.extend(list(bcdict.keys()))
+
+    return diribcinds
