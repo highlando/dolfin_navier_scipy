@@ -1,0 +1,6 @@
+setuptools
+pbr
+rich
+numpy
+scipy
+sadptprj_riclyap_adi
