@@ -26,7 +26,9 @@ __all__ = ['get_sysmats',
            'cyl_fems',
            'gen_bccont_fems',
            'gen_bccont_fems_3D',
-           'cyl3D_fems']
+           'cyl3D_fems',
+           'get_bcinds',
+           ]
 
 
 def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
