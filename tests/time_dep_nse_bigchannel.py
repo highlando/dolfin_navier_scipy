@@ -25,6 +25,15 @@ def testit(problem='drivencavity', N=None, nu=1e-2, Re=None,
     data_prfx = problem + '{4}_N{0}_Re{1}_Nts{2}_tE{3}'.\
         format(N, femp['Re'], Nts, tE, scheme)
 
+    print('computing `c_mat`...')
+    import sadptprj_riclyap_adi.lin_alg_utils as lau
+    import distributed_control_fenics.cont_obs_utils as cou
+    mc_mat, y_masmat = cou.get_mout_opa(odcoo=femp['odcoo'],
+                                        V=femp['V'], mfgrid=(3, 1))
+    c_mat = lau.apply_massinv(y_masmat, mc_mat, output='sparse')
+    # restrict the operator to the inner nodes
+    c_mat = c_mat[:, femp['invinds']][:, :]
+
     # setting some parameters
     if Re is not None:
         nu = femp['charlen']/Re
