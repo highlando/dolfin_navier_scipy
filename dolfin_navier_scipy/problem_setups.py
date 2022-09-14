@@ -993,7 +993,7 @@ def _get_cont_shape_fun2D(xi=None, xii=None, element=None, shape='parabola'):
 
         def eval(self, value, x):
             curs = np.linalg.norm(x - xi)/lencb
-            logging.info(f'x={x}: s={curs}')
+            logging.debug(f'x={x}: s={curs}')
             curvel = 6*curs*(1-curs)*cbn
             value[0], value[1] = curvel[0], curvel[1]
 

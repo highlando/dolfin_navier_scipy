@@ -1,7 +1,7 @@
 import dolfin
 import numpy as np
 import scipy.sparse as sps
-# import logging
+import logging
 
 from dolfin import dx, grad, div, inner
 
@@ -278,6 +278,7 @@ def get_stokessysmats(V, Q, nu=None, bccontrol=False, gradvsymmtrc=True,
         mesh = V.mesh()
         for ncb, bcfun in enumerate(cbshapefuns):
             # get an instance of the subdomain class
+            logging.debug(f'assembling bccontrol ops: ncb={ncb}')
             try:
                 bc = cbclist[ncb]
                 Gamma = bc()
