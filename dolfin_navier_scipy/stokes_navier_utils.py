@@ -1024,7 +1024,10 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             return fp
 
         if use_custom_nonlinearity:
-            nonlvfunc = custom_nonlinear_vel_function
+            def nonlvfunc(vvec):
+                return -custom_nonlinear_vel_function(vvec)
+            # the minus sign -- because it goes to the rhs
+            # cp. the definiont of `get_v_conv_conts`
             logging.\
                 debug('The convection is replaced by a custom nonlinearity')
         else:
