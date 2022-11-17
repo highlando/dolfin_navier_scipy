@@ -19,6 +19,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
          M=None, A=None, J=None,
          f_vdp=None,
          f_tdp=None, g_tdp=None,
+         f_tvdp=None,
          scalep=-1.,
          getbcs=None, applybcs=None, appndbcs=None,
          savevp=None, dynamic_rhs=None, dynamic_rhs_memory={},
@@ -39,13 +40,24 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
     if dynamic_rhs is None:
         def dynamic_rhs(t, vc=None, memory={}, mode=None):
             return zerorhs, memory
+    else:
+        pass
+
+    if f_tvdp is not None:
+        def _dynamic_rhs(t, vc=None, memory={}, mode=None):
+            _cfv, _mmry = dynamic_rhs(t, vc=vc, memory=memory, mode=mode)
+            # logging.info('set zero for DEBUG')
+            # logging.info(f't:{t} -- rhsval:{np.linalg.norm(f_tvdp(t, vc))}')
+            return _cfv+f_tvdp(t, vc), _mmry
+    else:
+        _dynamic_rhs = dynamic_rhs
 
     if f_vdp is None:
         def f_vdp(vvec):
             return zerorhs
 
-    dfv_c, drm = dynamic_rhs(trange[0], vc=inivel,
-                             memory=dynamic_rhs_memory, mode='init')
+    dfv_c, drm = _dynamic_rhs(trange[0], vc=inivel,
+                              memory=dynamic_rhs_memory, mode='init')
 
     # if implicit_dynamic_rhs is None:
     #     def implicit_dynamic_rhs(t, vc=None, memory={}, mode=None):
@@ -61,7 +73,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
         = _onestepheun(vc=inivel, pc=inip, tc=trange[0], tn=trange[1],
                        M=M, A=A, J=J,
                        scalep=scalep,
-                       dfv_c=dfv_c, dynamic_rhs=dynamic_rhs, drm=drm,
+                       dfv_c=dfv_c, dynamic_rhs=_dynamic_rhs, drm=drm,
                        bcs_c=bcs_ini, applybcs=applybcs,
                        appndbcs=appndbcs, getbcs=getbcs,
                        f_tdp=f_tdp, f_vdp=f_vdp, g_tdp=g_tdp)
@@ -75,9 +87,9 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
     for kck, ctrange in enumerate(listofts):
         nrmvc = np.linalg.norm(v_n)
         if verbose:
-            print('time-stepping {0}/{1} complete -- @runtime {2:.1f} '.
-                  format(kck, ntimeslices, time.process_time()) +
-                  ' -- |v| {0:.2e}'.format(nrmvc))
+            logging.info(f'time {kck}/{ntimeslices} ' +
+                         f'-- @runtime {time.process_time():.1f} ' +
+                         f' -- |v| {nrmvc:.2e}')
         if nrmvc > check_ff_maxv or np.isnan(nrmvc):
             logging.warning('BREAK: |v| is `NaN` or ' +
                             f'|v| > threshhold({check_ff_maxv})')
@@ -101,13 +113,23 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
             # new values of the explicit time parts
             fv_n, fp_n = f_tdp(ctime), g_tdp(ctime)
 
-            dfv_n, drm = dynamic_rhs(ctime, vc=v_c, memory=drm,
-                                     mode='abtwo')
+            dfv_n, drm = _dynamic_rhs(ctime, vc=v_c, memory=drm,
+                                      mode='abtwo')
+            # import ipdb
+            # ipdb.set_trace()
 
             rhs_n = M*v_c - .5*dt*A*v_c \
                 - (mbc_n-mbc_c) \
                 + .5*dt*(3*nfc_c-nfc_o) \
                 + .5*dt*(fv_c+fv_n + bfv_n+bfv_c + dfv_n+dfv_c)
+            # rhsnrm = np.linalg.norm(fv_c+fv_n + dfv_n+dfv_c)
+            # cnvnrm = np.linalg.norm(3*nfc_c-nfc_o)
+            # logging.info(f't:{ctime} -- rhsval:{rhsnrm}')
+            # logging.info(f't:{ctime} -- cnvval:{cnvnrm}')
+            # if ctime > 0.003:
+            #     import ipdb
+            #     ipdb.set_trace()
+
             # + .5*dt*(3*mplct_dfv_c - mplct_dfv_o) \
 
             vp_n = coeffmatlu(np.vstack([rhs_n, fp_n+bfp_n]).flatten())
@@ -356,7 +378,9 @@ def _onestepheun(vc=None, pc=None, tc=None, tn=None,
     bfv_c, bfp_c, mbc_c = applybcs(bcs_c)
     fv_c = f_tdp(tc)
     nfc_c = f_vdp(appndbcs(vc, bcs_c))
-    tdfv_n, drm = dynamic_rhs(tc, vc=vc, memory=drm, mode='heunpred')
+    tdfv_n, drm = dynamic_rhs(tn, vc=vc, memory=drm, mode='heunpred')
+    # this was needed if there is a function only of `t`
+    logging.debug('we use `tn` rather than `tc` here... ')
 
     # mplct_dfv_c, mdrm = implicit_dynamic_rhs(tc, vc=vc, memory=mdrm,
     #                                          mode='init')
@@ -368,6 +392,8 @@ def _onestepheun(vc=None, pc=None, tc=None, tn=None,
     fv_n, fp_n = f_tdp(tn), g_tdp(tn)
 
     # Predictor Step -- CN + explicit Euler for convection
+    # norm = np.linalg.norm
+    # logging.info(f'predictor: |rhs|: {norm(fv_n + tbfv_n + tdfv_n)}')
 
     if scheme == 'IMEX-Euler':
         tfv = M@vc \
@@ -399,6 +425,8 @@ def _onestepheun(vc=None, pc=None, tc=None, tn=None,
                + nfc_c+tnfc_n)  # + mplct_dfv_c+mplct_dfv_n)
 
     # vp_new = coeffmatlu(np.vstack([rhs_n, fp_n+bfp_n]).flatten())
+    # logging.info(f'corrector: |rhs|:
+    # {norm(fv_c+fv_n + bfv_n+bfv_c + dfv_n+dfv_c + nfc_c+tnfc_n)}')
     vp_n = lau.solve_sadpnt_smw(amat=M, jmat=J, jmatT=J.T,
                                 rhsv=rhs_n, rhsp=fp_n+bfp_n)
     v_n = vp_n[:NV].reshape((NV, 1))

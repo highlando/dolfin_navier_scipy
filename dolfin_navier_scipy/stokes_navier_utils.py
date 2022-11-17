@@ -541,6 +541,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 def solve_nse(A=None, M=None, J=None, JT=None,
               fv=None, fp=None,
               fvtd=None, fvss=0.,
+              fvtvd=None,
               fv_tmdp=None,  # TODO: fv_tmdp_params={}, fv_tmdp_memory=None,
               iniv=None, inip=None, lin_vel_point=None,
               stokes_flow=False,
@@ -618,7 +619,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         whether the `keys` of the result dictionaries are strings instead \
         of floats, defaults to `False`
     fvtd : callable f(t), optional
-        time dependend right hand side in momentum equation
+        time dependent right hand side in momentum equation
+    fvtvd : callable f(t, v), optional
+        time and velocity dependent right hand side in momentum equation
     fvss : array, optional
         right hand side in momentum for steady state computation
     fv_tmdp : callable f(t, v, dict), optional
@@ -1018,6 +1021,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 return cfv
         else:
             def rhsv(t):
+                # logging.info(f't:{t} -- fvtdval:{np.linalg.norm(fvtd(t))}')
                 return cfv + fvtd(t)
 
         def rhsp(t):
@@ -1147,7 +1151,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
         if not dyn_fb_disc == 'linear_implicit':
             icd = dict(f_tdp=rhsv, inivel=iniv, verbose=verbose,
-                       M=cmmat, A=camat, J=cj, f_vdp=f_vdp,
+                       M=cmmat, A=camat, J=cj,
+                       f_vdp=f_vdp,
+                       f_tvdp=fvtvd,
                        dynamic_rhs=dynamic_rhs, getbcs=getbcs,
                        applybcs=applybcs, appndbcs=_appbcs, savevp=_svpplz)
 
