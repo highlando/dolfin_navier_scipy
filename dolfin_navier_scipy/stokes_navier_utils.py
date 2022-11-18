@@ -575,7 +575,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               vfileprfx='', pfileprfx='',
               return_dictofvelstrs=False,
               return_dictofpstrs=False,
-              dictkeysstr=False,
+              dictkeysstr=False, dictkeyformat='.5f',
               treat_nonl_explicit=True, no_data_caching=True,
               treat_nonl_explct=False,  # TODO: remove deprecated option
               use_custom_nonlinearity=False,
@@ -875,7 +875,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 return
 
             if dictkeysstr:
-                cdict.update({'{0}'.format(t): thing})
+                formstr = ('{0' + dictkeyformat + '}').format(t)
+                cdict.update({formstr: thing})
             else:
                 cdict.update({t: thing})
 
