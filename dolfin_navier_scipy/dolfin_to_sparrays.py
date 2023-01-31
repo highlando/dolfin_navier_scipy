@@ -556,7 +556,7 @@ def condense_sysmatsbybcs(stms, velbcs=None, dbcinds=None, dbcvals=None,
                    'A': Ac,
                    'JT': JTc,
                    'J': Jc,
-                   'MP': stms['MP']}
+                   'MP': stms['MP']}  # type: dict
 
     if mergerhs:
         rhsvecsbc = {'fv': rhsdict['fv'][invinds, :] + fvbc,

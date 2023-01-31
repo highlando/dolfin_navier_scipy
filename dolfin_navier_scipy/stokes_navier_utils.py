@@ -218,6 +218,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           return_vp=False, ppin=None,
                           return_nwtnupd_norms=False,
                           N=None, nu=None,
+                          only_stokes=False,
                           vel_pcrd_stps=10, vel_pcrd_tol=1e-4,
                           vel_nwtn_stps=20, vel_nwtn_tol=5e-15,
                           clearprvdata=False,
@@ -227,7 +228,6 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                           data_prfx='',
                           paraviewoutput=False,
                           save_data=False,
-                          save_intermediate_steps=False,
                           vfileprfx='', pfileprfx='',
                           verbose=True,
                           **kw):
@@ -269,6 +269,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         Number of Picard iterations when computing a starting value for the
         Newton scheme, cf. Elman, Silvester, Wathen: *FEM and fast iterative
         solvers*, 2005, defaults to `100`
+    only_stokes: boolean, optional
+        if only compute the stokes solution, defaults to `False`
     vel_pcrd_tol : real, optional
         tolerance for the size of the Picard update, defaults to `1e-4`
     vel_nwtn_stps : int, optional
@@ -389,7 +391,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                                   bcinds=[dbcinds, glbcntbcinds],
                                   bcvals=[dbcvals, ccntrlldbcvals])
 
-    if vel_start_nwtn is None:
+    if vel_start_nwtn is None or only_stokes:
         cdbcvals_c = _comp_cntrl_bcvals(time=None, vel=None, p=None,
                                         mode='init',
                                         **cntrlmatrhsdict)
@@ -412,6 +414,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                                dbcvals=[dbcvals, cdbcvals_c],
                                invinds=dbcntinvinds))
         dou.output_paraview(**prvoutdict)
+        if only_stokes:
+            logging.info('done computing the STOKES steady state')
 
         # Stokes solution as starting value
         vp_k = vp_stokes
@@ -555,11 +559,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               N=None, nu=None,
               ppin=None,
               closed_loop=False,
-              static_feedback=False, stat_fb_dict={},
+              static_feedback=False, #  stat_fb_dict={},
               dynamic_feedback=False, dyn_fb_dict={},
               dyn_fb_disc='trapezoidal',
-              feedbackthroughdict=None,
-              return_vp=False,
               b_mat=None, cv_mat=None,
               vp_output=False, vp_out_fun=None, vp_output_dict=None,
               vel_nwtn_stps=20, vel_nwtn_tol=5e-15,
@@ -712,7 +714,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         dictionary with time `t` as keys and path to pressure files as values
 
     vellist : list, on demand
-        list of the velocity solutions
+        list of the velocity solutions, deprecated use `ylist` with `C=I`
 
     """
     import sadptprj_riclyap_adi.lin_alg_utils as lau
@@ -783,6 +785,12 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if datatrange is None and dataoutpnts is None:
         datatrange = np.copy(trange).tolist()
     elif datatrange is None:
+        if return_y_list:
+            raise UserWarning("don't use `dataoutpnts` with return_y_list " + 
+                              "since relation of datapoints and time may be " +
+                              "unclear. Provide a `datatrange` instead")
+        else:
+            pass
         try:
             cnts = trange.size
         except AttributeError:
@@ -849,6 +857,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                        semiexpl=treat_nonl_explicit)
 
     if return_as_list:
+        raise UserWarning('this option has been deprecated -- use ' +
+                          '`return_y_list` without `cmat`')
         clearprvdata = True  # we want the results at hand
     if clearprvdata:
         datastrdict['time'] = '*'
@@ -875,7 +885,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 return
 
             if dictkeysstr:
-                formstr = ('{0' + dictkeyformat + '}').format(t)
+                formstr = ('{0:' + dictkeyformat + '}').format(t)
                 cdict.update({formstr: thing})
             else:
                 cdict.update({t: thing})
@@ -1089,14 +1099,26 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 prvoutdict.update(dict(vc=vvec, pc=pvec, t=time))
                 dou.output_paraview(**prvoutdict)
 
-        else:
+        elif return_y_list:
             ylist = []
 
             def _svpplz(vvec, pvec, time=None):
-                _addoutput(vvec, pvec, time=time)
+                # _addoutput(vvec, pvec, time=time)
                 prvoutdict.update(dict(vc=vvec, pc=pvec, t=time))
                 dou.output_paraview(**prvoutdict)
-                if return_y_list:
+                try:
+                    if not time == datatrange[0]:
+                        return
+                    else:
+                        datatrange.pop(0)
+                except IndexError:
+                    print(f'INFO: `snu._atdct`: t={time:.5f}' +
+                          ' out of the range covered by the data points')
+                    return
+
+                if cv_mat is None:
+                    ylist.append(vvec)
+                else:
                     try:
                         ylist.append(cv_mat.dot(vvec[dbcntinvinds]))
                     except ValueError:

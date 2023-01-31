@@ -119,6 +119,9 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
     if problem == 'cylinderwake' or problem == 'gen_bccont':
         meshparams.update(dict(inflowvel=charvel))
 
+    if problem == 'drivencavity':
+        meshparams = dict(N=meshparams['N'])
+
     if problem == 'cylinder_rot':
         problemfem = gen_bccont_fems
         meshparams.update(dict(movingwallcntrl=True))
@@ -217,7 +220,7 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
         return femp, stokesmatsc, rhsd_vfrc, rhsd_stbc
 
 
-def drivcav_fems(N, vdgree=2, pdgree=1, scheme=None, bccontrol=None):
+def drivcav_fems(N=10, vdgree=2, pdgree=1, scheme=None, bccontrol=None):
     """dictionary for the fem items of the (unit) driven cavity
 
     Parameters
@@ -264,6 +267,11 @@ def drivcav_fems(N, vdgree=2, pdgree=1, scheme=None, bccontrol=None):
     else:
         V = dolfin.VectorFunctionSpace(mesh, "CG", vdgree)
         Q = dolfin.FunctionSpace(mesh, "CG", pdgree)
+
+    if bccontrol:
+        raise NotImplementedError()
+    else:
+        pass
 
     # Boundaries
     def top(x, on_boundary):
