@@ -436,6 +436,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
     # Picard iterations for a good starting value for Newton
     for k in range(vel_pcrd_stps):
+        if only_stokes:
+            break
 
         cdbcvals_n = _comp_cntrl_bcvals(vel=_appbcs(vel_k, cdbcvals_c),
                                         p=p_k, **cntrlmatrhsdict)
@@ -445,8 +447,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
         # use the old v-bcs to compute the convection
         # TODO: actually we only need Picard -- do some fine graining in dts
-        N1, N2, rhscnv = dts.get_convmats(u0_vec=_appbcs(vel_k, cdbcvals_c),
-                                          V=V)
+        N1, _, _ = dts.get_convmats(u0_vec=_appbcs(vel_k, cdbcvals_c), V=V)
 
         # apply the new v-bcs
         pcrdcnvmat, rhsv_conbc = dts.\
@@ -461,8 +462,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         normpicupd = np.sqrt(m_innerproduct(cmmat, vel_k-vp_k[:cnv, ]))[0]
 
         if verbose:
-            print('Picard iteration: {0} -- norm of update: {1}'.
-                  format(k+1, normpicupd))
+           logging.info('Picard iteration: {0} -- norm of update: {1}'.
+                        format(k+1, normpicupd))
 
         vel_k = vp_k[:cnv, ]
         vp_k[cnv:] = -vp_k[cnv:]
@@ -477,6 +478,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
     # Newton iteration
 
     for vel_newtk, k in enumerate(range(vel_nwtn_stps)):
+        if only_stokes:
+            break
 
         cdatstr = get_datastring(**datastrdict)
 
@@ -502,8 +505,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         cdbcvals_c = cdbcvals_n
         # pressure was flipped for symmetry
         if verbose:
-            print('Steady State NSE: Newton iteration: {0}'.format(vel_newtk) +
-                  '-- norm of update: {0}'.format(norm_nwtnupd))
+            logging.info(f'Steady State NSE: Newton iteration: {vel_newtk}' +
+                         '-- norm of update: {0}'.format(norm_nwtnupd))
 
         if save_data:
             dou.save_npa(vel_k, fstring=cdatstr + '__vel')
@@ -859,7 +862,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if return_as_list:
         raise UserWarning('this option has been deprecated -- use ' +
                           '`return_y_list` without `cmat`')
-        clearprvdata = True  # we want the results at hand
+        # clearprvdata = True  # we want the results at hand
     if clearprvdata:
         datastrdict['time'] = '*'
         cdatstr = get_datastring(**datastrdict)
@@ -1022,7 +1025,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             cauxvec = np.zeros((NV, 1))
 
             def applybcs(bcs_n):
-                cauxvec[loccntbcinds, 0] = bcs_n
+                # cauxvec[loccntbcinds, 0] = bcs_n
                 return (-(A.dot(cauxvec))[locinvinds, :],
                         -(J.dot(cauxvec)),
                         (M.dot(cauxvec))[locinvinds, :])
@@ -1183,7 +1186,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         v_end, p_end, ffflag = timintsc(trange=trange,
                                         inip=inip, scalep=-1.,
                                         g_tdp=rhsp, bcs_ini=inicdbcvals,
-                                        check_ff=check_ff,
+                                        # check_ff=check_ff,
                                         check_ff_maxv=check_ff_maxv,
                                         **icd)
 
