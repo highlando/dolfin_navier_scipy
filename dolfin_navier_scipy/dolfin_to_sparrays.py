@@ -69,17 +69,18 @@ def mat_dolfin2sparse(A):
 
     """
     try:
-        return dolfin.as_backend_type(A).sparray()
+        mat = dolfin.as_backend_type(A).sparray()
     except (RuntimeError, AttributeError) as e:
         # `dolfin <= 1.5+` with `'uBLAS'` support
         try:
             rows, cols, values = A.data()
-            return sps.csr_matrix((values, cols, rows))
         except AttributeError:  # if it is a PETSC matrix
             rows, cols, values = A.dataCSR()
-            return sps.csr_matrix((values, cols, rows))
-        print(e)
-        return
+        mat = sps.csr_matrix((values, cols, rows))
+    mat.eliminate_zeros()
+    return mat 
+    # print(e)
+    # return
 
 
 def ass_convmat_asmatquad(W=None, invindsw=None):
