@@ -3,6 +3,30 @@
 import dolfin
 from dolfin import dx, inner, nabla_grad, div, grad
 
+import dolfin_navier_scipy.dolfin_to_sparrays as dts
+from sadptprj_riclyap_adi.lin_alg_utils import app_prj_via_sadpnt
+
+
+__all__ = ['prjctd_steadystate_res',
+           'get_steady_state_res',
+           'get_imex_res',
+           ]
+
+
+def prjctd_steadystate_res(vvec=None, mmat=None, amat=None, jmat=None, fv=None,
+                           invinds=None, dbcvals=None, dbcinds=None,
+                           stokes_only=False, V=None):
+    if stokes_only:
+        fres = amat@vvec - fv
+    else:
+        cnvec = dts.get_convvec(u0_vec=vvec, V=V, uone_utwo_same=True,
+                                invinds=invinds,
+                                dbcinds=dbcinds, dbcvals=dbcvals)
+        fres = amat@vvec + cnvec - fv
+    prjres = app_prj_via_sadpnt(amat=mmat, jmat=jmat, rhsv=fres,
+                                transposedprj=True)
+
+    return prjres
 
 def get_steady_state_res(V=None, outflowds=None, gradvsymmtrc=True, nu=None):
 
