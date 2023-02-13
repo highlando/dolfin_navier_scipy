@@ -4,6 +4,8 @@ import scipy.sparse.linalg as spsla
 import time
 import logging
 
+from rich.progress import track
+
 import sadptprj_riclyap_adi.lin_alg_utils as lau
 
 # from dolfin_navier_scipy.residual_checks import get_imex_res
@@ -11,7 +13,8 @@ import sadptprj_riclyap_adi.lin_alg_utils as lau
 
 __all__ = ['cnab',
            'sbdftwo',
-           'nse_include_lnrcntrllr'
+           'nse_include_lnrcntrllr',
+           'semi_implicit_euler'
            ]
 
 
@@ -115,8 +118,6 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
 
             dfv_n, drm = _dynamic_rhs(ctime, vc=v_c, memory=drm,
                                       mode='abtwo')
-            # import ipdb
-            # ipdb.set_trace()
 
             rhs_n = M*v_c - .5*dt*A*v_c \
                 - (mbc_n-mbc_c) \
@@ -126,11 +127,6 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
             # cnvnrm = np.linalg.norm(3*nfc_c-nfc_o)
             # logging.info(f't:{ctime} -- rhsval:{rhsnrm}')
             # logging.info(f't:{ctime} -- cnvval:{cnvnrm}')
-            # if ctime > 0.003:
-            #     import ipdb
-            #     ipdb.set_trace()
-
-            # + .5*dt*(3*mplct_dfv_c - mplct_dfv_o) \
 
             vp_n = coeffmatlu(np.vstack([rhs_n, fp_n+bfp_n]).flatten())
 
@@ -525,3 +521,70 @@ def nse_include_lnrcntrllr(M=None, A=None, J=None, B=None, C=None, iniv=None,
                 getbcs=getbcsext, applybcs=applybcsext,
                 appndbcs=appndbcsext, inivel=inivext,
                 savevp=savevpext)
+
+
+def semi_implicit_euler(iniv=None, jmat=None, mmat=None, amat=None, rhsv=None,
+                        trange=None, data_trange=None, fp=None):
+    ''' integrate a NSE like system with the semi-implicit Euler method
+
+    Mv' + Av + JTp = rhs(t, v)
+          Jv       = fp
+
+
+    Parameters
+    ----------
+    rhsv : f(t, vvec) function
+        right hand side of the momentum equation
+    fp : numpy array
+        right hand side of the conti equation, optional, default as `fp=0`
+    trange : iterable
+        list or array of time instances for the integration
+    data_trange : iterable
+        list or array of time instances where to return the values
+
+    Returns
+    -------
+    ievlist : list
+        of velocity values at datatrange
+
+    Note
+    ----
+    `trange` needs to be equispaced and `data_trange` needs to be a subset
+    of `trange` and, in particular, `data_trange[0] == trange[0]`
+    '''
+
+    dtpt_trng = trange if data_trange is None else data_trange
+    ie_dtpt_trng = (np.copy(dtpt_trng)).tolist()
+    ie_dtpt_trng.pop(0)
+    (NP, NV) = jmat.shape
+    fpz = np.zeros((NP, 1)) if fp is None else fp
+    Nts = len(trange)
+
+    dt = trange[1] - trange[0]
+    # precompute a factorization of the sad point matrix
+    _, imesdpt_fctrzd = lau.solve_sadpnt_smw(amat=mmat+dt*amat, jmat=jmat,
+                                             rhsv=0*iniv, return_alu=True)
+
+    def d_impeul_increment(ct, vvec):
+        # logging.info(f'IE-int ... |vc|={np.linalg.norm(vvec)}')
+        iedfrhs = rhsv(ct, vvec)
+        # logging.info(f'IE-int ... |rhs|={np.linalg.norm(iedfrhs)}')
+        dcrhs = (mmat@vvec).reshape((-1, 1)) + dt*iedfrhs
+        dslvdrhs = imesdpt_fctrzd(np.vstack([dcrhs, fpz]))
+        # logging.info(f'IE-int ... |v+|={np.linalg.norm(dslvdrhs[:NV])}')
+        return dslvdrhs[:NV]
+
+    ievlist = [iniv]
+    cvn = iniv
+    logging.info(f'Impl. Euler integration with {Nts} time steps')
+    for ct in track(trange[1:], description='semi-IE ongoing'):
+        # logging.info(f'IE-int ... time={ct}:')
+        cvp = cvn
+        # ievlist.append(cv + impeul_increment(cv))
+        cvn = d_impeul_increment(ct, cvp)
+        if ct == ie_dtpt_trng[0]:
+            ievlist.append(cvn)
+            ie_dtpt_trng.pop(0)
+        else:
+            pass  # only record at data points
+    return ievlist

@@ -799,6 +799,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         except AttributeError:
             cnts = len(trange)
         h = (cnts-1)/(dataoutpnts-1)
+        if h < 1.1:
+            raise UserWarning('This filters less than 10% of the data...?')
         filtert = [np.int(np.floor(h*i)) for i in range(dataoutpnts)]
         datatrange = trange[filtert]
     try:
