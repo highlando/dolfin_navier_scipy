@@ -16,6 +16,15 @@ __all__ = ['prjctd_steadystate_res',
 def prjctd_steadystate_res(vvec=None, mmat=None, amat=None, jmat=None, fv=None,
                            invinds=None, dbcvals=None, dbcinds=None,
                            stokes_only=False, V=None):
+    ''' compute 
+
+    Pi.T ( A*v + N(v) - fv )
+
+
+    where Pi = I - M.-1 J.T S.-1 J
+
+    ''' 
+    
     if stokes_only:
         fres = amat@vvec - fv
     else:
