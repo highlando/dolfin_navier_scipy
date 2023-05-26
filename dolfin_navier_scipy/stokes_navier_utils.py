@@ -1104,8 +1104,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 prvoutdict.update(dict(vc=vvec, pc=pvec, t=time))
                 dou.output_paraview(**prvoutdict)
 
-        elif return_y_list:
-            ylist = []
+        else:
+            if return_y_list:
+                ylist = []
 
             def _svpplz(vvec, pvec, time=None):
                 # _addoutput(vvec, pvec, time=time)
@@ -1121,13 +1122,16 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                           ' out of the range covered by the data points')
                     return
 
-                if cv_mat is None:
-                    ylist.append(vvec)
+                if return_y_list:
+                    if cv_mat is None:
+                        ylist.append(vvec)
+                    else:
+                        try:
+                            ylist.append(cv_mat.dot(vvec[dbcntinvinds]))
+                        except ValueError:
+                            ylist.append(cv_mat.dot(vvec))
                 else:
-                    try:
-                        ylist.append(cv_mat.dot(vvec[dbcntinvinds]))
-                    except ValueError:
-                        ylist.append(cv_mat.dot(vvec))
+                    pass
 
         if time_int_scheme == 'cnab':
             timintsc = tiu.cnab

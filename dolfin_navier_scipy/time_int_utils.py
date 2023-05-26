@@ -616,9 +616,14 @@ def semi_implicit_euler(iniv=None, jmat=None, mmat=None, amat=None, rhsv=None,
         cvp = cvn
         # ievlist.append(cv + impeul_increment(cv))
         cvn = d_impeul_increment(ct, cvp)
-        if ct == ie_dtpt_trng[0]:
-            ievlist.append(cvn)
-            ie_dtpt_trng.pop(0)
-        else:
-            pass  # only record at data points
+        try:
+            if ct == ie_dtpt_trng[0]:
+                ievlist.append(cvn)
+                ie_dtpt_trng.pop(0)
+            else:
+                pass  # only record at data points
+        except IndexError:
+            logging.debug(f'ct={ct}')
+            # probably the final ts not part of data trange
+            pass 
     return ievlist
