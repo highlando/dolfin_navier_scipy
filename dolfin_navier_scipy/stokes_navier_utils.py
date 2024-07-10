@@ -4,7 +4,7 @@ import scipy.sparse as sps
 import os
 import glob
 import time
-import dolfin
+import dolfinx as dolfin
 
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import dolfin_navier_scipy.data_output_utils as dou

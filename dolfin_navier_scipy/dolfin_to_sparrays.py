@@ -1,11 +1,14 @@
-import dolfin
+# import dolfinx as dolfin
 import numpy as np
 import scipy.sparse as sps
 import logging
 
-from dolfin import dx, grad, div, inner
+from ufl import dx, grad, div, inner
+from ufl import TrialFunction, TestFunction
+from dolfinx.fem.petsc import assemble_matrix
+from dolfinx.fem import form
 
-dolfin.parameters['linear_algebra_backend'] = 'Eigen'
+# dolfin.parameters['linear_algebra_backend'] = 'Eigen'
 
 
 __all__ = ['ass_convmat_asmatquad',
@@ -68,17 +71,19 @@ def mat_dolfin2sparse(A):
     """get the csr matrix representing an assembled linear dolfin form
 
     """
-    try:
-        mat = dolfin.as_backend_type(A).sparray()
-    except (RuntimeError, AttributeError) as e:
-        # `dolfin <= 1.5+` with `'uBLAS'` support
-        try:
-            rows, cols, values = A.data()
-        except AttributeError:  # if it is a PETSC matrix
-            rows, cols, values = A.dataCSR()
-        mat = sps.csr_matrix((values, cols, rows))
-    mat.eliminate_zeros()
-    return mat 
+    # try:
+    #     mat = dolfin.as_backend_type(A).sparray()
+    # except (RuntimeError, AttributeError) as e:
+    #     # `dolfin <= 1.5+` with `'uBLAS'` support
+    #     try:
+    #         rows, cols, values = A.data()
+    #     except AttributeError:  # if it is a PETSC matrix
+    #         rows, cols, values = A.dataCSR()
+    #     mat = sps.csr_matrix((values, cols, rows))
+    # mat.eliminate_zeros()
+    A.assemble()
+    mat = sps.csr_matrix(A.getValuesCSR()[::-1])
+    return mat
     # print(e)
     # return
 
@@ -222,12 +227,15 @@ def get_stokessysmats(V, Q, nu=None, bccontrol=False, gradvsymmtrc=True,
                 where :math:`g_k` is the shape function associated with the \
                 j-th control boundary segment
 
+    Notes
+    -----
+    Partially dolfinx ready
     """
 
-    u = dolfin.TrialFunction(V)
-    p = dolfin.TrialFunction(Q)
-    v = dolfin.TestFunction(V)
-    q = dolfin.TestFunction(Q)
+    u = TrialFunction(V)
+    p = TrialFunction(Q)
+    v = TestFunction(V)
+    q = TestFunction(Q)
 
     if nu is None:
         nu = 1
@@ -240,26 +248,28 @@ def get_stokessysmats(V, Q, nu=None, bccontrol=False, gradvsymmtrc=True,
         def epsilon(u):
             return grad(u)
 
-    ma = inner(u, v) * dx
-    mp = inner(p, q) * dx
-    aa = nu * inner(2*epsilon(u), grad(v)) * dx
+    ma = form(inner(u, v) * dx)
+    mp = form(inner(p, q) * dx)
+    aa = form(nu * inner(2*epsilon(u), grad(v)) * dx)
     if outflowds is not None and gradvsymmtrc:
-        nvec = dolfin.FacetNormal(V.mesh())
-        aa = aa - (nu*inner(grad(u).T*nvec, v)*outflowds)
+        raise NotImplementedError('not yet there for dolfinx')
+        # ## TODO: fix this for dolfinx
+        # nvec = dolfin.FacetNormal(V.mesh())
+        # aa = aa - (nu*inner(grad(u).T*nvec, v)*outflowds)
     elif outflowds is None and gradvsymmtrc:
         print('Note: The symmetric gradient is not corrected in the outflow')
     else:
         print('we use the nonsymmetric velocity gradient')
 
-    grada = div(v) * p * dx
-    diva = q * div(u) * dx
+    grada = form(div(v) * p * dx)
+    diva = form(q * div(u) * dx)
 
     # Assemble system
-    M = dolfin.assemble(ma)
-    A = dolfin.assemble(aa)
-    Grad = dolfin.assemble(grada)
-    Div = dolfin.assemble(diva)
-    MP = dolfin.assemble(mp)
+    M = assemble_matrix(ma)
+    A = assemble_matrix(aa)
+    Grad = assemble_matrix(grada)
+    Div = assemble_matrix(diva)
+    MP = assemble_matrix(mp)
 
     # Convert DOLFIN representation to scipy arrays
     Ma = mat_dolfin2sparse(M)
@@ -378,29 +388,34 @@ def get_convmats(u0_dolfun=None, u0_vec=None, V=None, invinds=None,
 
 def setget_rhs(V, Q, fv, fp, t=None):
 
-    if t is not None:
-        fv.t = t
-        fp.t = t
-    elif hasattr(fv, 't') or hasattr(fp, 't'):
-        Warning('No value for t specified')
+    if fv is None and fp is None:
+        rhsvecs = {'fv': None,
+                   'fp': None}
+    else:
+        raise NotImplementedError('no yet checked for dolfinx')
+        if t is not None:
+            fv.t = t
+            fp.t = t
+        elif hasattr(fv, 't') or hasattr(fp, 't'):
+            Warning('No value for t specified')
 
-    v = dolfin.TestFunction(V)
-    q = dolfin.TestFunction(Q)
+        v = dolfin.TestFunction(V)
+        q = dolfin.TestFunction(Q)
 
-    fv = inner(fv, v) * dx
-    fp = inner(fp, q) * dx
+        fv = inner(fv, v) * dx
+        fp = inner(fp, q) * dx
 
-    fv = dolfin.assemble(fv)
-    fp = dolfin.assemble(fp)
+        fv = dolfin.assemble(fv)
+        fp = dolfin.assemble(fp)
 
-    fv = fv.get_local()
-    fv = fv.reshape(len(fv), 1)
+        fv = fv.get_local()
+        fv = fv.reshape(len(fv), 1)
 
-    fp = fp.get_local()
-    fp = fp.reshape(len(fp), 1)
+        fp = fp.get_local()
+        fp = fp.reshape(len(fp), 1)
 
-    rhsvecs = {'fv': fv,
-               'fp': fp}
+        rhsvecs = {'fv': fv,
+                   'fp': fp}
 
     return rhsvecs
 
