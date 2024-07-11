@@ -4,7 +4,7 @@ import scipy.sparse as sps
 import os
 import glob
 import time
-import dolfinx as dolfin
+import dolfinx
 
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import dolfin_navier_scipy.data_output_utils as dou
@@ -346,11 +346,19 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         norm_nwtnupd = None
 
     if paraviewoutput:
-        cdatstr = get_datastring(**datastrdict)
-        vfile = dolfin.File(vfileprfx+'__steadystates.pvd')
-        pfile = dolfin.File(pfileprfx+'__steadystates.pvd')
-        prvoutdict = dict(V=V, Q=Q, vfile=vfile, pfile=pfile,
-                          invinds=invinds, diribcs=diribcs, ppin=ppin,
+        vfnm = vfileprfx+'__steadystates.bp'
+        pfnm = pfileprfx+'__steadystates.bp'
+        # vfile = dolfinx.io.XDMFFile(V.mesh.comm, vfnm, "w")
+        vpltfun = dolfinx.fem.Function(V)
+        vpltfun.name = 'v'
+        vtx_v = dolfinx.io.VTXWriter(V.mesh.comm, vfnm, vpltfun, engine="BP4")
+        ppltfun = dolfinx.fem.Function(Q)
+        ppltfun.name = 'p'
+        vtx_p = dolfinx.io.VTXWriter(Q.mesh.comm, pfnm, ppltfun, engine="BP4")
+        prvoutdict = dict(V=V, Q=Q,
+                          vtx_v=vtx_v, vpltfun=vpltfun,
+                          vtx_p=vtx_p, ppltfun=ppltfun,
+                          invinds=invinds, ppin=ppin,
                           dbcinds=dbcinds, dbcvals=dbcvals,
                           vp=None, t=None, writeoutput=True)
     else:

@@ -16,11 +16,15 @@ def output_paraview(V=None, Q=None, VS=None, fstring='nn',
                     dbcinds=None, dbcvals=None,
                     vp=None, vc=None, pc=None, sc=None,
                     sname='nn',
-                    ppin=None, t=None, tfilter=None, writeoutput=True,
-                    vfile=None, pfile=None, sfile=None):
+                    ppin=None, t=-1., tfilter=None, writeoutput=True,
+                    vtx_v=None, vpltfun=None,
+                    vtx_p=None, ppltfun=None,
+                    sfile=None):
     """write the paraview output for a solution `(v,p)` or a scalar `s`
 
     given as coefficients
+
+    partially dolfinx ready
     """
 
     if not writeoutput:
@@ -36,39 +40,42 @@ def output_paraview(V=None, Q=None, VS=None, fstring='nn',
 
         # hiding this calls to dolfin as much as possible
         from .dolfin_to_sparrays import expand_vp_dolfunc
-        import dolfin
 
     if vc is not None or pc is not None or vp is not None:
         v, p = expand_vp_dolfunc(V=V, Q=Q, vp=vp,
                                  vc=vc, pc=pc,
                                  dbcinds=dbcinds, dbcvals=dbcvals,
-                                 invinds=invinds, ppin=ppin,
-                                 diribcs=diribcs)
-
-        v.rename('v', 'velocity')
-        # import matplotlib.pyplot as plt
-        # dolfin.plot(v)
-        # plt.show()
-        # dolfin.plot(p)
-        # plt.show()
-        if vfile is None:
-            vfile = dolfin.File(fstring+'_vel.pvd')
-        vfile << v, t
+                                 invinds=invinds, ppin=ppin)
+        if vtx_v is None:
+            raise NotImplementedError('define a vtx file here?')
+            # vfnm = fstring+'_vel.pvd'
+            # vfile = dolfinx.io.XDMFFile(V.mesh.comm, vfnm, "w")
+        vpltfun.x.array[:] = v.x.array[:]
+        try:
+            vtx_v.write(t)
+        except TypeError:
+            vtx_v.write(-1)
         if p is not None:
-            p.rename('p', 'pressure')
-            if pfile is None:
-                pfile = dolfin.File(fstring+'_p.pvd')
-            pfile << p, t
+            if vtx_p is None:
+                raise NotImplementedError('define a vtx file here?')
+                # pfnm = fstring+'_prs.pvd'
+                # pfile = dolfinx.io.XDMFFile(Q.mesh.comm, pfnm, "w")
+            ppltfun.x.array[:] = p.x.array[:]
+            try:
+                vtx_p.write(t)
+            except TypeError:
+                vtx_p.write(-1)
 
     if sc is not None:
-        sfun, _ = expand_vp_dolfunc(V=VS, vc=sc,
-                                    dbcinds=dbcinds, dbcvals=dbcvals,
-                                    invinds=invinds, diribcs=diribcs)
-        sfun.rename('s', sname)
+        raise NotImplementedError('plot some scalar function with dolfinx')
+        # sfun, _ = expand_vp_dolfunc(V=VS, vc=sc,
+        #                             dbcinds=dbcinds, dbcvals=dbcvals,
+        #                             invinds=invinds, diribcs=diribcs)
+        # sfun.rename('s', sname)
 
-        if sfile is None:
-            sfile = dolfin.File(fstring + '_' + sname + '.pvd')
-        sfile << sfun, t
+        # if sfile is None:
+        #     sfile = dolfin.File(fstring + '_' + sname + '.pvd')
+        # sfile << sfun, t
 
 
 def save_npa(v, fstring='notspecified'):

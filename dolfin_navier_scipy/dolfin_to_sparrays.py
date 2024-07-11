@@ -6,7 +6,7 @@ import logging
 from ufl import dx, grad, div, inner
 from ufl import TrialFunction, TestFunction
 from dolfinx.fem.petsc import assemble_matrix
-from dolfinx.fem import form
+from dolfinx.fem import form, Function
 
 # dolfin.parameters['linear_algebra_backend'] = 'Eigen'
 
@@ -658,8 +658,8 @@ def condense_velmatsbybcs(A, velbcs=None, return_bcinfo=False,
 
 
 def expand_vp_dolfunc(V=None, Q=None, invinds=None,
-                      dbcinds=[], dbcvals=None,
-                      diribcs=None, zerodiribcs=False,
+                      bcinds=None, bcvals=None,
+                      zerodiribcs=False,
                       vp=None, vc=None, pc=None, ppin=None, **kwargs):
     """expand v [and p] to the dolfin function representation
 
@@ -671,8 +671,8 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None,
         FEM space of the pressure
     invinds : (N,) array
         vector of indices of the velocity nodes
-    diribcs : list, optional
-        of the (Dirichlet) velocity boundary conditions, \
+    # diribcs : list, optional
+    #     of the (Dirichlet) velocity boundary conditions, \
     dbcinds: list, optional
         indices of the Dirichlet boundary conditions
     dbcvals: list, optional
@@ -707,50 +707,48 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None,
     """
 
     if vp is not None:
-        vc = vp[:len(invinds), :]
-        pc = vp[len(invinds):, :]
-        p = dolfin.Function(Q)
+        vc = vp[:len(invinds), 0]
+        pc = vp[len(invinds):, 0]
+        p = Function(Q)
     elif pc is not None:
-        p = dolfin.Function(Q)
+        p = Function(Q)
 
-    v = dolfin.Function(V)
+    v = Function(V)
+    V_dofs_global = V.dofmap.index_map.size_global * V.dofmap.index_map_bs
 
-    if vc.size > V.dim():
+    if vc.size > V_dofs_global:
         raise ValueError('The dimension of the vector must no exceed V.dim')
-    elif len(vc) == V.dim():
+    elif len(vc) == V_dofs_global:
         # we assume that the boundary conditions are already contained in vc
         ve = vc
     else:
         # print('ve w/o bcvals: ', np.linalg.norm(ve))
         # fill in the boundary values
         if not zerodiribcs:
-            ve = np.full((V.dim(), 1), np.nan)
-            urbcinds, urbcvals = unroll_dlfn_dbcs(diribcs, bcinds=dbcinds,
-                                                  bcvals=dbcvals)
-            ve[urbcinds, 0] = urbcvals
+            ve = np.full((V_dofs_global, ), np.nan)
+            ve[bcinds] = bcvals
             # print('ve with bcvals :', np.linalg.norm(ve))
             # print('norm of bcvals :', np.linalg.norm(bcvals))
 
         else:
-            ve = np.zeros((V.dim(), 1))
+            ve = np.zeros((V_dofs_global, ))
 
-        ve = ve.flatten()
-        ve[invinds] = vc.flatten()
+        ve[invinds] = vc
 
     if pc is not None:
         if ppin is None:
             pe = pc
         elif ppin == -1:
-            pe = np.vstack([pc, [0]])
+            pe = np.r_[pc, 0]
         elif ppin == 0:
-            pe = np.vstack([[0], pc])
+            pe = np.r_[0, pc]
         else:
             raise NotImplementedError()
-        p.vector().set_local(pe)
+        p.x.array[:] = pe
     else:
         p = None
 
-    v.vector().set_local(ve)
+    v.x.array[:] = ve
 
     return v, p
 
