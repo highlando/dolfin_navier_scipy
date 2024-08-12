@@ -6,11 +6,9 @@ def nsestst(meshprfx='mesh/karman2D-outlets', meshlevel=1, proutdir='results/',
             problem='drivencavity', N=None, nu=1e-2, Re=None,
             ParaviewOutput=False, scheme='TH', bccontrol=False, palpha=1e5):
 
-    meshfile = meshprfx + '_lvl{0}.xml.gz'.format(meshlevel)
-    physregs = meshprfx + '_lvl{0}_facet_region.xml.gz'.format(meshlevel)
+    meshfile = meshprfx + '_lvl{0}.msh'.format(meshlevel)
     geodata = meshprfx + '_geo_cntrlbc.json'
     meshparams = dict(strtomeshfile=meshfile,
-                      strtophysicalregions=physregs,
                       strtobcsobs=geodata)
 
     initssres = [40, 60, 80]

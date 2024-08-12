@@ -5,14 +5,13 @@ import logging
 
 from ufl import dx, grad, div, inner
 from ufl import TrialFunction, TestFunction
-from dolfinx.fem.petsc import assemble_matrix
+from dolfinx.fem.petsc import assemble_matrix, assemble_vector
 from dolfinx.fem import form, Function
 
 # dolfin.parameters['linear_algebra_backend'] = 'Eigen'
 
 
-__all__ = ['ass_convmat_asmatquad',
-           'unroll_dlfn_dbcs',
+__all__ = ['unroll_dlfn_dbcs',
            'get_stokessysmats',
            'get_convmats',
            'setget_rhs',
@@ -73,102 +72,9 @@ def mat_dolfin2sparse(A):
     """get the csr matrix representing an assembled linear dolfin form
 
     """
-    # try:
-    #     mat = dolfin.as_backend_type(A).sparray()
-    # except (RuntimeError, AttributeError) as e:
-    #     # `dolfin <= 1.5+` with `'uBLAS'` support
-    #     try:
-    #         rows, cols, values = A.data()
-    #     except AttributeError:  # if it is a PETSC matrix
-    #         rows, cols, values = A.dataCSR()
-    #     mat = sps.csr_matrix((values, cols, rows))
-    # mat.eliminate_zeros()
     A.assemble()
     mat = sps.csr_matrix(A.getValuesCSR()[::-1])
     return mat
-    # print(e)
-    # return
-
-
-def ass_convmat_asmatquad(W=None, invindsw=None):
-    """ assemble the convection matrix H, so that N(v)v = H[v.v]
-
-    for the inner nodes.
-
-    Notes
-    -----
-    Implemented only for 2D problems
-
-    """
-    mesh = W.mesh()
-    deg = W.ufl_element().degree()
-    fam = W.ufl_element().family()
-
-    V = dolfin.FunctionSpace(mesh, fam, deg)
-
-    # this is very specific for V being a 2D VectorFunctionSpace
-    invindsv = invindsw[::2]/2
-
-    v = dolfin.TrialFunction(V)
-    vt = dolfin.TestFunction(V)
-
-    def _pad_csrmats_wzerorows(smat, wheretoput='before'):
-        """add zero rows before/after each row
-
-        """
-        indpeter = smat.indptr
-        auxindp = np.c_[indpeter, indpeter].flatten()
-        if wheretoput == 'after':
-            smat.indptr = auxindp[1:]
-        else:
-            smat.indptr = auxindp[:-1]
-
-        smat._shape = (2*smat.shape[0], smat.shape[1])
-
-        return smat
-
-    def _shuff_mrg_csrmats(xm, ym):
-        """shuffle merge csr mats [xxx],[yyy] -> [xyxyxy]
-
-        """
-        xm.indices = 2*xm.indices
-        ym.indices = 2*ym.indices + 1
-        xm._shape = (xm.shape[0], 2*xm.shape[1])
-        ym._shape = (ym.shape[0], 2*ym.shape[1])
-        return xm + ym
-
-    nklist = []
-    for i in invindsv:
-        # for i in range(V.dim()):
-        # iterate for the columns
-
-        # get the i-th basis function
-        bi = dolfin.Function(V)
-        bvec = np.zeros((V.dim(), ))
-        bvec[np.int(i)] = 1
-        bi.vector()[:] = bvec
-
-        # assemble for the i-th basis function
-        nxi = dolfin.assemble(v * bi.dx(0) * vt * dx)
-        nyi = dolfin.assemble(v * bi.dx(1) * vt * dx)
-
-        nxim = mat_dolfin2sparse(nxi)
-        nxim.eliminate_zeros()
-
-        nyim = mat_dolfin2sparse(nyi)
-        nyim.eliminate_zeros()
-
-        # resorting of the arrays and inserting zero columns
-        nxyim = _shuff_mrg_csrmats(nxim, nyim)
-        nxyim = nxyim[invindsv, :][:, invindsw]
-        nyxxim = _pad_csrmats_wzerorows(nxyim.copy(), wheretoput='after')
-        nyxyim = _pad_csrmats_wzerorows(nxyim.copy(), wheretoput='before')
-
-        # tile the arrays in horizontal direction
-        nklist.extend([nyxxim, nyxyim])
-
-    hmat = sps.hstack(nklist, format='csc')
-    return hmat
 
 
 def get_stokessysmats(V, Q, nu=None, bccontrol=False, gradvsymmtrc=True,
@@ -354,6 +260,10 @@ def get_convmats(u0_dolfun=None, u0_vec=None, V=None, invinds=None,
     stokes_navier_utils.get_v_conv_conts : the convection contributions \
             reduced to the inner nodes
 
+
+    Notes
+    -----
+    `dolfinx` ready!
     """
 
     if u0_vec is not None:
@@ -363,17 +273,17 @@ def get_convmats(u0_dolfun=None, u0_vec=None, V=None, invinds=None,
     else:
         u0 = u0_dolfun
 
-    u = dolfin.TrialFunction(V)
-    v = dolfin.TestFunction(V)
+    u = TrialFunction(V)
+    v = TestFunction(V)
 
     # Assemble system
-    n1 = inner(grad(u) * u0, v) * dx
-    n2 = inner(grad(u0) * u, v) * dx
-    f3 = inner(grad(u0) * u0, v) * dx
+    n1 = form(inner(grad(u) * u0, v) * dx)
+    n2 = form(inner(grad(u0) * u, v) * dx)
+    f3 = form(inner(grad(u0) * u0, v) * dx)
 
-    n1 = dolfin.assemble(n1)
-    n2 = dolfin.assemble(n2)
-    f3 = dolfin.assemble(f3)
+    n1 = assemble_matrix(n1)
+    n2 = assemble_matrix(n2)
+    f3 = assemble_vector(f3)
 
     # Convert DOLFIN representation to scipy arrays
     N1 = mat_dolfin2sparse(n1)
@@ -382,7 +292,7 @@ def get_convmats(u0_dolfun=None, u0_vec=None, V=None, invinds=None,
     N2 = mat_dolfin2sparse(n2)
     N2.eliminate_zeros()
 
-    fv = f3.get_local()
+    fv = f3.array
     fv = fv.reshape(len(fv), 1)
 
     return N1, N2, fv

@@ -4,6 +4,7 @@ import scipy.sparse as sps
 import os
 import glob
 import time
+
 import dolfinx
 
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
@@ -89,16 +90,17 @@ def get_v_conv_conts(vvec=None, V=None,
 
     """
 
-    vfun = dolfin.Function(V)
-    if len(vvec) == V.dim():
+    vfun = dolfinx.fem.Function(V)
+    if vfun.x.array.size == vvec.size:
         ve = vvec
     else:
+        raise NotImplementedError('not checked for dolfinx')
         ve = np.full((V.dim(), ), np.nan)
         ve[invinds] = vvec.flatten()
         for k, cdbcinds in enumerate(dbcinds):
             ve[cdbcinds] = dbcvals[k]
 
-    vfun.vector().set_local(ve)
+    vfun.x.array[:] = ve.reshape((-1, ))
 
     if semi_explicit:
         rhs_con = dts.get_convvec(V=V, u0_dolfun=vfun, invinds=invinds,
@@ -419,7 +421,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         if save_data:
             dou.save_npa(vp_stokes[:cnv, ], fstring=cdatstr + '__vel')
 
-        prvoutdict.update(dict(vp=vp_stokes,
+        prvoutdict.update(dict(vp=vp_stokes, t=0,
                                dbcinds=[dbcinds, glbcntbcinds],
                                dbcvals=[dbcvals, cdbcvals_c],
                                invinds=dbcntinvinds))
@@ -479,7 +481,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         vp_k[cnv:] = -vp_k[cnv:]
         # pressure was flipped for symmetry
 
-        prvoutdict.update(dict(vp=vp_k))
+        prvoutdict.update(dict(vp=vp_k), t=100+k)
         dou.output_paraview(**prvoutdict)
 
         if normpicupd < vel_pcrd_tol:
@@ -521,7 +523,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         if save_data:
             dou.save_npa(vel_k, fstring=cdatstr + '__vel')
 
-        prvoutdict.update(dict(vp=vp_k))  # , dbcvals=[dbcvals, cdbcvals_n]))
+        prvoutdict.update(dict(vp=vp_k), t=200+k)
         # TODO: werden die wirklich implicit ubgedated?
         dou.output_paraview(**prvoutdict)
 
