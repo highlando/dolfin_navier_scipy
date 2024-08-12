@@ -394,8 +394,10 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                        'diricontfuncmems': diricontfuncmems
                        }
 
+    Vdfsglb = V.dofmap.index_map.size_global * V.dofmap.index_map_bs
+
     def _appbcs(vvec, ccntrlldbcvals):
-        return dts.append_bcs_vec(vvec, vdim=V.dim(), invinds=dbcntinvinds,
+        return dts.append_bcs_vec(vvec, vdim=Vdfsglb, invinds=dbcntinvinds,
                                   bcinds=[dbcinds, glbcntbcinds],
                                   bcvals=[dbcvals, ccntrlldbcvals])
 
@@ -542,7 +544,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
     # if savetomatlab:
     #     export_mats_to_matlab(E=None, A=None, matfname='matexport')
 
-    vwc = _appbcs(vel_k, cdbcvals_c).reshape((V.dim(), 1))
+    vwc = _appbcs(vel_k, cdbcvals_c).reshape((Vdfsglb, 1))
     if return_vp:
         retthing = (vwc, vp_k[cnv:, :])
     else:
@@ -764,7 +766,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     locinvinds = (_localizecdbinds(dbcntinvinds, V, invinds)).tolist()
     cnv = dbcntinvinds.size
-    vdim = cnv if V is None else V.dim()
+    vdim = cnv if V is None else Vdfsglb
     NP = J.shape[0]
     fv = np.zeros((cnv, 1)) if fv is None else fv
     fp = np.zeros((NP, 1)) if fp is None else fp

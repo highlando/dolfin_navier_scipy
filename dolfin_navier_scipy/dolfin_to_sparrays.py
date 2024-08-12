@@ -26,6 +26,8 @@ __all__ = ['ass_convmat_asmatquad',
            'append_bcs_vec',
            'mat_dolfin2sparse']
 
+logger = logging.getLogger(__name__)
+
 
 def unroll_dlfn_dbcs(diribclist, bcinds=None, bcvals=None):
     if diribclist is None:
@@ -257,9 +259,9 @@ def get_stokessysmats(V, Q, nu=None, bccontrol=False, gradvsymmtrc=True,
         # nvec = dolfin.FacetNormal(V.mesh())
         # aa = aa - (nu*inner(grad(u).T*nvec, v)*outflowds)
     elif outflowds is None and gradvsymmtrc:
-        print('Note: The symmetric gradient is not corrected in the outflow')
+        logger.info('Note: Symmetric gradient is not corrected in the outflow')
     else:
-        print('we use the nonsymmetric velocity gradient')
+        logger.info('we use the nonsymmetric velocity gradient')
 
     grada = form(div(v) * p * dx)
     diva = form(q * div(u) * dx)
@@ -289,7 +291,7 @@ def get_stokessysmats(V, Q, nu=None, bccontrol=False, gradvsymmtrc=True,
         mesh = V.mesh()
         for ncb, bcfun in enumerate(cbshapefuns):
             # get an instance of the subdomain class
-            logging.debug(f'assembling bccontrol ops: ncb={ncb}')
+            logger.debug(f'assembling bccontrol ops: ncb={ncb}')
             try:
                 bc = cbclist[ncb]
                 Gamma = bc()
@@ -748,7 +750,7 @@ def expand_vp_dolfunc(V=None, Q=None, invinds=None,
     else:
         p = None
 
-    v.x.array[:] = ve
+    v.x.array[:] = ve.flatten()
 
     return v, p
 
