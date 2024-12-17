@@ -778,7 +778,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     if plttrange is None:
         if prvoutpnts is not None:
             cnts = trange.size  # TODO: trange may be a list...
-            filtert = np.arange(0, cnts, np.int(np.floor(cnts/prvoutpnts)))
+            filtert = np.arange(0, cnts, int(np.floor(cnts/prvoutpnts)))
             plttrange = trange[filtert]
     try:
         plttrange = plttrange.tolist()
@@ -801,7 +801,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         h = (cnts-1)/(dataoutpnts-1)
         if h < 1.1:
             raise UserWarning('This filters less than 10% of the data...?')
-        filtert = [np.int(np.floor(h*i)) for i in range(dataoutpnts)]
+        filtert = [int(np.floor(h*i)) for i in range(dataoutpnts)]
         datatrange = trange[filtert]
     try:
         datatrange = datatrange.tolist()
@@ -991,7 +991,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         vellist = []
         vellist.append(_appbcs(v_old, inicdbcvals))
 
-    lensect = np.int(np.floor(trange.size/nsects))
+    lensect = int(np.floor(trange.size/nsects))
     loctrngs = []
     for k in np.arange(nsects-1):
         loctrngs.append(trange[k*lensect: (k+1)*lensect+1])
@@ -1307,7 +1307,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 nouts = 10  # number of output points
                 locnts = loctrng.size  # TODO: trange may be a list...
                 filtert = np.arange(0, locnts,
-                                    np.int(np.floor(locnts/nouts)))
+                                    int(np.floor(locnts/nouts)))
                 loctinstances = loctrng[filtert]
                 loctinstances[0] = loctrng[1]
                 loctinstances = loctinstances.tolist()
