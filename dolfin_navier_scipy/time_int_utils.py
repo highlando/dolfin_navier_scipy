@@ -476,7 +476,7 @@ def _inittimegrid(trange, ntimeslices=10):
     dt = trange[1] - trange[0]
     lltr = np.array(trange[2:])
     lnts = lltr.size
-    lenofts = np.floor(lnts/ntimeslices).astype(np.int)
+    lenofts = np.floor(lnts/ntimeslices).astype(np.int32)
     listofts = [lltr[k*lenofts: (k+1)*lenofts].tolist()
                 for k in range(ntimeslices)]
     listofts.append(lltr[ntimeslices*lenofts:].tolist())
