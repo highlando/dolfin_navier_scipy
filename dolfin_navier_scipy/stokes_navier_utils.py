@@ -462,8 +462,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         normpicupd = np.sqrt(m_innerproduct(cmmat, vel_k-vp_k[:cnv, ]))[0]
 
         if verbose:
-           logging.info('Picard iteration: {0} -- norm of update: {1}'.
-                        format(k+1, normpicupd))
+            logging.info('Picard iteration: {0} -- norm of update: {1}'.
+                         format(k+1, normpicupd))
 
         vel_k = vp_k[:cnv, ]
         vp_k[cnv:] = -vp_k[cnv:]
@@ -562,7 +562,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
               N=None, nu=None,
               ppin=None,
               closed_loop=False,
-              static_feedback=False, #  stat_fb_dict={},
+              static_feedback=False,  # stat_fb_dict={},
               dynamic_feedback=False, dyn_fb_dict={},
               dyn_fb_disc='trapezoidal',
               b_mat=None, cv_mat=None,
@@ -721,6 +721,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     """
     import sadptprj_riclyap_adi.lin_alg_utils as lau
+    from sadptprj_riclyap_adi.lin_alg_utils import SpslaKrylovCounter
 
     if get_datastring is None:
         get_datastring = get_datastr_snu
@@ -767,6 +768,11 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     cj = J[:, locinvinds]
     cfv = fv[locinvinds]
     cfp = fp
+    # from scipy.sparse import save_npz
+    # save_npz('checkmmat', cmmat)
+    # save_npz('checkjmat', cj)
+    # import ipdb
+    # ipdb.set_trace()
 
     cntrlmatrhsdict = {'A': A, 'J': J,
                        'loccntbcinds': loccntbcinds,
@@ -789,7 +795,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         datatrange = np.copy(trange).tolist()
     elif datatrange is None:
         if return_y_list:
-            raise UserWarning("don't use `dataoutpnts` with return_y_list " + 
+            raise UserWarning("don't use `dataoutpnts` with return_y_list " +
                               "since relation of datapoints and time may be " +
                               "unclear. Provide a `datatrange` instead")
         else:
@@ -834,12 +840,73 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             ccfv, ccfp = _cntrl_stffnss_rhs(cntrlldbcvals=inicdbcvals,
                                             **cntrlmatrhsdict)
             # Stokes solution as starting value
-            vp_stokes =\
-                lau.solve_sadpnt_smw(amat=camat, jmat=cj, jmatT=cjt,
-                                     rhsv=cfv+ccfv+fvss,
-                                     krylov=krylov, krpslvprms=krpslvprms,
-                                     krplsprms=krplsprms, rhsp=cfp+ccfp)
-            iniv = vp_stokes[:cnv]
+            logging.info('computing the Stokes-Solution for initial value')
+
+            minresplease = True  # for later ...
+            minresplease = False  # for later ...
+            cgplease = True
+            cgplease = False
+            if cgplease:
+                import scipy.sparse.linalg as spsla
+                _schm = spsla.cg
+                opts = dict(maxiter=2000)
+
+                _m = cj.shape[0]
+                _amat = sps.vstack([sps.hstack([camat, cjt]),
+                                   sps.hstack([cj, sps.csc_matrix((_m, _m))])],
+                                   format='csc')
+                _rhs = np.vstack([cfv+ccfv+fvss, cfp+ccfp]).flatten()
+                logging.info('Using CG')
+
+                _pcres = SpslaKrylovCounter(A=_amat, b=_rhs)
+
+                def _atav(v):
+                    return _amat.transpose() @ (_amat @ v)
+
+                _sysmat = spsla.LinearOperator(_amat.shape, _atav)
+                _rhs = _amat.transpose() @ _rhs
+
+                vp_stokes, exitcode = _schm(_sysmat, _rhs,  # x0=initval,
+                                            # M=_Ml,
+                                            rtol=1e-12,
+                                            # atol=1e-12,
+                                            callback=_pcres,
+                                            **opts)
+                import matplotlib.pyplot as plt
+                plt.plot(_pcres.callbacks)
+                # resnorms = _pcres.callbacks
+
+            elif minresplease:
+                from scipy.sparse.linalg import minres
+                _m = cj.shape[0]
+                _amat = sps.vstack([sps.hstack([camat, cjt]),
+                                   sps.hstack([cj, sps.csc_matrix((_m, _m))])],
+                                   format='csc')
+                _rhs = np.vstack([cfv+ccfv+fvss, cfp+ccfp])
+                logging.info('Using MinRES')
+                (vp_stokes, _flag) = minres(_amat, _rhs, rtol=1e-8)
+                logging.info('MinRES done')
+                if _flag > 0:
+                    logging.info('MinRes not converged to tolerance')
+                inimr = vp_stokes[:cnv].reshape((-1, 1))
+                logging.info('SPLU')
+                vp_stokes =\
+                    lau.solve_sadpnt_smw(amat=camat, jmat=cj, jmatT=cjt,
+                                         rhsv=cfv+ccfv+fvss,
+                                         krylov=krylov, krpslvprms=krpslvprms,
+                                         krplsprms=krplsprms, rhsp=cfp+ccfp)
+                logging.info('SPLU done')
+                inisplu = vp_stokes[:cnv]
+                print(np.linalg.norm(inimr - inisplu))
+                print(inisplu.shape, inimr.shape)
+            else:
+                vp_stokes =\
+                    lau.solve_sadpnt_smw(amat=camat, jmat=cj, jmatT=cjt,
+                                         rhsv=cfv+ccfv+fvss,
+                                         krylov=krylov, krpslvprms=krpslvprms,
+                                         krplsprms=krplsprms, rhsp=cfp+ccfp)
+            iniv = vp_stokes[:cnv].reshape((-1, 1))
+            logging.info('done: computing the Stokes-Solution')
         else:
             raise ValueError('No initial value given')
     else:
@@ -850,12 +917,27 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         # # initialization
         # _comp_cntrl_bcvals(time=trange[0], vel=iniv, p=inip,
         #                    mode='init', **cntrlmatrhsdict)
+
     if inip is None:
+
+        # logging.info('start factorizing `M`')
+        # from multidim_galerkin_pod.ldfnp_ext_cholmod import \
+        # SparseFactorMassmat
+        # import ipdb
+        # ipdb.set_trace()
+        # facm = SparseFactorMassmat(cmmat)
+        # minv = facm.solve_M
+        # from scipy.sparse.linalg import factorized
+        # minv = factorized(cmmat)
+        # logging.info('done factorizing')
+        logging.info('computing the pressure for the initial value')
         inip = get_pfromv(v=iniv, V=V, M=cmmat, A=cmmat, J=cj,
                           fv=cfv+ccfv+fvss, fp=cfp+ccfp,
+                          decouplevp=False,  # solve_M=minv, symmetric=True,
                           stokes_flow=stokes_flow,
                           dbcinds=[dbcinds, glbcntbcinds],
                           dbcvals=[dbcvals, inicdbcvals], invinds=dbcntinvinds)
+        logging.info('DONE: computing the pressure')
 
     datastrdict = dict(time=None, meshp=N, nu=nu,
                        Nts=trange.size-1, data_prfx=data_prfx,
@@ -1536,10 +1618,10 @@ def get_pfromv(v=None, V=None, M=None, A=None, J=None, fv=None, fp=None,
     else:
         _, rhs_con, _ = get_v_conv_conts(vvec=v, V=V, invinds=invinds,
                                          dbcinds=dbcinds, dbcvals=dbcvals)
-
     if decouplevp and symmetric:
         vp = lau.solve_sadpnt_smw(jmat=J, jmatT=J.T,
-                                  decouplevp=decouplevp, solve_A=solve_M,
+                                  decouplevp=decouplevp,
+                                  solve_A=solve_M,
                                   symmetric=symmetric, cgtol=1e-8,
                                   rhsv=-A*v-rhs_con+fv)
         return -vp[J.shape[1]:, :]

@@ -17,6 +17,8 @@ __all__ = ['cnab',
            'semi_implicit_euler'
            ]
 
+debug = False
+
 
 def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
          M=None, A=None, J=None,
@@ -393,6 +395,7 @@ def _onestepheun(vc=None, pc=None, tc=None, tn=None,
     # logging.info(f'predictor: |rhs|: {norm(fv_n + tbfv_n + tdfv_n)}')
 
     if scheme == 'IMEX-Euler':
+        logging.info('the predictor step with ' + scheme)
         tfv = M@vc \
             + dt*(fv_n + tbfv_n + tdfv_n) \
             + dt*nfc_c - (tmbc_n-mbc_c)
@@ -405,42 +408,45 @@ def _onestepheun(vc=None, pc=None, tc=None, tn=None,
         tvp_n = lau.solve_sadpnt_smw(amat=M+.5*dt*A, jmat=J, jmatT=J.T,
                                      rhsv=tfv, rhsp=fp_n+tbfp_n)
 
-    vcpc = lau.solve_sadpnt_smw(amat=A, jmat=J, jmatT=J.T,
-                                rhsv=fv_n, rhsp=fp_n+tbfp_n)
-    nvc = vcpc[:NV, :]
-    npc = vcpc[NV:, :]
-    logging.info(f'stokes diff: {np.linalg.norm(vc-nvc)}')
-    stkres = A@vc - fv_n
-    extstkres = M@vc + dt*A@vc - tfv
-    prjstkres = lau.app_prj_via_sadpnt(rhsv=stkres, amat=A, jmat=J,
-                                       transposedprj=True)
-    logging.info(f'prjctd stokes res: {np.linalg.norm(prjstkres)}')
-    extprjstkres = lau.app_prj_via_sadpnt(rhsv=extstkres, amat=A, jmat=J,
-                                          transposedprj=True)
-    logging.info(f'extnd prjctd stokes res: {np.linalg.norm(extprjstkres)}')
-    imexres = M@nvc + dt*A@nvc + dt*J.T@npc - dt*fv_n - M@nvc
-    logging.info(f'imex res: {np.linalg.norm(imexres)}')
     tv_n = tvp_n[:NV, :]
     tp_n = 1./dt*scalep*tvp_n[NV:, :]
-    rimexres = M@tv_n + dt*A@tv_n + J.T@tvp_n[NV:, :] - dt*fv_n - M@nvc
-    logging.info(f'act imex res: {np.linalg.norm(rimexres)}')
-    rhsdiff = np.linalg.norm(tfv - dt*fv_n-M@nvc)
-    logging.info(f'rhs diff: {rhsdiff}')
-    import scipy.sparse as sps
-    bigamat = sps.vstack([sps.hstack([M+dt*A, J.T]),
-                          sps.hstack([J, sps.csr_array((NP, NP))])])
-    mvcpc = sps.linalg.spsolve(bigamat, np.vstack([tfv,
-                                                   np.zeros((NP, 1))]).flatten())
-    mvc = mvcpc[:NV].reshape((NV, 1))
-    mpc = mvcpc[NV:].reshape((NP, 1))
-    logging.info(f'diff nvc-mvc: {np.linalg.norm(nvc-mvc)}')
-    logging.info(f'diff tnv-mvc: {np.linalg.norm(tv_n-mvc)}')
-    mpcres = M@mvc + dt*A@mvc + J.T@mpc - tfv
-    logging.info(f'mpcres: {np.linalg.norm(mpcres)}')
-    # import ipdb
-    # ipdb.set_trace()
-    # savevp(appndbcs(tv_new, tbcs), tp_new, time=(trange[1], 'heunpred'))
-    print(np.linalg.norm(tv_n - vc))
+
+    if debug:
+        vcpc = lau.solve_sadpnt_smw(amat=A, jmat=J, jmatT=J.T,
+                                    rhsv=fv_n, rhsp=fp_n+tbfp_n)
+        nvc = vcpc[:NV, :]
+        npc = vcpc[NV:, :]
+        logging.info(f'stokes diff: {np.linalg.norm(vc-nvc)}')
+        stkres = A@vc - fv_n
+        extstkres = M@vc + dt*A@vc - tfv
+        prjstkres = lau.app_prj_via_sadpnt(rhsv=stkres, amat=A, jmat=J,
+                                           transposedprj=True)
+        logging.info(f'prjctd stokes res: {np.linalg.norm(prjstkres)}')
+        extprjstkres = lau.app_prj_via_sadpnt(rhsv=extstkres, amat=A, jmat=J,
+                                              transposedprj=True)
+        logging.info(f'extnd prjctd stoks res: {np.linalg.norm(extprjstkres)}')
+        imexres = M@nvc + dt*A@nvc + dt*J.T@npc - dt*fv_n - M@nvc
+        logging.info(f'imex res: {np.linalg.norm(imexres)}')
+        rimexres = M@tv_n + dt*A@tv_n + J.T@tvp_n[NV:, :] - dt*fv_n - M@nvc
+        logging.info(f'act imex res: {np.linalg.norm(rimexres)}')
+        rhsdiff = np.linalg.norm(tfv - dt*fv_n-M@nvc)
+        logging.info(f'rhs diff: {rhsdiff}')
+        import scipy.sparse as sps
+        bigamat = sps.vstack([sps.hstack([M+dt*A, J.T]),
+                              sps.hstack([J, sps.csr_array((NP, NP))])])
+        mvcpc = sps.linalg.spsolve(bigamat,
+                                   np.vstack([tfv, np.zeros((NP, 1))]).
+                                   flatten())
+        mvc = mvcpc[:NV].reshape((NV, 1))
+        mpc = mvcpc[NV:].reshape((NP, 1))
+        logging.info(f'diff nvc-mvc: {np.linalg.norm(nvc-mvc)}')
+        logging.info(f'diff tnv-mvc: {np.linalg.norm(tv_n-mvc)}')
+        mpcres = M@mvc + dt*A@mvc + J.T@mpc - tfv
+        logging.info(f'mpcres: {np.linalg.norm(mpcres)}')
+        # import ipdb
+        # ipdb.set_trace()
+        # savevp(appndbcs(tv_new, tbcs), tp_new, time=(trange[1], 'heunpred'))
+        print(np.linalg.norm(tv_n - vc))
 
     # Corrector Step
     dfv_n, drm = dynamic_rhs(tn, vc=tv_n, memory=drm, mode='heuncorr')
