@@ -11,11 +11,15 @@ import dolfin_navier_scipy.data_output_utils as dou
 
 import dolfin_navier_scipy.time_int_utils as tiu
 
+from sadptprj_riclyap_adi.schur_sadpoint_utils import schur_comp_inv
+
 __all__ = ['get_datastr_snu',
            'get_v_conv_conts',
            'solve_nse',
            'solve_steadystate_nse',
            'get_pfromv']
+
+logger = logging.getLogger(__name__)
 
 
 def get_datastr_snu(time=None, meshp=None, nu=None, Nts=None, data_prfx='',
@@ -415,7 +419,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
                                invinds=dbcntinvinds))
         dou.output_paraview(**prvoutdict)
         if only_stokes:
-            logging.info('done computing the STOKES steady state')
+            logger.info('done computing the STOKES steady state')
 
         # Stokes solution as starting value
         vp_k = vp_stokes
@@ -462,7 +466,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         normpicupd = np.sqrt(m_innerproduct(cmmat, vel_k-vp_k[:cnv, ]))[0]
 
         if verbose:
-            logging.info('Picard iteration: {0} -- norm of update: {1}'.
+            logger.info('Picard iteration: {0} -- norm of update: {1}'.
                          format(k+1, normpicupd))
 
         vel_k = vp_k[:cnv, ]
@@ -505,7 +509,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         cdbcvals_c = cdbcvals_n
         # pressure was flipped for symmetry
         if verbose:
-            logging.info(f'Steady State NSE: Newton iteration: {vel_newtk}' +
+            logger.info(f'Steady State NSE: Newton iteration: {vel_newtk}' +
                          '-- norm of update: {0}'.format(norm_nwtnupd))
 
         if save_data:
@@ -721,7 +725,6 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     """
     import sadptprj_riclyap_adi.lin_alg_utils as lau
-    from sadptprj_riclyap_adi.lin_alg_utils import SpslaKrylovCounter
 
     if get_datastring is None:
         get_datastring = get_datastr_snu
@@ -840,15 +843,19 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             ccfv, ccfp = _cntrl_stffnss_rhs(cntrlldbcvals=inicdbcvals,
                                             **cntrlmatrhsdict)
             # Stokes solution as starting value
-            logging.info('computing the Stokes-Solution for initial value')
+            logger.info('computing the Stokes-Solution for initial value')
 
-            vp_stokes =\
-                lau.solve_sadpnt_smw(amat=camat, jmat=cj, jmatT=cjt,
-                                     rhsv=cfv+ccfv+fvss,
-                                     krylov=krylov, krpslvprms=krpslvprms,
-                                     krplsprms=krplsprms, rhsp=cfp+ccfp)
+            # vp_stokes =\
+            #     lau.solve_sadpnt_smw(amat=camat, jmat=cj, jmatT=cjt,
+            #                          rhsv=cfv+ccfv+fvss,
+            #                          krylov=krylov, krpslvprms=krpslvprms,
+            #                          krplsprms=krplsprms, rhsp=cfp+ccfp)
+
+            vps_rhs = np.r_[(cfv+ccfv+fvss).flatten(), (cfp+ccfp).flatten()]
+            vp_stokes, _ = schur_comp_inv(vps_rhs, B=cjt, M=camat,
+                                          infoS='Stokes')
             iniv = vp_stokes[:cnv].reshape((-1, 1))
-            logging.info('done: computing the Stokes-Solution')
+            logger.info('done: computing the Stokes-Solution')
         else:
             raise ValueError('No initial value given')
     else:
@@ -862,7 +869,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     if inip is None:
 
-        # logging.info('start factorizing `M`')
+        # logger.info('start factorizing `M`')
         # from multidim_galerkin_pod.ldfnp_ext_cholmod import \
         # SparseFactorMassmat
         # import ipdb
@@ -871,15 +878,15 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         # minv = facm.solve_M
         # from scipy.sparse.linalg import factorized
         # minv = factorized(cmmat)
-        # logging.info('done factorizing')
-        logging.info('computing the pressure for the initial value')
+        # logger.info('done factorizing')
+        logger.info('computing the pressure for the initial value')
         inip = get_pfromv(v=iniv, V=V, M=cmmat, A=cmmat, J=cj,
                           fv=cfv+ccfv+fvss, fp=cfp+ccfp,
                           decouplevp=False,  # solve_M=minv, symmetric=True,
                           stokes_flow=stokes_flow,
                           dbcinds=[dbcinds, glbcntbcinds],
                           dbcvals=[dbcvals, inicdbcvals], invinds=dbcntinvinds)
-        logging.info('DONE: computing the pressure')
+        logger.info('DONE: computing the pressure')
 
     datastrdict = dict(time=None, meshp=N, nu=nu,
                        Nts=trange.size-1, data_prfx=data_prfx,
@@ -1061,7 +1068,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 return cfv
         else:
             def rhsv(t):
-                # logging.info(f't:{t} -- fvtdval:{np.linalg.norm(fvtd(t))}')
+                # logger.info(f't:{t} -- fvtdval:{np.linalg.norm(fvtd(t))}')
                 return cfv + fvtd(t)
 
         def rhsp(t):
@@ -1072,8 +1079,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 return -custom_nonlinear_vel_function(vvec)
             # the minus sign -- because it goes to the rhs
             # cp. the definiont of `get_v_conv_conts`
-            logging.\
-                debug('The convection is replaced by a custom nonlinearity')
+            logger.debug('The convection is replaced by a custom nonlinearity')
         else:
             def nonlvfunc(vvec):
                 _, convvec, _ = \
@@ -1161,7 +1167,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             timintsc = tiu.cnab
         elif time_int_scheme == 'sbdf2':
             timintsc = tiu.sbdftwo
-        logging.info('Time integration with ' + time_int_scheme)
+        logger.info('Time integration with ' + time_int_scheme)
 
         if closed_loop:
             if dynamic_feedback:
@@ -1553,23 +1559,20 @@ def get_pfromv(v=None, V=None, M=None, A=None, J=None, fv=None, fp=None,
     Formula is only valid for constant rhs in the continuity equation
     """
 
-    import sadptprj_riclyap_adi.lin_alg_utils as lau
+    # import sadptprj_riclyap_adi.lin_alg_utils as lau
 
     if stokes_flow:
         rhs_con = 0.
     else:
         _, rhs_con, _ = get_v_conv_conts(vvec=v, V=V, invinds=invinds,
                                          dbcinds=dbcinds, dbcvals=dbcvals)
-    if decouplevp and symmetric:
-        vp = lau.solve_sadpnt_smw(jmat=J, jmatT=J.T,
-                                  decouplevp=decouplevp,
-                                  solve_A=solve_M,
-                                  symmetric=symmetric, cgtol=1e-8,
-                                  rhsv=-A*v-rhs_con+fv)
-        return -vp[J.shape[1]:, :]
-    else:
-        vp = lau.solve_sadpnt_smw(amat=M, jmat=J, jmatT=J.T,
-                                  decouplevp=decouplevp, solve_A=solve_M,
-                                  symmetric=symmetric, cgtol=1e-8,
-                                  rhsv=-A*v-rhs_con+fv)
-        return -vp[J.shape[1]:, :]
+
+    _np = J.shape[0]
+    prs_rhs = np.r_[(-A*v-rhs_con+fv).flatten(), np.zeros((_np, ))]
+    vp, _ = schur_comp_inv(prs_rhs, B=J.T, M=M, infoS='Leray')
+    # vp = lau.solve_sadpnt_smw(jmat=J, jmatT=J.T,
+    #                           decouplevp=decouplevp,
+    #                           solve_A=solve_M,
+    #                           symmetric=symmetric, cgtol=1e-8,
+    #                           rhsv=-A*v-rhs_con+fv)
+    return -vp[J.shape[1]:, :]
