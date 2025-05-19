@@ -842,69 +842,11 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             # Stokes solution as starting value
             logging.info('computing the Stokes-Solution for initial value')
 
-            minresplease = True  # for later ...
-            minresplease = False  # for later ...
-            cgplease = True
-            cgplease = False
-            if cgplease:
-                import scipy.sparse.linalg as spsla
-                _schm = spsla.cg
-                opts = dict(maxiter=2000)
-
-                _m = cj.shape[0]
-                _amat = sps.vstack([sps.hstack([camat, cjt]),
-                                   sps.hstack([cj, sps.csc_matrix((_m, _m))])],
-                                   format='csc')
-                _rhs = np.vstack([cfv+ccfv+fvss, cfp+ccfp]).flatten()
-                logging.info('Using CG')
-
-                _pcres = SpslaKrylovCounter(A=_amat, b=_rhs)
-
-                def _atav(v):
-                    return _amat.transpose() @ (_amat @ v)
-
-                _sysmat = spsla.LinearOperator(_amat.shape, _atav)
-                _rhs = _amat.transpose() @ _rhs
-
-                vp_stokes, exitcode = _schm(_sysmat, _rhs,  # x0=initval,
-                                            # M=_Ml,
-                                            rtol=1e-12,
-                                            # atol=1e-12,
-                                            callback=_pcres,
-                                            **opts)
-                import matplotlib.pyplot as plt
-                plt.plot(_pcres.callbacks)
-                # resnorms = _pcres.callbacks
-
-            elif minresplease:
-                from scipy.sparse.linalg import minres
-                _m = cj.shape[0]
-                _amat = sps.vstack([sps.hstack([camat, cjt]),
-                                   sps.hstack([cj, sps.csc_matrix((_m, _m))])],
-                                   format='csc')
-                _rhs = np.vstack([cfv+ccfv+fvss, cfp+ccfp])
-                logging.info('Using MinRES')
-                (vp_stokes, _flag) = minres(_amat, _rhs, rtol=1e-8)
-                logging.info('MinRES done')
-                if _flag > 0:
-                    logging.info('MinRes not converged to tolerance')
-                inimr = vp_stokes[:cnv].reshape((-1, 1))
-                logging.info('SPLU')
-                vp_stokes =\
-                    lau.solve_sadpnt_smw(amat=camat, jmat=cj, jmatT=cjt,
-                                         rhsv=cfv+ccfv+fvss,
-                                         krylov=krylov, krpslvprms=krpslvprms,
-                                         krplsprms=krplsprms, rhsp=cfp+ccfp)
-                logging.info('SPLU done')
-                inisplu = vp_stokes[:cnv]
-                print(np.linalg.norm(inimr - inisplu))
-                print(inisplu.shape, inimr.shape)
-            else:
-                vp_stokes =\
-                    lau.solve_sadpnt_smw(amat=camat, jmat=cj, jmatT=cjt,
-                                         rhsv=cfv+ccfv+fvss,
-                                         krylov=krylov, krpslvprms=krpslvprms,
-                                         krplsprms=krplsprms, rhsp=cfp+ccfp)
+            vp_stokes =\
+                lau.solve_sadpnt_smw(amat=camat, jmat=cj, jmatT=cjt,
+                                     rhsv=cfv+ccfv+fvss,
+                                     krylov=krylov, krpslvprms=krpslvprms,
+                                     krplsprms=krplsprms, rhsp=cfp+ccfp)
             iniv = vp_stokes[:cnv].reshape((-1, 1))
             logging.info('done: computing the Stokes-Solution')
         else:
