@@ -852,8 +852,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             #                          krplsprms=krplsprms, rhsp=cfp+ccfp)
 
             vps_rhs = np.r_[(cfv+ccfv+fvss).flatten(), (cfp+ccfp).flatten()]
-            vp_stokes, _ = schur_comp_inv(vps_rhs, B=cjt, M=camat,
-                                          infoS='Stokes')
+            vp_stokes = schur_comp_inv(vps_rhs, B=cjt, M=camat, infoS='Stokes')
             iniv = vp_stokes[:cnv].reshape((-1, 1))
             logger.info('done: computing the Stokes-Solution')
         else:
@@ -1569,10 +1568,11 @@ def get_pfromv(v=None, V=None, M=None, A=None, J=None, fv=None, fp=None,
 
     _np = J.shape[0]
     prs_rhs = np.r_[(-A*v-rhs_con+fv).flatten(), np.zeros((_np, ))]
-    vp, _ = schur_comp_inv(prs_rhs, B=J.T, M=M, infoS='Leray')
+    vp = schur_comp_inv(prs_rhs, B=J.T, M=M, infoS='Leray')
     # vp = lau.solve_sadpnt_smw(jmat=J, jmatT=J.T,
     #                           decouplevp=decouplevp,
     #                           solve_A=solve_M,
     #                           symmetric=symmetric, cgtol=1e-8,
     #                           rhsv=-A*v-rhs_con+fv)
+    vp = vp.reshape((-1, 1))
     return -vp[J.shape[1]:, :]

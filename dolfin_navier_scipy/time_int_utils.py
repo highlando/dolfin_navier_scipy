@@ -7,6 +7,7 @@ import logging
 from rich.progress import track
 
 import sadptprj_riclyap_adi.lin_alg_utils as lau
+from sadptprj_riclyap_adi.schur_sadpoint_utils import schur_comp_inv
 
 # from dolfin_navier_scipy.residual_checks import get_imex_res
 # from dolfin_navier_scipy.dolfin_to_sparrays import expand_vp_dolfunc
@@ -86,9 +87,11 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
 
     savevp(appndbcs(v_n, bcs_n), p_n, time=trange[1])
 
-    trpz_coeffmat = sps.vstack([sps.hstack([M+.5*dt*A, J.T]),
-                                sps.hstack([J, sps.csr_matrix((NP, NP))])])
-    coeffmatlu = spsla.factorized(trpz_coeffmat)
+    # trpz_coeffmat = sps.vstack([sps.hstack([M+.5*dt*A, J.T]),
+    #                             sps.hstack([J, sps.csr_matrix((NP, NP))])])
+    # coeffmatlu = spsla.factorized(trpz_coeffmat)
+
+    sinv, minv = None, None
 
     for kck, ctrange in enumerate(listofts):
         nrmvc = np.linalg.norm(v_n)
@@ -131,7 +134,12 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
             # logging.info(f't:{ctime} -- rhsval:{rhsnrm}')
             # logging.info(f't:{ctime} -- cnvval:{cnvnrm}')
 
-            vp_n = coeffmatlu(np.vstack([rhs_n, fp_n+bfp_n]).flatten())
+            # vp_n = coeffmatlu(np.vstack([rhs_n, fp_n+bfp_n]).flatten())
+            ctrpz_rhs = np.r_[rhs_n.flatten(), (fp_n+bfp_n).flatten()]
+            vp_n, sinv, minv = schur_comp_inv(ctrpz_rhs, B=J.T, M=M+0.5*dt*A,
+                                              sinv=sinv, minv=minv,
+                                              ret_invs=True,
+                                              infoS=f'ImexTrpzDt{dt:.3e}')
 
             v_n = vp_n[:NV].reshape((NV, 1))
             p_n = 1./dt*scalep*vp_n[NV:].reshape((NP, 1))
@@ -399,8 +407,13 @@ def _onestepheun(vc=None, pc=None, tc=None, tn=None,
         tfv = M@vc \
             + dt*(fv_n + tbfv_n + tdfv_n) \
             + dt*nfc_c - (tmbc_n-mbc_c)
-        tvp_n = lau.solve_sadpnt_smw(amat=M+dt*A, jmat=J, jmatT=J.T,
-                                     rhsv=tfv, rhsp=fp_n+tbfp_n)
+        # tvp_n = lau.solve_sadpnt_smw(amat=M+dt*A, jmat=J, jmatT=J.T,
+        #                              rhsv=tfv, rhsp=fp_n+tbfp_n)
+
+        imxeul_rhs = np.r_[tfv.flatten(), (fp_n+tbfp_n).flatten()]
+        tvp_n = schur_comp_inv(imxeul_rhs, B=J.T, M=M+dt*A,
+                               infoS=f'ImexEulDt{dt:.3e}')
+        tvp_n = tvp_n.reshape((-1, 1))
     elif scheme == 'IMEX-trpz':
         tfv = M*vc - .5*dt*A*vc \
             + .5*dt*(fv_c+fv_n + tbfv_n+bfv_c + tdfv_n+dfv_c) \
@@ -463,8 +476,12 @@ def _onestepheun(vc=None, pc=None, tc=None, tn=None,
     # vp_new = coeffmatlu(np.vstack([rhs_n, fp_n+bfp_n]).flatten())
     # logging.info(f'corrector: |rhs|:
     # {norm(fv_c+fv_n + bfv_n+bfv_c + dfv_n+dfv_c + nfc_c+tnfc_n)}')
-    vp_n = lau.solve_sadpnt_smw(amat=M, jmat=J, jmatT=J.T,
-                                rhsv=rhs_n, rhsp=fp_n+bfp_n)
+
+    crctn_rhs = np.r_[rhs_n.flatten(), (fp_n+tbfp_n).flatten()]
+    vp_n = schur_comp_inv(crctn_rhs, B=J.T, M=M, infoS='Leray')
+    # vp_n = lau.solve_sadpnt_smw(amat=M, jmat=J, jmatT=J.T,
+    #                             rhsv=rhs_n, rhsp=fp_n+bfp_n)
+
     v_n = vp_n[:NV].reshape((NV, 1))
     p_n = 1./dt*scalep*vp_n[NV:].reshape((NP, 1))
 
@@ -631,5 +648,5 @@ def semi_implicit_euler(iniv=None, jmat=None, mmat=None, amat=None, rhsv=None,
         except IndexError:
             logging.debug(f'ct={ct}')
             # probably the final ts not part of data trange
-            pass 
+            pass
     return ievlist
