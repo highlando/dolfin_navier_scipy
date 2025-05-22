@@ -852,7 +852,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             #                          krplsprms=krplsprms, rhsp=cfp+ccfp)
 
             vps_rhs = np.r_[(cfv+ccfv+fvss).flatten(), (cfp+ccfp).flatten()]
-            vp_stokes = schur_comp_inv(vps_rhs, B=cjt, M=camat, infoS='Stokes')
+            vp_stokes = schur_comp_inv(vps_rhs, B=cjt, M=camat,
+                                       infoS=f'Stokes_nu{nu:.3e}')
             iniv = vp_stokes[:cnv].reshape((-1, 1))
             logger.info('done: computing the Stokes-Solution')
         else:

@@ -30,7 +30,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
          getbcs=None, applybcs=None, appndbcs=None,
          savevp=None, dynamic_rhs=None, dynamic_rhs_memory={},
          # check_ff=False,
-         check_ff_maxv=None,
+         check_ff_maxv=None, nu=None,
          # implicit_dynamic_rhs=None, implicit_dynamic_rhs_memory={},
          ntimeslices=10, verbose=True):
     """
@@ -82,7 +82,7 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
                        scalep=scalep,
                        dfv_c=dfv_c, dynamic_rhs=_dynamic_rhs, drm=drm,
                        bcs_c=bcs_ini, applybcs=applybcs,
-                       appndbcs=appndbcs, getbcs=getbcs,
+                       appndbcs=appndbcs, getbcs=getbcs, nu=nu,
                        f_tdp=f_tdp, f_vdp=f_vdp, g_tdp=g_tdp)
 
     savevp(appndbcs(v_n, bcs_n), p_n, time=trange[1])
@@ -136,10 +136,10 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
 
             # vp_n = coeffmatlu(np.vstack([rhs_n, fp_n+bfp_n]).flatten())
             ctrpz_rhs = np.r_[rhs_n.flatten(), (fp_n+bfp_n).flatten()]
-            vp_n, sinv, minv = schur_comp_inv(ctrpz_rhs, B=J.T, M=M+0.5*dt*A,
-                                              sinv=sinv, minv=minv,
-                                              ret_invs=True,
-                                              infoS=f'ImexTrpzDt{dt:.3e}')
+            vp_n, sinv, minv = \
+                schur_comp_inv(ctrpz_rhs, B=J.T, M=M+0.5*dt*A,
+                               sinv=sinv, minv=minv, ret_invs=True,
+                               infoS=f'ImexTrpzDt{dt:.3e}nu{nu:.3e}')
 
             v_n = vp_n[:NV].reshape((NV, 1))
             p_n = 1./dt*scalep*vp_n[NV:].reshape((NP, 1))
@@ -372,7 +372,7 @@ def _checkuniformgrid(trange):
 
 
 def _onestepheun(vc=None, pc=None, tc=None, tn=None,
-                 M=None, A=None, J=None,
+                 M=None, A=None, J=None, nu=None,
                  scalep=1., scheme='IMEX-Euler',
                  dfv_c=None, dynamic_rhs=None, drm={},
                  # implicit_dynamic_rhs=None, mdrm={},
@@ -412,7 +412,7 @@ def _onestepheun(vc=None, pc=None, tc=None, tn=None,
 
         imxeul_rhs = np.r_[tfv.flatten(), (fp_n+tbfp_n).flatten()]
         tvp_n = schur_comp_inv(imxeul_rhs, B=J.T, M=M+dt*A,
-                               infoS=f'ImexEulDt{dt:.3e}')
+                               infoS=f'ImexEulDt{dt:.3e}nu{nu:.3e}')
         tvp_n = tvp_n.reshape((-1, 1))
     elif scheme == 'IMEX-trpz':
         tfv = M*vc - .5*dt*A*vc \
