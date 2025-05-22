@@ -1219,7 +1219,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                        dynamic_rhs=dynamic_rhs, getbcs=getbcs,
                        applybcs=applybcs, appndbcs=_appbcs, savevp=_svpplz)
 
-        v_end, p_end, ffflag = timintsc(trange=trange,
+        v_end, p_end, ffflag = timintsc(trange=trange, nu=nu,
                                         inip=inip, scalep=-1.,
                                         g_tdp=rhsp, bcs_ini=inicdbcvals,
                                         # check_ff=check_ff,
