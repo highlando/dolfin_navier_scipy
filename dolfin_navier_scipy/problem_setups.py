@@ -1280,6 +1280,7 @@ def gen_bccont_fems_3D(scheme='TH', bccontrol=True, verbose=False,
     for wpe in wallspel:
         diribcu.append(dolfin.DirichletBC(V, gzero, boundaries, wpe))
         # bcdict = diribcu[-1].get_boundary_values()
+    # ## THE WALLS with slip
 
     if not bccontrol:  # treat the control boundaries as walls
         try:
@@ -1292,7 +1293,7 @@ def gen_bccont_fems_3D(scheme='TH', bccontrol=True, verbose=False,
     # yes-slip walls
     try:
         slipwallspel = cntbcsdata['slipwalls']['physical entity']
-        slipwallsnvs = cntbcsdata['slipwalls']['inward normals']
+        slipwallsnvs = cntbcsdata['slipwalls']['inward normal']
         gscalzero = dolfin.Constant(0)
         for kk, swpe in enumerate(slipwallspel):
             cinwnrml = np.array(slipwallsnvs[kk])
