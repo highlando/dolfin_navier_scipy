@@ -411,8 +411,14 @@ def _onestepheun(vc=None, pc=None, tc=None, tn=None,
         #                              rhsv=tfv, rhsp=fp_n+tbfp_n)
 
         imxeul_rhs = np.r_[tfv.flatten(), (fp_n+tbfp_n).flatten()]
-        tvp_n = schur_comp_inv(imxeul_rhs, B=J.T, M=M+dt*A,
-                               infoS=f'ImexEulDt{dt:.3e}nu{nu:.3e}')
+        try:
+            tvp_n = schur_comp_inv(imxeul_rhs, B=J.T, M=M+dt*A,
+                                   infoS=f'ImexEulDt{dt:.3e}nu{nu:.3e}')
+        except RuntimeError:
+            logging.info('exporting the Trpz mats too')
+            _ = schur_comp_inv(imxeul_rhs, B=J.T, M=M+0.5*dt*A,
+                               infoS=f'ImexTrpzDt{dt:.3e}nu{nu:.3e}')
+            raise RuntimeError('This branch only for exporting the matrices')
         tvp_n = tvp_n.reshape((-1, 1))
     elif scheme == 'IMEX-trpz':
         tfv = M*vc - .5*dt*A*vc \
