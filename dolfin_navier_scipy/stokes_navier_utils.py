@@ -1120,8 +1120,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         elif return_dictofvelstrs:
             def _svpplz(vvec, pvec, time=None):
                 _addoutput(vvec, pvec, time=time)
-                cfvstr = data_prfx + '_prs_t{0}'.format(time)
-                cfpstr = data_prfx + '_vel_t{0}'.format(time)
+                cfvstr = data_prfx + '_vel_t{0}'.format(time)
+                cfpstr = data_prfx + '_prs_t{0}'.format(time)
                 try:
                     if dataoutpnts is not None and not time == datatrange[0]:
                         pass
