@@ -526,6 +526,11 @@ def condense_sysmatsbybcs(stms, velbcs=None, dbcinds=None, dbcvals=None,
     else:
         bcinds, bcvals = dbcinds, dbcvals
 
+    if len(bcinds) > len(np.unique(bcinds)):
+        logging.info('duplicate boundary indices -- will be removed')
+        bcinds, _unqids = np.unique(bcinds, return_index=True)
+        bcvals = (np.array(bcvals)[_unqids]).tolist()
+
     nv = stms['A'].shape[0]
 
     # indices of the innernodes
