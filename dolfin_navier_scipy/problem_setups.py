@@ -41,8 +41,6 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
     ----------
     problem : {'drivencavity', 'cylinderwake', 'gen_bccont', 'cylinder_rot'}
         problem class
-    N : int
-        mesh parameter
     nu : real, optional
         kinematic viscosity, is set to `L/Re` if `Re` is provided
     Re : real, optional
@@ -1225,7 +1223,7 @@ def gen_bccont_fems_3D(scheme='TH', bccontrol=True, verbose=False,
     femp : a dictionary with the keys:
          * `V`: FEM space of the velocity
          * `Q`: FEM space of the pressure
-         * `diribcs`: list of the (Dirichlet) boundary conditions
+         * `diribcs`: XXX - rmvd list of the (Dirichlet) boundary conditions
          * `dbcsinds`: list vortex indices with (Dirichlet) boundary conditions
          * `dbcsvals`: list of values of the (Dirichlet) boundary conditions
          * `dirip`: list of the (Dirichlet) boundary conditions \
@@ -1392,6 +1390,11 @@ def gen_bccont_fems_3D(scheme='TH', bccontrol=True, verbose=False,
         raise NotImplementedError()
     except KeyError:
         odcoo = None
+
+    if len(dbcinds) > len(np.unique(dbcinds)):
+        logging.info('duplicate boundary indices -- will be removed')
+        dbcinds, _unqids = np.unique(dbcinds, return_index=True)
+        dbcvals = (np.array(dbcvals)[_unqids]).tolist()
 
     gbcfems = dict(V=V,
                    Q=Q,

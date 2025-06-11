@@ -138,7 +138,7 @@ def ass_convmat_asmatquad(W=None, invindsw=None):
         # get the i-th basis function
         bi = dolfin.Function(V)
         bvec = np.zeros((V.dim(), ))
-        bvec[np.int(i)] = 1
+        bvec[int(i)] = 1
         bi.vector()[:] = bvec
 
         # assemble for the i-th basis function
@@ -525,11 +525,6 @@ def condense_sysmatsbybcs(stms, velbcs=None, dbcinds=None, dbcvals=None,
             bcinds.extend(list(bcdict.keys()))
     else:
         bcinds, bcvals = dbcinds, dbcvals
-
-    if len(bcinds) > len(np.unique(bcinds)):
-        logging.info('duplicate boundary indices -- will be removed')
-        bcinds, _unqids = np.unique(bcinds, return_index=True)
-        bcvals = (np.array(bcvals)[_unqids]).tolist()
 
     nv = stms['A'].shape[0]
 
