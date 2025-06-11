@@ -1398,7 +1398,7 @@ def gen_bccont_fems_3D(scheme='TH', bccontrol=True, verbose=False,
 
     gbcfems = dict(V=V,
                    Q=Q,
-                   dbcinds=dbcinds,
+                   dbcinds=dbcinds.tolist(),
                    dbcvals=dbcvals,
                    mvwbcinds=mvwbcinds,
                    mvwbcvals=mvwbcvals,

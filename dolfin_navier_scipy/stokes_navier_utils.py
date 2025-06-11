@@ -392,8 +392,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
     def _appbcs(vvec, ccntrlldbcvals):
         return dts.append_bcs_vec(vvec, vdim=V.dim(), invinds=dbcntinvinds,
-                                  bcinds=[dbcinds, glbcntbcinds],
-                                  bcvals=[dbcvals, ccntrlldbcvals])
+                                  bcinds=[*dbcinds, *glbcntbcinds],
+                                  bcvals=[*dbcvals, *ccntrlldbcvals])
 
     if vel_start_nwtn is None or only_stokes:
         cdbcvals_c = _comp_cntrl_bcvals(time=None, vel=None, p=None,
@@ -414,8 +414,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
             dou.save_npa(vp_stokes[:cnv, ], fstring=cdatstr + '__vel')
 
         prvoutdict.update(dict(vp=vp_stokes,
-                               dbcinds=[dbcinds, glbcntbcinds],
-                               dbcvals=[dbcvals, cdbcvals_c],
+                               dbcinds=[*dbcinds, *glbcntbcinds],
+                               dbcvals=[*dbcvals, *cdbcvals_c],
                                invinds=dbcntinvinds))
         dou.output_paraview(**prvoutdict)
         if only_stokes:
@@ -433,8 +433,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         p_k = np.zeros((J.shape[0], 1))
         vpsnwtn = np.vstack([vel_k, p_k])
         prvoutdict.update(dict(vp=vpsnwtn,
-                               dbcinds=[dbcinds, glbcntbcinds],
-                               dbcvals=[dbcvals, cdbcvals_c],
+                               dbcinds=[*dbcinds, *glbcntbcinds],
+                               dbcvals=[*dbcvals, *cdbcvals_c],
                                invinds=dbcntinvinds))
         dou.output_paraview(**prvoutdict)
 
@@ -456,8 +456,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         # apply the new v-bcs
         pcrdcnvmat, rhsv_conbc = dts.\
             condense_velmatsbybcs(N1, invinds=dbcntinvinds,
-                                  dbcinds=[dbcinds, glbcntbcinds],
-                                  dbcvals=[dbcvals, cdbcvals_n])
+                                  dbcinds=[*dbcinds, *glbcntbcinds],
+                                  dbcvals=[*dbcvals, *cdbcvals_n])
 
         vp_k = lau.solve_sadpnt_smw(amat=camat+pcrdcnvmat, jmat=cj, jmatT=cjt,
                                     rhsv=cfv+ccfv_n+rhsv_conbc,
@@ -466,8 +466,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         normpicupd = np.sqrt(m_innerproduct(cmmat, vel_k-vp_k[:cnv, ]))[0]
 
         if verbose:
-            logger.info('Picard iteration: {0} -- norm of update: {1}'.
-                         format(k+1, normpicupd))
+            logger.info(f'Picard iteration: {k+1} -- ||dv||: {normpicupd}')
 
         vel_k = vp_k[:cnv, ]
         vp_k[cnv:] = -vp_k[cnv:]
@@ -495,8 +494,8 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         (convc_mat, rhs_con, rhsv_conbc) = \
             get_v_conv_conts(vvec=_appbcs(vel_k, cdbcvals_c), V=V,
                              invinds=dbcntinvinds,
-                             dbcinds=[dbcinds, glbcntbcinds],
-                             dbcvals=[dbcvals, cdbcvals_n])
+                             dbcinds=[*dbcinds, *glbcntbcinds],
+                             dbcvals=[*dbcvals, *cdbcvals_n])
 
         vp_k = lau.solve_sadpnt_smw(amat=camat+convc_mat, jmat=cj, jmatT=cjt,
                                     rhsv=cfv+ccfv_n+rhs_con+rhsv_conbc,
@@ -818,7 +817,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
         pass
 
     prvoutdict = dict(V=V, Q=Q, vp=None, t=None,
-                      dbcinds=[dbcinds, glbcntbcinds],
+                      dbcinds=[*dbcinds, *glbcntbcinds],
                       dbcvals=[dbcvals],
                       invinds=dbcntinvinds, ppin=ppin,
                       tfilter=plttrange, writeoutput=paraviewoutput)
@@ -884,8 +883,9 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                           fv=cfv+ccfv+fvss, fp=cfp+ccfp,
                           decouplevp=False,  # solve_M=minv, symmetric=True,
                           stokes_flow=stokes_flow,
-                          dbcinds=[dbcinds, glbcntbcinds],
-                          dbcvals=[dbcvals, inicdbcvals], invinds=dbcntinvinds)
+                          dbcinds=[*dbcinds, *glbcntbcinds],
+                          dbcvals=[*dbcvals, *inicdbcvals],
+                          invinds=dbcntinvinds)
         logger.info('DONE: computing the pressure')
 
     datastrdict = dict(time=None, meshp=N, nu=nu,
@@ -951,8 +951,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
 
     def _appbcs(vvec, ccntrlldbcvals):
         return dts.append_bcs_vec(vvec, vdim=vdim, invinds=dbcntinvinds,
-                                  bcinds=[dbcinds, glbcntbcinds],
-                                  bcvals=[dbcvals, ccntrlldbcvals])
+                                  bcinds=[*dbcinds, *glbcntbcinds],
+                                  bcvals=[*dbcvals, *ccntrlldbcvals])
 
     if treat_nonl_explicit and no_data_caching:
         def _savevp(vvec, pvec, ccntrlldbcvals, cdatstr):
@@ -1041,7 +1041,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
     pfile = dolfin.File(pfileprfx+'__timestep.pvd')
 
     prvoutdict.update(dict(vp=None, vc=iniv, pc=inip, t=trange[0],
-                           dbcvals=[dbcvals, inicdbcvals],
+                           dbcvals=[*dbcvals, *inicdbcvals],
                            pfile=pfile, vfile=vfile))
 
     dou.output_paraview(**prvoutdict)
@@ -1299,8 +1299,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 convc_mat_c, rhs_con_c, rhsv_conbc_c = \
                     get_v_conv_conts(vvec=_appbcs(v_old, cdbcvals_c), V=V,
                                      invinds=dbcntinvinds,
-                                     dbcinds=[dbcinds, glbcntbcinds],
-                                     dbcvals=[dbcvals, cdbcvals_c],
+                                     dbcinds=[*dbcinds, *glbcntbcinds],
+                                     dbcvals=[*dbcvals, *cdbcvals_c],
                                      Picard=pcrd_anyone)
 
             # cury = None if cv_mat is None else cv_mat.dot(v_old)
@@ -1391,8 +1391,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 convc_mat_n, rhs_con_n, rhsv_conbc_n = \
                     get_v_conv_conts(vvec=prev_v, V=V,
                                      invinds=dbcntinvinds,
-                                     dbcinds=[dbcinds, glbcntbcinds],
-                                     dbcvals=[dbcvals, cdbcvals_n],
+                                     dbcinds=[*dbcinds, *glbcntbcinds],
+                                     dbcvals=[*dbcvals, *cdbcvals_n],
                                      Picard=pcrd_anyone)
 
                 # cury = None if cv_mat is None else cv_mat.dot(prev_v)
@@ -1477,8 +1477,8 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 convc_mat_c, rhs_con_c, rhsv_conbc_c = \
                     get_v_conv_conts(vvec=_appbcs(v_old, cdbcvals_n), V=V,
                                      invinds=dbcntinvinds,
-                                     dbcinds=[dbcinds, glbcntbcinds],
-                                     dbcvals=[dbcvals, cdbcvals_n],
+                                     dbcinds=[*dbcinds, *glbcntbcinds],
+                                     dbcvals=[*dbcvals, *cdbcvals_n],
                                      Picard=pcrd_anyone)
 
                 _rhsconvc = 0. if pcrd_anyone else rhs_con_c
@@ -1510,7 +1510,7 @@ def solve_nse(A=None, M=None, J=None, JT=None,
                 if newtk == vel_nwtn_stps or norm_nwtnupd < loc_nwtn_tol:
                     # paraviewoutput in the (probably) last newton sweep
                     prvoutdict.update(dict(vc=v_old, pc=p_old, t=t,
-                                           dbcvals=[dbcvals, cdbcvals_c]))
+                                           dbcvals=[dbcvals]+[cdbcvals_c]))
                     dou.output_paraview(**prvoutdict)
 
             if not no_data_caching:
