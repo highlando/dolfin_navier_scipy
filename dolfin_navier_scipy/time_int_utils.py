@@ -149,6 +149,9 @@ def cnab(trange=None, inivel=None, inip=None, bcs_ini=[],
             # mplct_dfv_c, mddrm = mplctdnmc_rhs(ctime, vc=v_new, memory=mddrm)
 
             savevp(appndbcs(v_n, bcs_n), p_n, time=ctime)
+        if verbose:
+            cdve = np.linalg.norm(J@v_n - (fp_n+bfp_n))
+            logging.info(f'divergence error |Jv - g|:{cdve:.2e}')
 
     return v_n, p_n, ffflag
 
