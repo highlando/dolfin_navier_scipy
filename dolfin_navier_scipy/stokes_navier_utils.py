@@ -12,6 +12,7 @@ import dolfin_navier_scipy.data_output_utils as dou
 import dolfin_navier_scipy.time_int_utils as tiu
 
 from sadptprj_riclyap_adi.schur_sadpoint_utils import schur_comp_inv
+import sadptprj_riclyap_adi.lin_alg_utils as lau
 
 __all__ = ['get_datastr_snu',
            'get_v_conv_conts',
@@ -20,6 +21,10 @@ __all__ = ['get_datastr_snu',
            'get_pfromv']
 
 logger = logging.getLogger(__name__)
+
+use_Schur_inv = False
+# if the saddle points are to be solved with the Schur-Complement
+# currently the only viable way for the 3D simulations
 
 
 def get_datastr_snu(time=None, meshp=None, nu=None, Nts=None, data_prfx='',
@@ -467,7 +472,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
 
         if verbose:
             logger.info('Picard iteration: {0} -- norm of update: {1}'.
-                         format(k+1, normpicupd))
+                        format(k+1, normpicupd))
 
         vel_k = vp_k[:cnv, ]
         vp_k[cnv:] = -vp_k[cnv:]
@@ -510,7 +515,7 @@ def solve_steadystate_nse(A=None, J=None, JT=None, M=None,
         # pressure was flipped for symmetry
         if verbose:
             logger.info(f'Steady State NSE: Newton iteration: {vel_newtk}' +
-                         '-- norm of update: {0}'.format(norm_nwtnupd))
+                        '-- norm of update: {0}'.format(norm_nwtnupd))
 
         if save_data:
             dou.save_npa(vel_k, fstring=cdatstr + '__vel')
@@ -845,15 +850,17 @@ def solve_nse(A=None, M=None, J=None, JT=None,
             # Stokes solution as starting value
             logger.info('computing the Stokes-Solution for initial value')
 
-            # vp_stokes =\
-            #     lau.solve_sadpnt_smw(amat=camat, jmat=cj, jmatT=cjt,
-            #                          rhsv=cfv+ccfv+fvss,
-            #                          krylov=krylov, krpslvprms=krpslvprms,
-            #                          krplsprms=krplsprms, rhsp=cfp+ccfp)
-
-            vps_rhs = np.r_[(cfv+ccfv+fvss).flatten(), (cfp+ccfp).flatten()]
-            vp_stokes = schur_comp_inv(vps_rhs, B=cjt, M=camat,
-                                       infoS=f'Stokes_nu{nu:.3e}')
+            if not use_Schur_inv:
+                vp_stokes =\
+                    lau.solve_sadpnt_smw(amat=camat, jmat=cj, jmatT=cjt,
+                                         rhsv=cfv+ccfv+fvss,
+                                         krylov=krylov, krpslvprms=krpslvprms,
+                                         krplsprms=krplsprms, rhsp=cfp+ccfp)
+            else:
+                vps_rhs = np.r_[(cfv+ccfv+fvss).flatten(),
+                                (cfp+ccfp).flatten()]
+                vp_stokes = schur_comp_inv(vps_rhs, B=cjt, M=camat,
+                                           infoS=f'Stokes_nu{nu:.3e}')
             iniv = vp_stokes[:cnv].reshape((-1, 1))
             logger.info('done: computing the Stokes-Solution')
         else:
@@ -1567,13 +1574,15 @@ def get_pfromv(v=None, V=None, M=None, A=None, J=None, fv=None, fp=None,
         _, rhs_con, _ = get_v_conv_conts(vvec=v, V=V, invinds=invinds,
                                          dbcinds=dbcinds, dbcvals=dbcvals)
 
-    _np = J.shape[0]
-    prs_rhs = np.r_[(-A*v-rhs_con+fv).flatten(), np.zeros((_np, ))]
-    vp = schur_comp_inv(prs_rhs, B=J.T, M=M, infoS='Leray')
-    # vp = lau.solve_sadpnt_smw(jmat=J, jmatT=J.T,
-    #                           decouplevp=decouplevp,
-    #                           solve_A=solve_M,
-    #                           symmetric=symmetric, cgtol=1e-8,
-    #                           rhsv=-A*v-rhs_con+fv)
+    if use_Schur_inv:
+        _np = J.shape[0]
+        prs_rhs = np.r_[(-A*v-rhs_con+fv).flatten(), np.zeros((_np, ))]
+        vp = schur_comp_inv(prs_rhs, B=J.T, M=M, infoS='Leray')
+    else:
+        vp = lau.solve_sadpnt_smw(amat=M, jmat=J, jmatT=J.T,
+                                  decouplevp=decouplevp,
+                                  solve_A=solve_M,
+                                  symmetric=symmetric, cgtol=1e-8,
+                                  rhsv=-A*v-rhs_con+fv)
     vp = vp.reshape((-1, 1))
     return -vp[J.shape[1]:, :]
