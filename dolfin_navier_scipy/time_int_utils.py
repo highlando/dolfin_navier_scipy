@@ -593,7 +593,9 @@ def nse_include_lnrcntrllr(M=None, A=None, J=None, B=None, C=None, iniv=None,
 
 
 def semi_implicit_euler(iniv=None, jmat=None, mmat=None, amat=None, rhsv=None,
-                        trange=None, data_trange=None, fp=None):
+                        trange=None, data_trange=None, fp=None, rhsp=None,
+                        return_outputs=True, cpmat=None, cvmat=None,
+                        ):
     ''' integrate a NSE like system with the semi-implicit Euler method
 
     Mv' + Av + JTp = rhs(t, v)
@@ -637,28 +639,43 @@ def semi_implicit_euler(iniv=None, jmat=None, mmat=None, amat=None, rhsv=None,
     def d_impeul_increment(ct, vvec):
         # logging.info(f'IE-int ... |vc|={np.linalg.norm(vvec)}')
         iedfrhs = rhsv(ct, vvec)
+        if rhsp is not None:
+            _fprhs = rhsp(ct, vvec)
+        else:
+            _fprhs = 0*fpz
         # logging.info(f'IE-int ... |rhs|={np.linalg.norm(iedfrhs)}')
         dcrhs = (mmat@vvec).reshape((-1, 1)) + dt*iedfrhs
-        dslvdrhs = imesdpt_fctrzd(np.vstack([dcrhs, fpz]))
+        dslvdrhs = imesdpt_fctrzd(np.vstack([dcrhs, fpz+_fprhs]))
         # logging.info(f'IE-int ... |v+|={np.linalg.norm(dslvdrhs[:NV])}')
-        return dslvdrhs[:NV]
+        if return_outputs:
+            return dslvdrhs[:NV], dslvdrhs[NV:]
+        else:
+            return dslvdrhs[:NV], None
 
     ievlist = [iniv]
+    if return_outputs:
+        cvlist, cplist = [cvmat@iniv], [None]
     cvn = iniv
     logging.info(f'Impl. Euler integration with {Nts} time steps')
     for ct in track(trange[1:], description='semi-IE ongoing'):
         # logging.info(f'IE-int ... time={ct}:')
         cvp = cvn
         # ievlist.append(cv + impeul_increment(cv))
-        cvn = d_impeul_increment(ct, cvp)
+        cvn, cpn = d_impeul_increment(ct, cvp)
         try:
             if ct == ie_dtpt_trng[0]:
                 ievlist.append(cvn)
                 ie_dtpt_trng.pop(0)
+                if return_outputs:
+                    cvlist.append((cvmat@cvn).flatten())
+                    cplist.append((cpmat@cpn).flatten())
             else:
                 pass  # only record at data points
         except IndexError:
             logging.debug(f'ct={ct}')
             # probably the final ts not part of data trange
             pass
-    return ievlist
+    if return_outputs:
+        return cvlist, cplist
+    else:
+        return ievlist

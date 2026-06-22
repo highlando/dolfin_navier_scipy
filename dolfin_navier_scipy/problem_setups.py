@@ -33,7 +33,7 @@ __all__ = ['get_sysmats',
 
 def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
                 Re=None, nu=None, charvel=1., gradvsymmtrc=True,
-                bccontrol=False, mergerhs=False,
+                bccontrol=False, mergerhs=False, return_fullmats=False,
                 onlymesh=False, meshparams={}):
     """ retrieve the system matrices for stokes flow
 
@@ -192,6 +192,9 @@ def get_sysmats(problem='gen_bccont', scheme=None, ppin=None,
             dts.condense_sysmatsbybcs(stokesmats, dbcinds=femp['dbcinds'],
                                       dbcvals=femp['dbcvals'])
     stokesmatsc.update({'Jfull': stokesmats['J']})
+    if return_fullmats:
+        stokesmatsc.update({'Afull': stokesmats['A']})
+        stokesmatsc.update({'Mfull': stokesmats['M']})
 
     # pressure freedom and dirichlet reduced rhs
     rhsd_vfrc = dict(fp=rhsd_vf['fp'], fv=rhsd_vf['fv'][invinds, ])
