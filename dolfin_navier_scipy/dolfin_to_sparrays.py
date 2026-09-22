@@ -138,7 +138,7 @@ def ass_convmat_asmatquad(W=None, invindsw=None):
         # get the i-th basis function
         bi = dolfin.Function(V)
         bvec = np.zeros((V.dim(), ))
-        bvec[np.int(i)] = 1
+        bvec[np.int32(i)] = 1
         bi.vector()[:] = bvec
 
         # assemble for the i-th basis function
@@ -231,7 +231,7 @@ def get_stokessysmats(V, Q, nu=None, bccontrol=False, gradvsymmtrc=True,
 
     if nu is None:
         nu = 1
-        print('No viscosity provided -- we set `nu=1`')
+        logging.info(f'No viscosity provided -- we set `nu={nu}`')
 
     if gradvsymmtrc:
         def epsilon(u):
@@ -247,9 +247,9 @@ def get_stokessysmats(V, Q, nu=None, bccontrol=False, gradvsymmtrc=True,
         nvec = dolfin.FacetNormal(V.mesh())
         aa = aa - (nu*inner(grad(u).T*nvec, v)*outflowds)
     elif outflowds is None and gradvsymmtrc:
-        print('Note: The symmetric gradient is not corrected in the outflow')
+        logging.info('Note: The symmetric gradient is not corrected in the outflow')
     else:
-        print('we use the nonsymmetric velocity gradient')
+        logging.info('we use the nonsymmetric velocity gradient')
 
     grada = div(v) * p * dx
     diva = q * div(u) * dx
