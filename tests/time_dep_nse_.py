@@ -64,6 +64,7 @@ if __name__ == '__main__':
     # schemel = ['CR', 'TH']
     # scheme = schemel[scme]
     # testit(problem='cylinderwake', N=2, Re=40, Nts=25, tE=.1)
+    symg = True
     symg = False
     testit(problem='cylinderwake', N=2, Re=30, Nts=int(2**10), tE=2.,
            symmetricgrad=symg, ParaviewOutput=True)

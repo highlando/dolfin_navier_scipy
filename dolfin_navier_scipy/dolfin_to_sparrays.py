@@ -3,7 +3,7 @@ import numpy as np
 import scipy.sparse as sps
 import logging
 
-from dolfin import dx, grad, div, inner
+from dolfin import dx, nabla_grad, div, inner, dot
 
 dolfin.parameters['linear_algebra_backend'] = 'Eigen'
 
@@ -235,17 +235,17 @@ def get_stokessysmats(V, Q, nu=None, bccontrol=False, gradvsymmtrc=True,
 
     if gradvsymmtrc:
         def epsilon(u):
-            return 0.5*(grad(u) + grad(u).T)
+            return 0.5*(nabla_grad(u) + nabla_grad(u).T)
     else:
         def epsilon(u):
-            return grad(u)
+            return nabla_grad(u)
 
     ma = inner(u, v) * dx
     mp = inner(p, q) * dx
-    aa = nu * inner(2*epsilon(u), grad(v)) * dx
+    aa = nu * inner(2*epsilon(u), epsilon(v)) * dx
     if outflowds is not None and gradvsymmtrc:
         nvec = dolfin.FacetNormal(V.mesh())
-        aa = aa - (nu*inner(grad(u).T*nvec, v)*outflowds)
+        aa = aa - (nu*inner(dot(nabla_grad(u), nvec), v)*outflowds)
     elif outflowds is None and gradvsymmtrc:
         logging.info('Note: The symmetric gradient is not corrected in the outflow')
     else:
@@ -355,9 +355,13 @@ def get_convmats(u0_dolfun=None, u0_vec=None, V=None, invinds=None,
     v = dolfin.TestFunction(V)
 
     # Assemble system
-    n1 = inner(grad(u) * u0, v) * dx
-    n2 = inner(grad(u0) * u, v) * dx
-    f3 = inner(grad(u0) * u0, v) * dx
+    # n1 = inner(grad(u) * u0, v) * dx
+    # n2 = inner(grad(u0) * u, v) * dx
+    n1 = inner(dot(u0, nabla_grad(u)),  v) * dx
+    n2 = inner(dot(u,  nabla_grad(u0)), v) * dx
+    # f3 = inner(grad(u0) * u0, v) * dx
+    f3 = inner(dot(u0, nabla_grad(u0)), v) * dx
+
 
     n1 = dolfin.assemble(n1)
     n2 = dolfin.assemble(n2)
