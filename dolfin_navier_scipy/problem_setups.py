@@ -1131,7 +1131,7 @@ class LiftDragSurfForce():
             self.outflowds = outflowds
         else:
             def epsilon(u):
-                return dolfin.grad(u)
+                return dolfin.nabla_grad(u)
         self.epsilon = epsilon
 
     def evaliftdragforce(self, u=None, p=None):

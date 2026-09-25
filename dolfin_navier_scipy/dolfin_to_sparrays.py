@@ -464,7 +464,8 @@ def get_convvec(u0_dolfun=None, V=None, u0_vec=None, femp=None,
             utwo = utwo_dolfun
 
     v = dolfin.TestFunction(V)
-    ConvForm = inner(grad(uone) * utwo, v) * dx
+    # ConvForm = inner(grad(uone) * utwo, v) * dx
+    ConvForm = inner(dot(utwo, nabla_grad(uone)),  v) * dx
 
     ConvForm = dolfin.assemble(ConvForm)
     if invinds is not None:

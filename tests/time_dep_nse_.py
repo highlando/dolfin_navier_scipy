@@ -53,7 +53,7 @@ def testit(problem='drivencavity', N=None, nu=None, Re=None, Nts=1e3,
                    vfileprfx=proutdir+f'vel{symgstr}_{scheme}_',
                    pfileprfx=proutdir+f'p{symgstr}_{scheme}_')
 
-    soldict.update(krylovdict)  # if we wanna use an iterative solver
+    soldict.update(krylovdict)  # if we want to use an iterative solver
 
     snu.solve_nse(**soldict)
     # print krylovdict['krpslvprms']['convstatsl']
@@ -64,8 +64,8 @@ if __name__ == '__main__':
     # schemel = ['CR', 'TH']
     # scheme = schemel[scme]
     # testit(problem='cylinderwake', N=2, Re=40, Nts=25, tE=.1)
-    symg = True
     symg = False
+    symg = True
     testit(problem='cylinderwake', N=2, Re=30, Nts=int(2**10), tE=2.,
            symmetricgrad=symg, ParaviewOutput=True)
     # testit(N=40, Re=1e3, Nts=.5e2, tE=.5, ParaviewOutput=True, scheme=scheme)
